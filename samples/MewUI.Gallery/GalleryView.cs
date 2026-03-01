@@ -63,7 +63,8 @@ partial class GalleryView : ContentControl
                 Section("GridView", GridViewPage()),
                 Section("Panels", PanelsPage()),
                 Section("Layout", LayoutPage()),
-                Section("Media", MediaPage())
+                Section("Media", MediaPage()),
+                Section("Shapes", ShapesPage())
             );
     }
 }
