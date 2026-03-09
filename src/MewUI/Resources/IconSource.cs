@@ -103,20 +103,26 @@ public sealed class IconSource
                 continue;
             }
 
-            if (!LooksLikePng(icoData, off, len))
+            byte[]? blob;
+            if (LooksLikePng(icoData, off, len))
             {
-                continue;
+                blob = new byte[len];
+                Buffer.BlockCopy(icoData, off, blob, 0, len);
+            }
+            else
+            {
+                blob = ConvertDibToBmp(icoData, off, len);
             }
 
-            var blob = new byte[len];
-            Buffer.BlockCopy(icoData, off, blob, 0, len);
-
-            result.Add(sizePx: Math.Max(w, h), source: ImageSource.FromBytes(blob));
+            if (blob != null)
+            {
+                result.Add(sizePx: Math.Max(w, h), source: ImageSource.FromBytes(blob));
+            }
         }
 
         if (result._entries.Count == 0)
         {
-            throw new NotSupportedException("ICO did not contain any embedded PNG images.");
+            throw new NotSupportedException("ICO did not contain any usable image entries.");
         }
 
         return result;
@@ -176,6 +182,159 @@ public sealed class IconSource
         }
 
         return best.Source;
+    }
+
+    /// <summary>
+    /// Converts a DIB (BITMAPINFOHEADER + pixel data + AND mask) from an ICO entry
+    /// into a standalone 32-bit BGRA BMP with AND mask applied as alpha.
+    /// </summary>
+    private static byte[]? ConvertDibToBmp(byte[] icoData, int off, int len)
+    {
+        if (len < 40)
+        {
+            return null;
+        }
+
+        int biSize = (int)ReadU32(icoData, off);
+        if (biSize < 40 || biSize > len)
+        {
+            return null;
+        }
+
+        int biWidth = (int)ReadU32(icoData, off + 4);
+        int biHeight = (int)ReadU32(icoData, off + 8);
+        int actualHeight = biHeight / 2;
+        ushort biBitCount = ReadU16(icoData, off + 14);
+
+        if (biWidth <= 0 || actualHeight <= 0)
+        {
+            return null;
+        }
+
+        // Color table
+        int colorTableEntries = 0;
+        if (biBitCount <= 8)
+        {
+            uint biClrUsed = ReadU32(icoData, off + 32);
+            colorTableEntries = biClrUsed > 0 ? (int)biClrUsed : (1 << biBitCount);
+        }
+
+        int colorTableSize = colorTableEntries * 4;
+        int paletteOff = off + biSize;
+
+        // Source pixel data
+        int srcStride = ((biWidth * biBitCount + 31) / 32) * 4;
+        int pixelOff = off + biSize + colorTableSize;
+        int pixelDataSize = srcStride * actualHeight;
+
+        // AND mask (1-bit, each row padded to 4 bytes)
+        int andStride = ((biWidth + 31) / 32) * 4;
+        int andOff = pixelOff + pixelDataSize;
+
+        // Decode to 32-bit BGRA pixels (bottom-up, same as source)
+        int dstStride = biWidth * 4;
+        var pixels = new byte[dstStride * actualHeight];
+
+        for (int y = 0; y < actualHeight; y++)
+        {
+            int srcRowOff = pixelOff + y * srcStride;
+            int dstRowOff = y * dstStride;
+
+            for (int x = 0; x < biWidth; x++)
+            {
+                int d = dstRowOff + x * 4;
+                byte b, g, r, a = 0xFF;
+
+                switch (biBitCount)
+                {
+                    case 1:
+                    {
+                        int idx = (icoData[srcRowOff + (x >> 3)] >> (7 - (x & 7))) & 1;
+                        int p = paletteOff + idx * 4;
+                        b = icoData[p]; g = icoData[p + 1]; r = icoData[p + 2];
+                        break;
+                    }
+                    case 4:
+                    {
+                        int idx = (x & 1) == 0
+                            ? (icoData[srcRowOff + (x >> 1)] >> 4) & 0xF
+                            : icoData[srcRowOff + (x >> 1)] & 0xF;
+                        int p = paletteOff + idx * 4;
+                        b = icoData[p]; g = icoData[p + 1]; r = icoData[p + 2];
+                        break;
+                    }
+                    case 8:
+                    {
+                        int idx = icoData[srcRowOff + x];
+                        int p = paletteOff + idx * 4;
+                        b = icoData[p]; g = icoData[p + 1]; r = icoData[p + 2];
+                        break;
+                    }
+                    case 24:
+                    {
+                        int s = srcRowOff + x * 3;
+                        b = icoData[s]; g = icoData[s + 1]; r = icoData[s + 2];
+                        break;
+                    }
+                    case 32:
+                    {
+                        int s = srcRowOff + x * 4;
+                        b = icoData[s]; g = icoData[s + 1]; r = icoData[s + 2]; a = icoData[s + 3];
+                        break;
+                    }
+                    default:
+                        return null;
+                }
+
+                // Apply AND mask: bit=1 means transparent
+                if (andOff + (y * andStride) + (x >> 3) < off + len)
+                {
+                    int andBit = (icoData[andOff + y * andStride + (x >> 3)] >> (7 - (x & 7))) & 1;
+                    if (andBit == 1)
+                    {
+                        a = 0;
+                    }
+                }
+
+                pixels[d + 0] = b;
+                pixels[d + 1] = g;
+                pixels[d + 2] = r;
+                pixels[d + 3] = a;
+            }
+        }
+
+        // Build 32-bit BMP file
+        int bmpHeaderSize = 14 + 40; // BITMAPFILEHEADER + BITMAPINFOHEADER (no palette)
+        int bmpPixelSize = dstStride * actualHeight;
+        int bmpFileSize = bmpHeaderSize + bmpPixelSize;
+        var bmp = new byte[bmpFileSize];
+
+        // BITMAPFILEHEADER
+        bmp[0] = (byte)'B';
+        bmp[1] = (byte)'M';
+        WriteU32(bmp, 2, (uint)bmpFileSize);
+        WriteU32(bmp, 10, (uint)bmpHeaderSize);
+
+        // BITMAPINFOHEADER
+        WriteU32(bmp, 14, 40);
+        WriteU32(bmp, 18, (uint)biWidth);
+        WriteU32(bmp, 22, (uint)actualHeight); // bottom-up
+        bmp[26] = 1; bmp[27] = 0; // planes = 1
+        bmp[28] = 32; bmp[29] = 0; // biBitCount = 32
+        // compression = 0, rest = 0
+
+        // Copy pixel data
+        Buffer.BlockCopy(pixels, 0, bmp, bmpHeaderSize, bmpPixelSize);
+
+        return bmp;
+    }
+
+    private static void WriteU32(byte[] data, int offset, uint value)
+    {
+        data[offset] = (byte)value;
+        data[offset + 1] = (byte)(value >> 8);
+        data[offset + 2] = (byte)(value >> 16);
+        data[offset + 3] = (byte)(value >> 24);
     }
 
     private static ushort ReadU16(byte[] data, int offset) =>
