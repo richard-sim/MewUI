@@ -134,15 +134,8 @@ internal sealed class PopupManager
     {
         for (int i = 0; i < _popups.Count; i++)
         {
-            var entry = _popups[i];
-            entry.Chrome?.ClearDpiCacheDeep();
-
-            if (entry.Element is Control c)
-            {
-                c.NotifyDpiChanged(oldDpi, newDpi);
-            }
-
-            entry.Element.ClearDpiCacheDeep();
+            var root = (UIElement?)_popups[i].Chrome ?? _popups[i].Element;
+            ApplyPopupDpiChange(root, oldDpi, newDpi);
         }
     }
 
@@ -540,11 +533,14 @@ internal sealed class PopupManager
             if (e is Control c)
             {
                 c.ResolveAndApplyStyle();
+                c.InvalidateFontCache(FontFamilyProperty);
             }
 
             e.InvalidateMeasure();
         });
     }
+
+    private static readonly MewProperty FontFamilyProperty = Control.FontFamilyProperty;
 
     private static void ApplyPopupThemeChange(UIElement popup, Theme oldTheme, Theme newTheme)
     {

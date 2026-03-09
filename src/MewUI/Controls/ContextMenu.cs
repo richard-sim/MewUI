@@ -299,11 +299,11 @@ public sealed class ContextMenu : Control, IPopupOwner
             }
         }
 
-        double maxWidth = _maxTextWidth + ItemPadding.HorizontalThickness;
+        double maxWidth = Math.Ceiling(_maxTextWidth) + ItemPadding.HorizontalThickness;
 
         if (_hasAnyShortcut)
         {
-            maxWidth += ShortcutColumnGap + _maxShortcutWidth;
+            maxWidth += ShortcutColumnGap + Math.Ceiling(_maxShortcutWidth);
         }
 
         if (hasAnySubMenu)
@@ -544,6 +544,9 @@ public sealed class ContextMenu : Control, IPopupOwner
             MaxMenuHeight = MaxMenuHeight,
             Foreground = Foreground,
             ItemPadding = ItemPadding,
+            FontFamily = FontFamily,
+            FontSize = FontSize,
+            FontWeight = FontWeight,
         };
         if (!double.IsNaN(subMenu.ItemHeight) && subMenu.ItemHeight > 0)
         {
