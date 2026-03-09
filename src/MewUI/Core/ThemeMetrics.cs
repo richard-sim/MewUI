@@ -5,6 +5,8 @@ namespace Aprillz.MewUI;
 /// </summary>
 public sealed record class ThemeMetrics
 {
+    internal static string DefaultFontFamily = "Segoe UI";
+
     /// <summary>
     /// Gets the default theme metrics.
     /// </summary>
@@ -14,7 +16,7 @@ public sealed record class ThemeMetrics
         ControlCornerRadius = 4,
         ControlBorderThickness = 1,
         ItemPadding = new Thickness(8, 2, 8, 2),
-        FontFamily = "Segoe UI",
+        FontFamily = DefaultFontFamily,
         FontSize = 12,
         FontWeight = FontWeight.Normal,
         ScrollBarThickness = 4,

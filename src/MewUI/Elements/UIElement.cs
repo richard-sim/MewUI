@@ -7,73 +7,202 @@ namespace Aprillz.MewUI.Controls;
 /// </summary>
 public abstract partial class UIElement : Element
 {
-    private List<IDisposable>? _bindings;
-    private Dictionary<int, IDisposable>? _bindingSlots;
+
     private bool _suggestedIsEnabled = true;
     private bool _suggestedIsEnabledInitialized;
+
+    /// <summary>
+    /// Controls visibility. When false, the element is not rendered and does not participate in layout.
+    /// </summary>
+    public static readonly MewProperty<bool> IsVisibleProperty =
+        MewProperty<bool>.Register<UIElement>(nameof(IsVisible), true,
+            MewPropertyOptions.AffectsRender | MewPropertyOptions.AffectsLayout);
+
+    /// <summary>
+    /// Controls whether the element is enabled for user interaction.
+    /// </summary>
+    public static readonly MewProperty<bool> IsEnabledProperty =
+        MewProperty<bool>.Register<UIElement>(nameof(IsEnabled), true,
+            MewPropertyOptions.AffectsRender);
+
+    /// <summary>
+    /// Whether the element has keyboard focus.
+    /// </summary>
+    public static readonly MewProperty<bool> IsFocusedProperty =
+        MewProperty<bool>.Register<UIElement>(nameof(IsFocused), false,
+            MewPropertyOptions.AffectsRender);
+
+    /// <summary>
+    /// Whether this element or any of its descendants has keyboard focus.
+    /// </summary>
+    public static readonly MewProperty<bool> IsFocusWithinProperty =
+        MewProperty<bool>.Register<UIElement>(nameof(IsFocusWithin), false,
+            MewPropertyOptions.AffectsRender);
+
+    /// <summary>
+    /// Whether the mouse is over this element.
+    /// </summary>
+    public static readonly MewProperty<bool> IsMouseOverProperty =
+        MewProperty<bool>.Register<UIElement>(nameof(IsMouseOver), false,
+            MewPropertyOptions.None);
+
+    /// <summary>
+    /// Whether this element has mouse capture.
+    /// </summary>
+    public static readonly MewProperty<bool> IsMouseCapturedProperty =
+        MewProperty<bool>.Register<UIElement>(nameof(IsMouseCaptured), false,
+            MewPropertyOptions.None);
+
+    /// <summary>
+    /// Controls whether the element participates in hit testing.
+    /// </summary>
+    public static readonly MewProperty<bool> IsHitTestVisibleProperty =
+        MewProperty<bool>.Register<UIElement>(nameof(IsHitTestVisible), true,
+            MewPropertyOptions.None);
+
+    /// <summary>
+    /// Called when a MewProperty value changes. Handles layout/render invalidation
+    /// and property-specific side effects.
+    /// </summary>
+    protected override void OnMewPropertyChanged(MewProperty property)
+    {
+        if (property.AffectsLayout)
+            InvalidateMeasure();
+        else if (property.AffectsRender)
+            InvalidateVisual();
+
+        if (property.Inherits)
+            PropagateInheritedPropertyChange(property);
+
+        if (property == IsVisibleProperty)
+        {
+            OnVisibilityChanged();
+        }
+        else if (property == IsEnabledProperty)
+        {
+            OnEnabledChanged();
+            NotifyDescendantEnabledSuggestionChanged();
+        }
+        else if (property == IsFocusedProperty)
+        {
+            if (IsFocused)
+            {
+                OnGotFocus();
+                GotFocus?.Invoke();
+            }
+            else
+            {
+                OnLostFocus();
+                LostFocus?.Invoke();
+            }
+        }
+        else if (property == IsMouseOverProperty)
+        {
+            if (IsMouseOver)
+            {
+                OnMouseEnter();
+                MouseEnter?.Invoke();
+            }
+            else
+            {
+                OnMouseLeave();
+                MouseLeave?.Invoke();
+            }
+
+            if (InvalidateOnMouseOverChanged)
+                InvalidateVisual();
+        }
+    }
+
+    private void PropagateInheritedPropertyChange(MewProperty property)
+    {
+        if (this is not IVisualTreeHost host) return;
+
+        host.VisitChildren(child =>
+        {
+            PropagateToDescendant(child, property);
+            return true;
+        });
+    }
+
+    private static void PropagateToDescendant(Element child, MewProperty property)
+    {
+        // Stop propagation if child has its own value (local or style target)
+        if (child is UIElement u && u.HasPropertyStore && u.PropertyStore.HasOwnValue(property.Id))
+            return;
+
+        // Invalidate font cache on controls for font property changes
+        if (child is Control control)
+            control.InvalidateFontCache(property);
+
+        if (child is UIElement uiChild)
+        {
+            if (property.AffectsLayout)
+                uiChild.InvalidateMeasure();
+            else if (property.AffectsRender)
+                uiChild.InvalidateVisual();
+        }
+
+        // Continue to grandchildren
+        if (child is IVisualTreeHost childHost)
+        {
+            childHost.VisitChildren(grandchild =>
+            {
+                PropagateToDescendant(grandchild, property);
+                return true;
+            });
+        }
+    }
 
     /// <summary>
     /// Gets or sets whether the element is visible.
     /// </summary>
     public bool IsVisible
     {
-        get;
-        set
-        {
-            if (field != value)
-            {
-                field = value;
-                InvalidateMeasure();
-                OnVisibilityChanged();
-            }
-        }
-    } = true;
+        get => GetValue(IsVisibleProperty);
+        set => SetValue(IsVisibleProperty, value);
+    }
 
     /// <summary>
     /// Gets or sets whether the element is enabled for input.
     /// </summary>
     public bool IsEnabled
     {
-        get;
-        set
-        {
-            if (field != value)
-            {
-                field = value;
-                InvalidateVisual();
-                OnEnabledChanged();
-                NotifyDescendantEnabledSuggestionChanged();
-            }
-        }
-    } = true;
+        get => GetValue(IsEnabledProperty);
+        set => SetValue(IsEnabledProperty, value);
+    }
 
     public bool IsEffectivelyEnabled => IsEnabled && GetSuggestedIsEnabled();
 
     /// <summary>
     /// Gets or sets whether the element participates in hit testing.
     /// </summary>
-    public bool IsHitTestVisible { get; set; } = true;
+    public bool IsHitTestVisible
+    {
+        get => GetValue(IsHitTestVisibleProperty);
+        set => SetValue(IsHitTestVisibleProperty, value);
+    }
 
     /// <summary>
     /// Gets whether the element has keyboard focus.
     /// </summary>
-    public bool IsFocused { get; private set; }
+    public bool IsFocused => GetValue(IsFocusedProperty);
 
     /// <summary>
     /// Gets whether this element or any of its descendants has keyboard focus.
     /// Useful for container visuals (e.g. TabControl outline) and WinForms-like focus navigation.
     /// </summary>
-    public bool IsFocusWithin { get; private set; }
+    public bool IsFocusWithin => GetValue(IsFocusWithinProperty);
 
     /// <summary>
     /// Gets whether the mouse is over this element.
     /// </summary>
-    public bool IsMouseOver { get; private set; }
+    public bool IsMouseOver => GetValue(IsMouseOverProperty);
 
     /// <summary>
     /// Gets whether this element has mouse capture.
     /// </summary>
-    public bool IsMouseCaptured { get; private set; }
+    public bool IsMouseCaptured => GetValue(IsMouseCapturedProperty);
 
     /// <summary>
     /// Gets whether this element can receive focus.
@@ -226,63 +355,23 @@ public abstract partial class UIElement : Element
     internal virtual UIElement GetDefaultFocusTarget() => this;
 
     internal void SetFocused(bool focused)
-    {
-        if (IsFocused != focused)
-        {
-            IsFocused = focused;
-            if (focused)
-            {
-                OnGotFocus();
-                GotFocus?.Invoke();
-            }
-            else
-            {
-                OnLostFocus();
-                LostFocus?.Invoke();
-            }
-            InvalidateVisual();
-        }
-    }
+        => PropertyStore.SetLocal(IsFocusedProperty, focused);
 
     internal void SetFocusWithin(bool focusWithin)
-    {
-        if (IsFocusWithin != focusWithin)
-        {
-            IsFocusWithin = focusWithin;
-            InvalidateVisual();
-        }
-    }
+        => PropertyStore.SetLocal(IsFocusWithinProperty, focusWithin);
 
     internal void SetMouseOver(bool mouseOver)
-    {
-        if (IsMouseOver != mouseOver)
-        {
-            IsMouseOver = mouseOver;
-            if (mouseOver)
-            {
-                OnMouseEnter();
-                MouseEnter?.Invoke();
-            }
-            else
-            {
-                OnMouseLeave();
-                MouseLeave?.Invoke();
-            }
-            if (InvalidateOnMouseOverChanged)
-            {
-                InvalidateVisual();
-            }
-        }
-    }
+        => PropertyStore.SetLocal(IsMouseOverProperty, mouseOver);
 
     /// <summary>
-    /// Controls whether <see cref="SetMouseOver"/> triggers an <see cref="Element.InvalidateVisual"/>.
+    /// Controls whether mouse-over changes trigger an <see cref="Element.InvalidateVisual"/>.
     /// Container elements like panels can opt out to avoid redundant redraw on hover changes
     /// when they don't have any hover-dependent visuals.
     /// </summary>
     protected virtual bool InvalidateOnMouseOverChanged => true;
 
-    internal void SetMouseCaptured(bool captured) => IsMouseCaptured = captured;
+    internal void SetMouseCaptured(bool captured)
+        => PropertyStore.SetLocal(IsMouseCapturedProperty, captured);
 
     /// <summary>
     /// Converts a point from element coordinates to screen coordinates.
@@ -401,84 +490,9 @@ public abstract partial class UIElement : Element
         });
     }
 
-    internal void RegisterBinding(IDisposable binding)
-    {
-        if (binding == null)
-        {
-            return;
-        }
-
-        _bindings ??= new List<IDisposable>(2);
-        _bindings.Add(binding);
-    }
-
-    internal void ReplaceBinding(BindingSlot slot, IDisposable? binding)
-    {
-        if (_bindingSlots != null && _bindingSlots.TryGetValue(slot.Id, out var old))
-        {
-            try { old.Dispose(); }
-            catch { /* best-effort */ }
-
-            _bindingSlots.Remove(slot.Id);
-        }
-
-        if (binding == null)
-        {
-            if (_bindingSlots != null && _bindingSlots.Count == 0)
-            {
-                _bindingSlots = null;
-            }
-            return;
-        }
-
-        _bindingSlots ??= new Dictionary<int, IDisposable>(capacity: 2);
-        _bindingSlots[slot.Id] = binding;
-    }
-
-    internal bool TryGetBinding<TBinding>(BindingSlot slot, out TBinding binding)
-        where TBinding : class
-    {
-        if (_bindingSlots != null && _bindingSlots.TryGetValue(slot.Id, out var obj))
-        {
-            var typed = obj as TBinding;
-            if (typed != null)
-            {
-                binding = typed;
-                return true;
-            }
-        }
-
-        binding = null!;
-        return false;
-    }
-
     internal void DisposeBindings()
     {
-        if (_bindingSlots != null)
-        {
-            foreach (var kvp in _bindingSlots)
-            {
-                try { kvp.Value.Dispose(); }
-                catch { /* best-effort */ }
-            }
-
-            _bindingSlots.Clear();
-            _bindingSlots = null;
-        }
-
-        if (_bindings == null)
-        {
-            return;
-        }
-
-        for (int i = 0; i < _bindings.Count; i++)
-        {
-            try { _bindings[i].Dispose(); }
-            catch { /* best-effort */ }
-        }
-
-        _bindings.Clear();
-        _bindings = null;
+        DisposePropertyBindings();
     }
 
     #region Input Handlers
@@ -566,6 +580,17 @@ public abstract partial class UIElement : Element
 
     #endregion
 
+    protected override void OnVisualRootChanged(Element? oldRoot, Element? newRoot)
+    {
+        base.OnVisualRootChanged(oldRoot, newRoot);
+
+        // Stop property animations when detached from the visual tree.
+        if (newRoot == null)
+        {
+            StopAllPropertyAnimations();
+        }
+    }
+
     /// <summary>
     /// Called when visibility changes.
     /// </summary>
@@ -578,7 +603,35 @@ public abstract partial class UIElement : Element
     protected virtual void OnEnabledChanged()
     { }
 
-    #region Binding Helpers
+    #region Animation
+
+    private Animation.PropertyAnimator? _animator;
+
+    /// <summary>
+    /// Gets or creates the property animator for this element.
+    /// Used by the style system to drive animated transitions.
+    /// </summary>
+    internal Animation.PropertyAnimator Animator
+        => _animator ??= new Animation.PropertyAnimator(PropertyStore);
+
+    /// <summary>
+    /// Sets the animation target for a visual property. No-op when target is unchanged.
+    /// </summary>
+    protected void SetTarget<T>(MewProperty<T> property, T value) => PropertyStore.SetTarget(property, value);
+
+    /// <summary>
+    /// Sets a property target value. Used by TargetSetter resolution.
+    /// </summary>
+    internal void SetTargetInternal(MewProperty property, object value)
+        => PropertyStore.SetTarget(property, value);
+
+    /// <summary>
+    /// Stops all running property animations (e.g. when detached from the visual tree).
+    /// </summary>
+    internal void StopAllPropertyAnimations()
+    {
+        _animator?.StopAll();
+    }
 
     #endregion
 }

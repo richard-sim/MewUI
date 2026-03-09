@@ -1,4 +1,5 @@
 using Aprillz.MewUI.Rendering;
+
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -7,7 +8,7 @@ namespace Aprillz.MewUI.Controls;
 /// <summary>
 /// Base class for all UI elements. Provides the core Measure/Arrange layout system.
 /// </summary>
-public abstract class Element
+public abstract class Element : MewObject
 {
     private bool _dpiCacheValid;
     private uint _cachedDpi;
@@ -383,6 +384,18 @@ public abstract class Element
     /// Allows an element to adjust its final arranged bounds (e.g. alignment, margin, rounding).
     /// </summary>
     protected virtual Rect GetArrangedBounds(Rect finalRect) => finalRect;
+
+    /// <inheritdoc/>
+    protected override T ResolveInheritedValue<T>(MewProperty<T> property)
+    {
+        for (var p = Parent; p != null; p = p.Parent)
+        {
+            if (p.HasPropertyStore && p.PropertyStore.HasOwnValue(property.Id))
+                return p.PropertyStore.GetValue(property);
+        }
+
+        return property.GetDefaultForType(GetType());
+    }
 
     private Size ApplyLayoutRounding(Size size)
     {

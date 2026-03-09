@@ -3,7 +3,7 @@ namespace Aprillz.MewUI;
 /// <summary>
 /// Represents a resolved theme (palette + metrics) used for rendering and styling controls.
 /// </summary>
-public record class Theme
+public partial record class Theme
 {
     /// <summary>
     /// Gets the theme name.

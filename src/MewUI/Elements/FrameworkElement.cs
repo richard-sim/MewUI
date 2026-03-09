@@ -12,57 +12,71 @@ public abstract class FrameworkElement : UIElement, IDisposable
     private bool _hasArrangedSize;
 
     private bool _disposed;
-    private double _minHeight = double.NaN;
+
+    #region MewProperty Declarations
+
+    public static readonly MewProperty<double> WidthProperty =
+        MewProperty<double>.Register<FrameworkElement>(nameof(Width), double.NaN, MewPropertyOptions.AffectsLayout);
+
+    public static readonly MewProperty<double> HeightProperty =
+        MewProperty<double>.Register<FrameworkElement>(nameof(Height), double.NaN, MewPropertyOptions.AffectsLayout);
+
+    public static readonly MewProperty<double> MinWidthProperty =
+        MewProperty<double>.Register<FrameworkElement>(nameof(MinWidth), 0.0, MewPropertyOptions.AffectsLayout);
+
+    public static readonly MewProperty<double> MinHeightProperty =
+        MewProperty<double>.Register<FrameworkElement>(nameof(MinHeight), 0.0, MewPropertyOptions.AffectsLayout);
+
+    public static readonly MewProperty<double> MaxWidthProperty =
+        MewProperty<double>.Register<FrameworkElement>(nameof(MaxWidth), double.PositiveInfinity, MewPropertyOptions.AffectsLayout);
+
+    public static readonly MewProperty<double> MaxHeightProperty =
+        MewProperty<double>.Register<FrameworkElement>(nameof(MaxHeight), double.PositiveInfinity, MewPropertyOptions.AffectsLayout);
+
+    public static readonly MewProperty<Thickness> PaddingProperty =
+        MewProperty<Thickness>.Register<FrameworkElement>(nameof(Padding), default, MewPropertyOptions.AffectsLayout);
+
+    public static readonly MewProperty<Thickness> MarginProperty =
+        MewProperty<Thickness>.Register<FrameworkElement>(nameof(Margin), default, MewPropertyOptions.AffectsLayout);
+
+    public static readonly MewProperty<HorizontalAlignment> HorizontalAlignmentProperty =
+        MewProperty<HorizontalAlignment>.Register<FrameworkElement>(nameof(HorizontalAlignment), HorizontalAlignment.Stretch, MewPropertyOptions.AffectsLayout);
+
+    public static readonly MewProperty<VerticalAlignment> VerticalAlignmentProperty =
+        MewProperty<VerticalAlignment>.Register<FrameworkElement>(nameof(VerticalAlignment), VerticalAlignment.Stretch, MewPropertyOptions.AffectsLayout);
+
+    #endregion
 
     /// <summary>
     /// Occurs when the element's size changes.
     /// </summary>
     public event Action<SizeChangedEventArgs>? SizeChanged;
-    protected virtual double DefaultMinHeight => 0;
 
     /// <summary>
     /// Gets or sets the explicit width. Use double.NaN for automatic sizing.
     /// </summary>
     public double Width
     {
-        get;
-        set
-        {
-            if (SetDouble(ref field, value))
-            {
-                InvalidateMeasure();
-            }
-        }
-    } = double.NaN;
+        get => GetValue(WidthProperty);
+        set => SetValue(WidthProperty, value);
+    }
 
     /// <summary>
     /// Gets or sets the explicit height. Use double.NaN for automatic sizing.
     /// </summary>
     public double Height
     {
-        get;
-        set
-        {
-            if (SetDouble(ref field, value))
-            {
-                InvalidateMeasure();
-            }
-        }
-    } = double.NaN;
+        get => GetValue(HeightProperty);
+        set => SetValue(HeightProperty, value);
+    }
 
     /// <summary>
     /// Gets or sets the minimum width.
     /// </summary>
     public double MinWidth
     {
-        get;
-        set
-        {
-            if (SetDouble(ref field, value))
-            {
-                InvalidateMeasure();
-            }
-        }
+        get => GetValue(MinWidthProperty);
+        set => SetValue(MinWidthProperty, value);
     }
 
     /// <summary>
@@ -70,16 +84,12 @@ public abstract class FrameworkElement : UIElement, IDisposable
     /// </summary>
     public double MinHeight
     {
-        get => _minHeight >= 0 ? _minHeight : DefaultMinHeight;
+        get => GetValue(MinHeightProperty);
         set
         {
-            if (MinHeight == value) return;
-
             if (value < 0)
-            {
                 throw new ArgumentOutOfRangeException(nameof(value), "MinHeight must be 0 or greater.");
-            }
-            _minHeight = value; InvalidateMeasure();
+            SetValue(MinHeightProperty, value);
         }
     }
 
@@ -88,44 +98,26 @@ public abstract class FrameworkElement : UIElement, IDisposable
     /// </summary>
     public double MaxWidth
     {
-        get;
-        set
-        {
-            if (SetDouble(ref field, value))
-            {
-                InvalidateMeasure();
-            }
-        }
-    } = double.PositiveInfinity;
+        get => GetValue(MaxWidthProperty);
+        set => SetValue(MaxWidthProperty, value);
+    }
 
     /// <summary>
     /// Gets or sets the maximum height.
     /// </summary>
     public double MaxHeight
     {
-        get;
-        set
-        {
-            if (SetDouble(ref field, value))
-            {
-                InvalidateMeasure();
-            }
-        }
-    } = double.PositiveInfinity;
+        get => GetValue(MaxHeightProperty);
+        set => SetValue(MaxHeightProperty, value);
+    }
 
     /// <summary>
     /// Gets or sets the outer margin.
     /// </summary>
     public Thickness Margin
     {
-        get;
-        set
-        {
-            if (Set(ref field, value))
-            {
-                InvalidateMeasure();
-            }
-        }
+        get => GetValue(MarginProperty);
+        set => SetValue(MarginProperty, value);
     }
 
     /// <summary>
@@ -133,14 +125,8 @@ public abstract class FrameworkElement : UIElement, IDisposable
     /// </summary>
     public Thickness Padding
     {
-        get;
-        set
-        {
-            if (Set(ref field, value))
-            {
-                InvalidateMeasure();
-            }
-        }
+        get => GetValue(PaddingProperty);
+        set => SetValue(PaddingProperty, value);
     }
 
     /// <summary>
@@ -148,30 +134,18 @@ public abstract class FrameworkElement : UIElement, IDisposable
     /// </summary>
     public HorizontalAlignment HorizontalAlignment
     {
-        get;
-        set
-        {
-            if (Set(ref field, value))
-            {
-                InvalidateArrange();
-            }
-        }
-    } = HorizontalAlignment.Stretch;
+        get => GetValue(HorizontalAlignmentProperty);
+        set => SetValue(HorizontalAlignmentProperty, value);
+    }
 
     /// <summary>
     /// Gets or sets the vertical alignment within the parent.
     /// </summary>
     public VerticalAlignment VerticalAlignment
     {
-        get;
-        set
-        {
-            if (Set(ref field, value))
-            {
-                InvalidateArrange();
-            }
-        }
-    } = VerticalAlignment.Stretch;
+        get => GetValue(VerticalAlignmentProperty);
+        set => SetValue(VerticalAlignmentProperty, value);
+    }
 
     /// <summary>
     /// Gets the actual width after layout.
