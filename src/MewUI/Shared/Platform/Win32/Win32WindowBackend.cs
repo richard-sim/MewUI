@@ -15,6 +15,7 @@ namespace Aprillz.MewUI.Platform.Win32;
 internal sealed class Win32WindowBackend : IWindowBackend
 {
     private readonly Win32PlatformHost _host;
+
     internal Window Window { get; }
 
     private readonly ClickCountTracker _clickCountTracker = new();
@@ -184,7 +185,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
             return;
         }
 
-        uint dpi = Window.Dpi == 0 ? User32.GetDpiForWindow(Handle) : Window.Dpi;
+        uint dpi = Window.Dpi == 0 ? GetDpiForWindow(Handle) : Window.Dpi;
         double dpiScale = dpi / 96.0;
 
         var rect = new RECT(0, 0, (int)Math.Round(widthDip * dpiScale), (int)Math.Round(heightDip * dpiScale));
@@ -199,7 +200,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
             return default;
         }
 
-        uint dpi = Window.Dpi == 0 ? User32.GetDpiForWindow(Handle) : Window.Dpi;
+        uint dpi = Window.Dpi == 0 ? GetDpiForWindow(Handle) : Window.Dpi;
         double dpiScale = dpi / 96.0;
         if (dpiScale <= 0)
         {
@@ -216,7 +217,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
             return;
         }
 
-        uint dpi = Window.Dpi == 0 ? User32.GetDpiForWindow(Handle) : Window.Dpi;
+        uint dpi = Window.Dpi == 0 ? GetDpiForWindow(Handle) : Window.Dpi;
         double dpiScale = dpi / 96.0;
         if (dpiScale <= 0)
         {
@@ -300,36 +301,47 @@ internal sealed class Win32WindowBackend : IWindowBackend
 
             case WindowMessages.WM_LBUTTONDOWN:
                 return HandleMouseButton(lParam, MouseButton.Left, isDown: true, isDoubleClickMessage: false);
+
             case WindowMessages.WM_LBUTTONDBLCLK:
                 return HandleMouseButton(lParam, MouseButton.Left, isDown: true, isDoubleClickMessage: true);
+
             case WindowMessages.WM_LBUTTONUP:
                 return HandleMouseButton(lParam, MouseButton.Left, isDown: false, isDoubleClickMessage: false);
+
             case WindowMessages.WM_RBUTTONDOWN:
                 return HandleMouseButton(lParam, MouseButton.Right, isDown: true, isDoubleClickMessage: false);
+
             case WindowMessages.WM_RBUTTONDBLCLK:
                 return HandleMouseButton(lParam, MouseButton.Right, isDown: true, isDoubleClickMessage: true);
+
             case WindowMessages.WM_RBUTTONUP:
                 return HandleMouseButton(lParam, MouseButton.Right, isDown: false, isDoubleClickMessage: false);
+
             case WindowMessages.WM_MBUTTONDOWN:
                 return HandleMouseButton(lParam, MouseButton.Middle, isDown: true, isDoubleClickMessage: false);
+
             case WindowMessages.WM_MBUTTONDBLCLK:
                 return HandleMouseButton(lParam, MouseButton.Middle, isDown: true, isDoubleClickMessage: true);
+
             case WindowMessages.WM_MBUTTONUP:
                 return HandleMouseButton(lParam, MouseButton.Middle, isDown: false, isDoubleClickMessage: false);
 
             case WindowMessages.WM_MOUSEMOVE:
                 return HandleMouseMove(lParam);
+
             case WindowMessages.WM_MOUSELEAVE:
                 return HandleMouseLeave();
 
             case WindowMessages.WM_MOUSEWHEEL:
                 return HandleMouseWheel(wParam, lParam, isHorizontal: false);
+
             case WindowMessages.WM_MOUSEHWHEEL:
                 return HandleMouseWheel(wParam, lParam, isHorizontal: true);
 
             case WindowMessages.WM_KEYDOWN:
             case WindowMessages.WM_SYSKEYDOWN:
                 return HandleKeyDown(msg, wParam, lParam);
+
             case WindowMessages.WM_KEYUP:
             case WindowMessages.WM_SYSKEYUP:
                 return HandleKeyUp(msg, wParam, lParam);
@@ -339,8 +351,10 @@ internal sealed class Win32WindowBackend : IWindowBackend
 
             case WindowMessages.WM_IME_STARTCOMPOSITION:
                 return HandleImeStartComposition();
+
             case WindowMessages.WM_IME_COMPOSITION:
                 return HandleImeComposition(lParam);
+
             case WindowMessages.WM_IME_ENDCOMPOSITION:
                 return HandleImeEndComposition();
 
@@ -371,7 +385,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
 
     private void CreateWindow()
     {
-        uint initialDpi = User32.GetDpiForSystem();
+        uint initialDpi = Win32DpiApiResolver.GetSystemDpi();
         Window.SetDpi(initialDpi);
         double dpiScale = Window.DpiScale;
 
@@ -428,7 +442,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
         ValidateTransparencySupport();
         ApplyOpacity();
 
-        uint actualDpi = User32.GetDpiForWindow(Handle);
+        uint actualDpi = GetDpiForWindow(Handle);
         if (actualDpi != initialDpi)
         {
             var oldDpi = initialDpi;
@@ -830,10 +844,15 @@ internal sealed class Win32WindowBackend : IWindowBackend
     private sealed class Win32LayeredSurface : IWin32LayeredWindowSurface
     {
         public WindowSurfaceKind Kind => WindowSurfaceKind.Layered;
+
         public nint Handle => Hwnd;
+
         public nint Hwnd { get; }
+
         public int PixelWidth { get; }
+
         public int PixelHeight { get; }
+
         public double DpiScale { get; }
 
         public Win32LayeredSurface(nint hwnd, int pixelWidth, int pixelHeight, double dpiScale)
@@ -849,7 +868,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
     {
         var info = (MINMAXINFO*)lParam;
 
-        uint dpi = Window.Dpi == 0 ? User32.GetDpiForWindow(Handle) : Window.Dpi;
+        uint dpi = Window.Dpi == 0 ? GetDpiForWindow(Handle) : Window.Dpi;
         double dpiScale = dpi / 96.0;
         if (dpiScale <= 0) dpiScale = 1.0;
 
@@ -1425,4 +1444,6 @@ internal sealed class Win32WindowBackend : IWindowBackend
     {
         _titleBarThemeSync.ApplyTheme(isDark);
     }
+
+    private uint GetDpiForWindow(nint handle) => Win32DpiApiResolver.GetDpiForWindow(handle);
 }

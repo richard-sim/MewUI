@@ -42,19 +42,15 @@ public sealed class Win32PlatformHost : IPlatformHost
 
     public IDispatcher CreateDispatcher(nint windowHandle) => new Win32Dispatcher(windowHandle);
 
-    public uint GetSystemDpi() => User32.GetDpiForSystem();
+    public uint GetSystemDpi() => Win32DpiApiResolver.GetSystemDpi();
 
     public ThemeVariant GetSystemThemeVariant() => GetSystemThemeVariantFromRegistry();
 
-    public uint GetDpiForWindow(nint hwnd) => hwnd != 0 ? User32.GetDpiForWindow(hwnd) : User32.GetDpiForSystem();
+    public uint GetDpiForWindow(nint hwnd) => Win32DpiApiResolver.GetDpiForWindow(hwnd);
 
-    public bool EnablePerMonitorDpiAwareness()
-    {
-        const nint DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4;
-        return User32.SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-    }
+    public bool EnablePerMonitorDpiAwareness() => Win32DpiApiResolver.EnablePerMonitorDpiAwareness();
 
-    public int GetSystemMetricsForDpi(int nIndex, uint dpi) => User32.GetSystemMetricsForDpi(nIndex, dpi);
+    public int GetSystemMetricsForDpi(int nIndex, uint dpi) => Win32DpiApiResolver.GetSystemMetricsForDpi(nIndex, dpi);
 
     private static ThemeVariant GetSystemThemeVariantFromRegistry()
     {
