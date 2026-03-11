@@ -150,6 +150,15 @@ public partial record class Theme
                 Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
                 Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness),
             ],
+            Triggers =
+            [
+                new StateTrigger
+                {
+                    Match = VisualStateFlags.None,
+                    Exclude = VisualStateFlags.Enabled,
+                    Setters = [Setter.Create(Control.ForegroundProperty, Palette.DisabledText)],
+                },
+            ],
         };
     }
 

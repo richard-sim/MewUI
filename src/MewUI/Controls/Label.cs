@@ -166,7 +166,7 @@ public partial class Label : Control
         var bounds = Bounds.Deflate(Padding);
         var font = GetFont();
 
-        var color = IsEffectivelyEnabled ? Foreground : Theme.Palette.DisabledText;
+        var color = Foreground;
         context.DrawText(Text, bounds, font, color, TextAlignment, VerticalTextAlignment, wrapping, TextTrimming);
     }
 

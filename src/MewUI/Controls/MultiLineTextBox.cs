@@ -366,7 +366,7 @@ public sealed class MultiLineTextBox : TextBase
     {
         double lineHeight = GetLineHeight();
         int lineCount = Math.Max(1, _lineStarts.Count);
-        var textColor = IsEffectivelyEnabled ? Foreground : theme.Palette.DisabledText;
+        var textColor = Foreground;
 
         if (!WrapEnabled)
         {

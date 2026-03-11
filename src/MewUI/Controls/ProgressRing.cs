@@ -61,7 +61,7 @@ public class ProgressRing : Control
                 {
                     RepeatCount = -1,
                 };
-                _clock.Tick += OnAnimationTick;
+                _clock.TickCallback = OnAnimationTick;
                 _clock.Start();
             }
             else
@@ -170,7 +170,7 @@ public class ProgressRing : Control
             {
                 RepeatCount = -1,
             };
-            _clock.Tick += OnAnimationTick;
+            _clock.TickCallback = OnAnimationTick;
             _clock.Start();
         }
     }

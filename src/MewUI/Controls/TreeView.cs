@@ -284,7 +284,7 @@ public sealed class TreeView : Control, IVisualTreeHost, IFocusIntoViewHost, IVi
         int depth = _itemsSource.GetDepth(i);
         double indentX = itemRect.X + depth * Indent;
         var glyphRect = new Rect(indentX, itemRect.Y, Indent, itemRect.Height);
-        var textColor = selected ? Theme.Palette.SelectionText : (IsEffectivelyEnabled ? Foreground : Theme.Palette.DisabledText);
+        var textColor = selected ? Theme.Palette.SelectionText : Foreground;
         if (_itemsSource.GetHasChildren(i))
         {
             DrawExpanderGlyph(context, glyphRect, _itemsSource.GetIsExpanded(i), textColor);

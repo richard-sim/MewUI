@@ -265,7 +265,7 @@ public sealed partial class TextBlock : FrameworkElement, IDisposable
         var bounds = Bounds.Deflate(Padding);
         var factory = GetGraphicsFactory();
         var font = EnsureFont(factory);
-        context.DrawText(Text, bounds, font, IsEffectivelyEnabled ? Foreground : Theme.Palette.DisabledText, TextAlignment, VerticalTextAlignment, wrapping, TextTrimming);
+        context.DrawText(Text, bounds, font, Foreground, TextAlignment, VerticalTextAlignment, wrapping, TextTrimming);
     }
 
     protected override void OnDpiChanged(uint oldDpi, uint newDpi)
