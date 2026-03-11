@@ -253,6 +253,9 @@ public sealed class ScrollBar : RangeBase
             ? viewport / (scrollRange + viewport)
             : 0.25;
 
+        if (length < minThumb || thickness <= 0)
+            return Rect.Empty;
+
         double thumbLength = Math.Clamp(length * ratio, minThumb, length);
         double usable = Math.Max(1, length - thumbLength);
 
