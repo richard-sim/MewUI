@@ -24,9 +24,10 @@ internal sealed class TabHeaderButton : ContentControl
     public bool IsTabEnabled { get; set; } = true;
 
     /// <summary>
-    /// Raised when the header is clicked (tab selection request).
+    /// Called when the header is clicked (tab selection request).
+    /// Single-owner callback — no multicast, no cleanup needed.
     /// </summary>
-    public event Action<int>? Clicked;
+    internal Action<int>? ClickedCallback { get; set; }
 
     public TabHeaderButton()
     {
@@ -172,7 +173,7 @@ internal sealed class TabHeaderButton : ContentControl
 
             if (IsEffectivelyEnabled && IsTabEnabled && Bounds.Contains(e.Position))
             {
-                Clicked?.Invoke(Index);
+                ClickedCallback?.Invoke(Index);
             }
 
             e.Handled = true;
@@ -213,7 +214,7 @@ internal sealed class TabHeaderButton : ContentControl
             if (IsPressed)
             {
                 SetPressed(false);
-                Clicked?.Invoke(Index);
+                ClickedCallback?.Invoke(Index);
             }
 
             e.Handled = true;

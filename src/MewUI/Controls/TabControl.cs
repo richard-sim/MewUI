@@ -415,7 +415,7 @@ public sealed class TabControl : Control
                 IsTabEnabled = tab.IsEnabled,
                 Content = tab.Header!,
             };
-            header.Clicked += idx =>
+            header.ClickedCallback = idx =>
             {
                 SelectedIndex = idx;
                 Focus();
