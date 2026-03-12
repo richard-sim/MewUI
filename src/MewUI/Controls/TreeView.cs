@@ -284,7 +284,9 @@ public sealed class TreeView : Control, IVisualTreeHost, IFocusIntoViewHost, IVi
         int depth = _itemsSource.GetDepth(i);
         double indentX = itemRect.X + depth * Indent;
         var glyphRect = new Rect(indentX, itemRect.Y, Indent, itemRect.Height);
-        var textColor = selected ? Theme.Palette.SelectionText : Foreground;
+        var textColor = !IsEffectivelyEnabled
+            ? Theme.Palette.DisabledText
+            : selected ? Theme.Palette.SelectionText : Theme.Palette.WindowText;
         if (_itemsSource.GetHasChildren(i))
         {
             DrawExpanderGlyph(context, glyphRect, _itemsSource.GetIsExpanded(i), textColor);
@@ -391,6 +393,13 @@ public sealed class TreeView : Control, IVisualTreeHost, IFocusIntoViewHost, IVi
     /// </summary>
     /// <param name="oldTheme">The previous theme.</param>
     /// <param name="newTheme">The new theme.</param>
+    protected override void OnEnabledChanged()
+    {
+        base.OnEnabledChanged();
+        _rebindVisibleOnNextRender = true;
+        InvalidateVisual();
+    }
+
     protected override void OnThemeChanged(Theme oldTheme, Theme newTheme)
     {
         base.OnThemeChanged(oldTheme, newTheme);
@@ -700,7 +709,9 @@ public sealed class TreeView : Control, IVisualTreeHost, IFocusIntoViewHost, IVi
                 }
 
                 bool selected = index == _itemsSource.SelectedIndex;
-                var fg = selected ? Theme.Palette.SelectionText : (enabled ? Foreground : Theme.Palette.DisabledText);
+                var fg = !enabled
+                    ? Theme.Palette.DisabledText
+                    : selected ? Theme.Palette.SelectionText : Theme.Palette.WindowText;
                 if (tb.Foreground != fg)
                 {
                     tb.Foreground = fg;

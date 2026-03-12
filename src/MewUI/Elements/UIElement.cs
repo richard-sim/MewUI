@@ -465,6 +465,7 @@ public abstract partial class UIElement : Element
 
         if (old != _suggestedIsEnabled)
         {
+            OnEnabledChanged();
             InvalidateVisual();
         }
     }

@@ -123,17 +123,28 @@ public static class GridViewExtensions
     /// <param name="header">Column header text.</param>
     /// <param name="width">Column width in DIPs.</param>
     /// <param name="template">Cell template.</param>
+    /// <param name="minWidth">Minimum column width (0 = no minimum).</param>
+    /// <param name="resizable">Whether the column can be resized.</param>
     /// <returns>The grid view for chaining.</returns>
     public static GridView AddColumn<TItem>(
         this GridView gridView,
         string header,
         double width,
-        IDataTemplate<TItem> template)
+        IDataTemplate<TItem> template,
+        double minWidth = 0,
+        bool resizable = true)
     {
         ArgumentNullException.ThrowIfNull(gridView);
         ArgumentNullException.ThrowIfNull(template);
 
-        gridView.AddColumns(new GridViewColumn<TItem> { Header = header ?? string.Empty, Width = width, CellTemplate = template });
+        gridView.AddColumns(new GridViewColumn<TItem>
+        {
+            Header = header ?? string.Empty,
+            Width = width,
+            CellTemplate = template,
+            MinWidth = minWidth,
+            IsResizable = resizable,
+        });
         return gridView;
     }
 
@@ -146,14 +157,18 @@ public static class GridViewExtensions
     /// <param name="width">Column width in DIPs.</param>
     /// <param name="build">Template build callback.</param>
     /// <param name="bind">Template bind callback.</param>
+    /// <param name="minWidth">Minimum column width (0 = no minimum).</param>
+    /// <param name="resizable">Whether the column can be resized.</param>
     /// <returns>The grid view for chaining.</returns>
     public static GridView AddColumn<TItem>(
         this GridView gridView,
         string header,
         double width,
         Func<TemplateContext, FrameworkElement> build,
-        Action<FrameworkElement, TItem, int, TemplateContext> bind)
-        => AddColumn(gridView, header, width, new DelegateTemplate<TItem>(build, bind));
+        Action<FrameworkElement, TItem, int, TemplateContext> bind,
+        double minWidth = 0,
+        bool resizable = true)
+        => AddColumn(gridView, header, width, new DelegateTemplate<TItem>(build, bind), minWidth, resizable);
 
     /// <summary>
     /// Creates a column definition.
@@ -208,6 +223,34 @@ public static class GridViewExtensions
     {
         ArgumentNullException.ThrowIfNull(column);
         column.Width = width;
+        return column;
+    }
+
+    /// <summary>
+    /// Sets the column minimum width.
+    /// </summary>
+    /// <typeparam name="TItem">Item type.</typeparam>
+    /// <param name="column">Target column.</param>
+    /// <param name="minWidth">Minimum width in DIPs.</param>
+    /// <returns>The column for chaining.</returns>
+    public static GridViewColumn<TItem> MinWidth<TItem>(this GridViewColumn<TItem> column, double minWidth)
+    {
+        ArgumentNullException.ThrowIfNull(column);
+        column.MinWidth = minWidth;
+        return column;
+    }
+
+    /// <summary>
+    /// Sets whether the column is resizable.
+    /// </summary>
+    /// <typeparam name="TItem">Item type.</typeparam>
+    /// <param name="column">Target column.</param>
+    /// <param name="resizable">Whether the column can be resized.</param>
+    /// <returns>The column for chaining.</returns>
+    public static GridViewColumn<TItem> Resizable<TItem>(this GridViewColumn<TItem> column, bool resizable = true)
+    {
+        ArgumentNullException.ThrowIfNull(column);
+        column.IsResizable = resizable;
         return column;
     }
 

@@ -676,9 +676,7 @@ public partial class ListBox : VirtualizedItemsBase, IVirtualizedTabNavigationHo
                     tb.IsEnabled = enabled;
                 }
 
-                var fg = index == SelectedIndex
-                    ? Theme.Palette.SelectionText
-                    : (enabled ? Foreground : Theme.Palette.DisabledText);
+                var fg = ResolveItemForeground(index == SelectedIndex);
 
                 if (tb.Foreground != fg)
                 {

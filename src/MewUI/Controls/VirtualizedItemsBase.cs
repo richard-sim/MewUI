@@ -31,6 +31,13 @@ public abstract class VirtualizedItemsBase : Control, IVisualTreeHost
 
     public override bool Focusable => true;
 
+    protected override void OnEnabledChanged()
+    {
+        base.OnEnabledChanged();
+        _rebindVisibleOnNextRender = true;
+        InvalidateVisual();
+    }
+
     bool IVisualTreeHost.VisitChildren(Func<Element, bool> visitor) => VisitScrollChildren(visitor);
 
     private protected void RequestScrollIntoView(ScrollIntoViewRequest request)
@@ -64,6 +71,15 @@ public abstract class VirtualizedItemsBase : Control, IVisualTreeHost
         var hit = _scrollViewer.HitTest(point);
         return hit ?? base.OnHitTest(point);
     }
+
+    /// <summary>
+    /// Resolves the foreground color for an item, applying the correct priority:
+    /// disabled state > selection state > default Foreground.
+    /// </summary>
+    protected Color ResolveItemForeground(bool selected)
+        => !IsEffectivelyEnabled
+            ? Theme.Palette.DisabledText
+            : selected ? Theme.Palette.SelectionText : Theme.Palette.WindowText;
 
     /// <summary>
     /// Returns the current viewport height in DIPs, accounting for border insets and padding.

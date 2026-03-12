@@ -712,6 +712,23 @@ public static class ElementExtensions
 
     #endregion
 
+    #region Cursor
+
+    /// <summary>
+    /// Sets the cursor type.
+    /// </summary>
+    /// <typeparam name="T">Visual type.</typeparam>
+    /// <param name="element">Target element.</param>
+    /// <param name="cursor">Cursor type.</param>
+    /// <returns>The element for chaining.</returns>
+    public static T Cursor<T>(this T element, CursorType cursor) where T : UIElement
+    {
+        element.Cursor = cursor;
+        return element;
+    }
+
+    #endregion
+
     #region Canvas Attached Properties
 
     /// <summary>
