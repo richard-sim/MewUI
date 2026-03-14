@@ -15,7 +15,7 @@ internal sealed class LinuxDispatcher : SynchronizationContext, IDispatcher, IDi
     public bool IsOnUIThread => Environment.CurrentManagedThreadId == _uiThreadId;
 
     public DispatcherOperation BeginInvoke(Action action)
-        => BeginInvoke(DispatcherPriority.Background, action);
+        => BeginInvoke(DispatcherPriority.Normal, action);
 
     public DispatcherOperation BeginInvoke(DispatcherPriority priority, Action action)
     {

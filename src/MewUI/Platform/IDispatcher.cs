@@ -22,14 +22,21 @@ public enum DispatcherPriority
     Render = 2,
 
     /// <summary>
-    /// Layout processing (measure/arrange).
-    /// </summary>
-    Layout = 3,
-
-    /// <summary>
     /// Input processing (mouse/keyboard).
     /// </summary>
-    Input = 4,
+    Input = 3,
+
+    /// <summary>
+    /// Layout processing (measure/arrange).
+    /// </summary>
+    Layout = 4,
+
+    /// <summary>
+    /// Default priority for <see cref="IDispatcher.BeginInvoke(Action)"/> and
+    /// <see cref="System.Threading.SynchronizationContext.Post"/>.
+    /// Matches WPF DispatcherPriority.Normal semantics.
+    /// </summary>
+    Normal = 5,
 }
 
 /// <summary>

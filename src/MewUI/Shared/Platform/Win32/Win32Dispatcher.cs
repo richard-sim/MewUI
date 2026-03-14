@@ -25,7 +25,7 @@ public sealed class Win32Dispatcher : SynchronizationContext, IDispatcher, IDisp
     public override void Post(SendOrPostCallback d, object? state)
     {
         ArgumentNullException.ThrowIfNull(d);
-        _queue.Enqueue(DispatcherPriority.Background, () => d(state));
+        _queue.Enqueue(DispatcherPriority.Normal, () => d(state));
         RequestInvoke();
     }
 
@@ -40,13 +40,13 @@ public sealed class Win32Dispatcher : SynchronizationContext, IDispatcher, IDisp
         }
 
         using var signal = new ManualResetEventSlim(false);
-        _queue.EnqueueWithSignal(DispatcherPriority.Input, () => d(state), signal);
+        _queue.EnqueueWithSignal(DispatcherPriority.Normal, () => d(state), signal);
         RequestInvoke();
         signal.Wait();
     }
 
     public DispatcherOperation BeginInvoke(Action action)
-        => BeginInvoke(DispatcherPriority.Background, action);
+        => BeginInvoke(DispatcherPriority.Normal, action);
 
     public DispatcherOperation BeginInvoke(DispatcherPriority priority, Action action)
     {
