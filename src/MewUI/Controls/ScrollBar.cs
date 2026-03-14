@@ -75,6 +75,7 @@ public sealed class ScrollBar : RangeBase
     /// </summary>
     public ScrollBar()
     {
+        Cursor = CursorType.Arrow;
     }
 
     protected override VisualState ComputeVisualState()
