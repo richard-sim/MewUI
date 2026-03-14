@@ -75,7 +75,8 @@ partial class GalleryView : UserControl
                 Section("Shapes", ShapesPage()),
                 Section("Icons", IconsPage()),
                 Section("Transitions", TransitionsPage()),
-                Section("Toast", ToastPage())
+                Section("Toast", ToastPage()),
+                Section("Confetti", ConfettiPage())
             );
     }
 }

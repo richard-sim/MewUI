@@ -64,6 +64,8 @@ static partial class IconResource
             if (data.Length > 0 && !list.Exists(e => e.Name == key))
                 list.Add(new IconEntry(key, data));
         }
+
+        list.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.Ordinal));
     }
 
     private static string Normalize(string data) =>
