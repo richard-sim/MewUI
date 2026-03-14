@@ -21,9 +21,27 @@ internal sealed class X11WindowBackend : IWindowBackend
     private bool _closedRaised;
     private nint _wmDeleteWindowAtom;
     private nint _wmProtocolsAtom;
+    private nint _atomAtom;
     private nint _netWmWindowOpacityAtom;
     private nint _cardinalAtom;
     private nint _motifWmHintsAtom;
+    private nint _xdndAwareAtom;
+    private nint _xdndEnterAtom;
+    private nint _xdndPositionAtom;
+    private nint _xdndStatusAtom;
+    private nint _xdndTypeListAtom;
+    private nint _xdndActionCopyAtom;
+    private nint _xdndDropAtom;
+    private nint _xdndFinishedAtom;
+    private nint _xdndSelectionAtom;
+    private nint _textUriListAtom;
+    private nint _xdndSelectionPropertyAtom;
+    private nint _xdndSourceWindow;
+    private readonly List<nint> _xdndOfferedTypes = new();
+    private ulong _xdndVersion;
+    private int _xdndLastRootX;
+    private int _xdndLastRootY;
+    private nint _xdndLastDropTime;
     private long _lastRenderTick;
     private X11GlxVisualInfo? _glxVisualInfo;
 
@@ -536,12 +554,33 @@ internal sealed class X11WindowBackend : IWindowBackend
         // WM_DELETE_WINDOW
         _wmProtocolsAtom = NativeX11.XInternAtom(Display, "WM_PROTOCOLS", false);
         _wmDeleteWindowAtom = NativeX11.XInternAtom(Display, "WM_DELETE_WINDOW", false);
+        _atomAtom = NativeX11.XInternAtom(Display, "ATOM", false);
         _netWmWindowOpacityAtom = NativeX11.XInternAtom(Display, "_NET_WM_WINDOW_OPACITY", true);
         _cardinalAtom = NativeX11.XInternAtom(Display, "CARDINAL", false);
         _motifWmHintsAtom = NativeX11.XInternAtom(Display, "_MOTIF_WM_HINTS", false);
+        _xdndAwareAtom = NativeX11.XInternAtom(Display, "XdndAware", false);
+        _xdndEnterAtom = NativeX11.XInternAtom(Display, "XdndEnter", false);
+        _xdndPositionAtom = NativeX11.XInternAtom(Display, "XdndPosition", false);
+        _xdndStatusAtom = NativeX11.XInternAtom(Display, "XdndStatus", false);
+        _xdndTypeListAtom = NativeX11.XInternAtom(Display, "XdndTypeList", false);
+        _xdndActionCopyAtom = NativeX11.XInternAtom(Display, "XdndActionCopy", false);
+        _xdndDropAtom = NativeX11.XInternAtom(Display, "XdndDrop", false);
+        _xdndFinishedAtom = NativeX11.XInternAtom(Display, "XdndFinished", false);
+        _xdndSelectionAtom = NativeX11.XInternAtom(Display, "XdndSelection", false);
+        _textUriListAtom = NativeX11.XInternAtom(Display, "text/uri-list", false);
+        _xdndSelectionPropertyAtom = NativeX11.XInternAtom(Display, "MEWUI_XDND_SELECTION", false);
         if (_wmProtocolsAtom != 0 && _wmDeleteWindowAtom != 0)
         {
             NativeX11.XSetWMProtocols(Display, Handle, ref _wmDeleteWindowAtom, 1);
+        }
+
+        if (_xdndAwareAtom != 0 && _atomAtom != 0)
+        {
+            unsafe
+            {
+                nint xdndVersion = (nint)5;
+                NativeX11.XChangeProperty(Display, Handle, _xdndAwareAtom, _atomAtom, 32, 0, (nint)(&xdndVersion), 1);
+            }
         }
 
         // Apply transparency-related window hints after atoms are initialized.
@@ -789,6 +828,21 @@ internal sealed class X11WindowBackend : IWindowBackend
 
     internal void ProcessEvent(ref XEvent ev)
     {
+        if (Window.HasNativeMessageHandler)
+        {
+            unsafe
+            {
+                fixed (XEvent* p = &ev)
+                {
+                    var hookArgs = new X11NativeMessageEventArgs(ev.type, (nint)p);
+                    if (Window.RaiseNativeMessage(hookArgs))
+                    {
+                        return;
+                    }
+                }
+            }
+        }
+
         const int Expose = 12;
         const int DestroyNotify = 17;
         const int ConfigureNotify = 22;
@@ -800,6 +854,7 @@ internal sealed class X11WindowBackend : IWindowBackend
         const int MotionNotify = 6;
         const int FocusIn = 9;
         const int FocusOut = 10;
+        const int SelectionNotify = 31;
 
         if (!_enabled && (ev.type == KeyPress || ev.type == KeyRelease || ev.type == ButtonPress || ev.type == ButtonRelease || ev.type == MotionNotify))
         {
@@ -827,6 +882,24 @@ internal sealed class X11WindowBackend : IWindowBackend
                 unsafe
                 {
                     var client = ev.xclient;
+                    if (_xdndEnterAtom != 0 && client.message_type == _xdndEnterAtom)
+                    {
+                        HandleXdndEnter(client);
+                        break;
+                    }
+
+                    if (_xdndPositionAtom != 0 && client.message_type == _xdndPositionAtom)
+                    {
+                        HandleXdndPosition(client);
+                        break;
+                    }
+
+                    if (_xdndDropAtom != 0 && client.message_type == _xdndDropAtom)
+                    {
+                        HandleXdndDrop(client);
+                        break;
+                    }
+
                     if (_wmProtocolsAtom != 0 &&
                         _wmDeleteWindowAtom != 0 &&
                         client.message_type == _wmProtocolsAtom &&
@@ -838,6 +911,10 @@ internal sealed class X11WindowBackend : IWindowBackend
                         Window.Close();
                     }
                 }
+                break;
+
+            case SelectionNotify:
+                HandleXdndSelection(ev.xselection);
                 break;
 
             case DestroyNotify:
@@ -1201,6 +1278,308 @@ internal sealed class X11WindowBackend : IWindowBackend
         bool right = (e.state & (1u << 10)) != 0;
 
         WindowInputRouter.MouseMove(Window, pos, screenPos, leftDown: left, rightDown: right, middleDown: middle);
+    }
+
+    private unsafe void HandleXdndEnter(XClientMessageEvent client)
+    {
+        _xdndSourceWindow = (nint)client.data[0];
+        _xdndVersion = ((ulong)client.data[1] >> 24) & 0xFF;
+        _xdndOfferedTypes.Clear();
+
+        bool usesTypeList = (client.data[1] & 1) != 0;
+        if (usesTypeList)
+        {
+            foreach (var atom in ReadAtomProperty(_xdndSourceWindow, _xdndTypeListAtom))
+            {
+                _xdndOfferedTypes.Add(atom);
+            }
+        }
+        else
+        {
+            for (int i = 2; i <= 4; i++)
+            {
+                if (client.data[i] != 0)
+                {
+                    _xdndOfferedTypes.Add((nint)client.data[i]);
+                }
+            }
+        }
+    }
+
+    private unsafe void HandleXdndPosition(XClientMessageEvent client)
+    {
+        _xdndSourceWindow = (nint)client.data[0];
+        long packed = client.data[2];
+        _xdndLastRootX = (short)((packed >> 16) & 0xFFFF);
+        _xdndLastRootY = (short)(packed & 0xFFFF);
+        _xdndLastDropTime = (nint)client.data[3];
+        SendXdndStatus(AcceptsXdndDrop());
+    }
+
+    private unsafe void HandleXdndDrop(XClientMessageEvent client)
+    {
+        _xdndSourceWindow = (nint)client.data[0];
+        if (client.data[2] != 0)
+        {
+            _xdndLastDropTime = (nint)client.data[2];
+        }
+
+        if (!AcceptsXdndDrop())
+        {
+            SendXdndFinished(false);
+            ResetXdndState();
+            return;
+        }
+
+        _ = NativeX11.XConvertSelection(
+            Display,
+            _xdndSelectionAtom,
+            _textUriListAtom,
+            _xdndSelectionPropertyAtom,
+            Handle,
+            _xdndLastDropTime);
+        NativeX11.XFlush(Display);
+    }
+
+    private void HandleXdndSelection(XSelectionEvent selection)
+    {
+        if (selection.requestor != Handle || selection.selection != _xdndSelectionAtom)
+        {
+            return;
+        }
+
+        bool success = false;
+        try
+        {
+            if (selection.property == 0)
+            {
+                return;
+            }
+
+            var paths = ReadXdndPaths(selection.property);
+            if (paths.Count == 0)
+            {
+                return;
+            }
+
+            var position = TranslateRootToClient(_xdndLastRootX, _xdndLastRootY);
+            var data = new DataObject(new Dictionary<string, object>
+            {
+                [StandardDataFormats.StorageItems] = paths,
+            });
+
+            var args = new DragEventArgs(
+                data,
+                new Point(position.x / Window.DpiScale, position.y / Window.DpiScale),
+                new Point(_xdndLastRootX, _xdndLastRootY));
+
+            Window.RaiseDrop(args);
+            success = true;
+        }
+        finally
+        {
+            if (selection.property != 0)
+            {
+                NativeX11.XDeleteProperty(Display, Handle, selection.property);
+            }
+
+            SendXdndFinished(success);
+            ResetXdndState();
+        }
+    }
+
+    private bool AcceptsXdndDrop()
+        => _textUriListAtom != 0 && _xdndOfferedTypes.Contains(_textUriListAtom);
+
+    private unsafe void SendXdndStatus(bool accept)
+    {
+        if (_xdndSourceWindow == 0 || _xdndStatusAtom == 0)
+        {
+            return;
+        }
+
+        XEvent ev = default;
+        ev.xclient.type = 33;
+        ev.xclient.display = Display;
+        ev.xclient.window = _xdndSourceWindow;
+        ev.xclient.message_type = _xdndStatusAtom;
+        ev.xclient.format = 32;
+        ev.xclient.data[0] = Handle;
+        ev.xclient.data[1] = accept ? 1 : 0;
+        ev.xclient.data[2] = 0;
+        ev.xclient.data[3] = 0;
+        ev.xclient.data[4] = accept ? _xdndActionCopyAtom : 0;
+        _ = NativeX11.XSendEvent(Display, _xdndSourceWindow, false, 0, ref ev);
+        NativeX11.XFlush(Display);
+    }
+
+    private unsafe void SendXdndFinished(bool success)
+    {
+        if (_xdndSourceWindow == 0 || _xdndFinishedAtom == 0)
+        {
+            return;
+        }
+
+        XEvent ev = default;
+        ev.xclient.type = 33;
+        ev.xclient.display = Display;
+        ev.xclient.window = _xdndSourceWindow;
+        ev.xclient.message_type = _xdndFinishedAtom;
+        ev.xclient.format = 32;
+        ev.xclient.data[0] = Handle;
+        ev.xclient.data[1] = success ? 1 : 0;
+        ev.xclient.data[2] = success ? _xdndActionCopyAtom : 0;
+        _ = NativeX11.XSendEvent(Display, _xdndSourceWindow, false, 0, ref ev);
+        NativeX11.XFlush(Display);
+    }
+
+    private void ResetXdndState()
+    {
+        _xdndSourceWindow = 0;
+        _xdndOfferedTypes.Clear();
+        _xdndVersion = 0;
+        _xdndLastRootX = 0;
+        _xdndLastRootY = 0;
+        _xdndLastDropTime = 0;
+    }
+
+    private List<string> ReadXdndPaths(nint property)
+    {
+        const nint AnyPropertyType = 0;
+        int status = NativeX11.XGetWindowProperty(
+            Display,
+            Handle,
+            property,
+            0,
+            64 * 1024,
+            false,
+            AnyPropertyType,
+            out _,
+            out int actualFormat,
+            out nuint nitems,
+            out _,
+            out nint prop);
+
+        if (status != 0 || prop == 0 || actualFormat != 8 || nitems == 0)
+        {
+            if (prop != 0)
+            {
+                NativeX11.XFree(prop);
+            }
+
+            return [];
+        }
+
+        try
+        {
+            unsafe
+            {
+                var bytes = new ReadOnlySpan<byte>((void*)prop, checked((int)nitems));
+                return ParseUriList(bytes);
+            }
+        }
+        finally
+        {
+            NativeX11.XFree(prop);
+        }
+    }
+
+    private List<nint> ReadAtomProperty(nint window, nint property)
+    {
+        const nint AnyPropertyType = 0;
+        int status = NativeX11.XGetWindowProperty(
+            Display,
+            window,
+            property,
+            0,
+            1024,
+            false,
+            AnyPropertyType,
+            out _,
+            out int actualFormat,
+            out nuint nitems,
+            out _,
+            out nint prop);
+
+        if (status != 0 || prop == 0 || actualFormat != 32 || nitems == 0)
+        {
+            if (prop != 0)
+            {
+                NativeX11.XFree(prop);
+            }
+
+            return [];
+        }
+
+        try
+        {
+            var result = new List<nint>(checked((int)nitems));
+            unsafe
+            {
+                if (IntPtr.Size == 8)
+                {
+                    var atoms = new ReadOnlySpan<long>((void*)prop, checked((int)nitems));
+                    foreach (var atom in atoms)
+                    {
+                        if (atom != 0)
+                        {
+                            result.Add((nint)atom);
+                        }
+                    }
+                }
+                else
+                {
+                    var atoms = new ReadOnlySpan<int>((void*)prop, checked((int)nitems));
+                    foreach (var atom in atoms)
+                    {
+                        if (atom != 0)
+                        {
+                            result.Add((nint)atom);
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+        finally
+        {
+            NativeX11.XFree(prop);
+        }
+    }
+
+    private (int x, int y) TranslateRootToClient(int rootX, int rootY)
+    {
+        int screen = NativeX11.XDefaultScreen(Display);
+        nint root = NativeX11.XRootWindow(Display, screen);
+        _ = NativeX11.XTranslateCoordinates(Display, root, Handle, rootX, rootY, out int clientX, out int clientY, out _);
+        return (clientX, clientY);
+    }
+
+    private static List<string> ParseUriList(ReadOnlySpan<byte> bytes)
+    {
+        string text = System.Text.Encoding.UTF8.GetString(bytes);
+        var result = new List<string>();
+        foreach (var rawLine in text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (rawLine.Length == 0 || rawLine[0] == '#')
+            {
+                continue;
+            }
+
+            if (!Uri.TryCreate(rawLine, UriKind.Absolute, out var uri) || !uri.IsFile)
+            {
+                continue;
+            }
+
+            string path = uri.LocalPath;
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                result.Add(path);
+            }
+        }
+
+        return result;
     }
 
     internal void NotifyDpiChanged(uint oldDpi, uint newDpi)

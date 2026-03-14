@@ -18,6 +18,7 @@
     <Compile Include="..\MewUI\Shared\Native\Win32\Structs\*.cs" LinkBase="Native\Structs" />
     <Compile Include="..\MewUI\Shared\Native\Win32\Constants\*.cs" LinkBase="Native\Constants" />
     <Compile Include="..\MewUI\Shared\Native\Win32\User32.cs" LinkBase="Native" />
+    <Compile Include="..\MewUI\Shared\Native\Win32\Shell32.cs" LinkBase="Native" />
     <Compile Include="..\MewUI\Shared\Native\Win32\Gdi32.cs" LinkBase="Native" />
     <Compile Include="..\MewUI\Shared\Native\Win32\DwmApi.cs" LinkBase="Native" />
     <Compile Include="..\MewUI\Shared\Native\Win32\Kernel32.cs" LinkBase="Native" />

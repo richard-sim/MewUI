@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 
 using Aprillz.MewUI.Diagnostics;
 using Aprillz.MewUI.Input;
+using Aprillz.MewUI.Platform;
 
 namespace Aprillz.MewUI.Platform.MacOS;
 
@@ -81,6 +82,7 @@ internal sealed class MacOSWindowBackend : IWindowBackend
 
     private bool _imeHasMarkedText;
     private string _imeMarkedText = string.Empty;
+    private DragEventArgs? _lastDragEventArgs;
     internal string ImeMarkedText => _imeMarkedText;
     internal Window Window => _window;
 
@@ -435,6 +437,73 @@ internal sealed class MacOSWindowBackend : IWindowBackend
         }
     }
 
+    private DragEventArgs CreateDragEventArgs(IReadOnlyList<string> paths, NSPoint windowPoint)
+    {
+        var client = _window.ClientSize;
+        var localPoint = new Point(windowPoint.x, client.Height - windowPoint.y);
+        var screenPoint = MacOSWindowInterop.WindowConvertPointToScreen(_nsWindow, windowPoint);
+        double scale = _lastDpiScale > 0 ? _lastDpiScale : 1.0;
+
+        var data = new DataObject(new Dictionary<string, object>
+        {
+            [StandardDataFormats.StorageItems] = paths,
+        });
+
+        return new DragEventArgs(
+            data,
+            localPoint,
+            new Point(screenPoint.x * scale, screenPoint.y * scale));
+    }
+
+    internal ulong HandleNativeDragEnter(IReadOnlyList<string> paths, NSPoint windowPoint)
+    {
+        if (paths.Count == 0)
+        {
+            return 0;
+        }
+
+        var args = CreateDragEventArgs(paths, windowPoint);
+        _lastDragEventArgs = args;
+        _window.RaiseDragEnter(args);
+        return 1;
+    }
+
+    internal ulong HandleNativeDragOver(IReadOnlyList<string> paths, NSPoint windowPoint)
+    {
+        if (paths.Count == 0)
+        {
+            return 0;
+        }
+
+        var args = CreateDragEventArgs(paths, windowPoint);
+        _lastDragEventArgs = args;
+        _window.RaiseDragOver(args);
+        return 1;
+    }
+
+    internal void HandleNativeDragLeave()
+    {
+        if (_lastDragEventArgs is { } args)
+        {
+            _window.RaiseDragLeave(args);
+        }
+
+        _lastDragEventArgs = null;
+    }
+
+    internal bool HandleNativeDrop(IReadOnlyList<string> paths, NSPoint windowPoint)
+    {
+        if (paths.Count == 0)
+        {
+            return false;
+        }
+
+        var args = CreateDragEventArgs(paths, windowPoint);
+        _lastDragEventArgs = args;
+        _window.RaiseDrop(args);
+        return true;
+    }
+
     private void EnsureCreated()
     {
         if (_nsWindow != 0)
@@ -467,6 +536,7 @@ internal sealed class MacOSWindowBackend : IWindowBackend
                 _metalLayer = layer;
                 _nsContext = 0;
                 MacOSWindowInterop.RegisterTextInputTarget(_nsView, this);
+                MacOSWindowInterop.RegisterForDragDrop(_nsView);
                 MacOSWindowInterop.RegisterMetalLayerTarget(_metalLayer, this);
                 MacOSWindowInterop.SetFirstResponder(_nsWindow, _nsView);
                 if (_metalLayer != 0)
@@ -486,6 +556,7 @@ internal sealed class MacOSWindowBackend : IWindowBackend
                 _nsContext = ctx;
                 _metalLayer = 0;
                 MacOSWindowInterop.RegisterTextInputTarget(_nsView, this);
+                MacOSWindowInterop.RegisterForDragDrop(_nsView);
                 MacOSWindowInterop.RegisterReshapeTarget(_nsView, this);
                 MacOSWindowInterop.SetFirstResponder(_nsWindow, _nsView);
             }
@@ -693,6 +764,15 @@ internal sealed class MacOSWindowBackend : IWindowBackend
         if (type == 15 && MacOSInterop.GetEventWindow(ev) == 0)
         {
             return;
+        }
+
+        if (_window.HasNativeMessageHandler)
+        {
+            var hookArgs = new MacOSNativeMessageEventArgs(ev, type);
+            if (_window.RaiseNativeMessage(hookArgs))
+            {
+                return;
+            }
         }
 
         if (!_enabled)
@@ -1658,7 +1738,13 @@ internal static unsafe class MacOSWindowInterop
     private static nint SelLayer;
     private static nint SelSetNeedsDisplayOnBoundsChange;
     private static nint SelClearColor;
-
+    private static nint SelRegisterForDraggedTypes;
+    private static nint SelDraggingPasteboard;
+    private static nint SelDraggingLocation;
+    private static nint SelPropertyListForType;
+    private static nint SelCount;
+    private static nint SelObjectAtIndex;
+    private static nint SelUTF8String;
     private static nint SelAppearanceNamed;
     private static nint _appearanceNameAqua;
     private static nint _appearanceNameDarkAqua;
@@ -1779,7 +1865,13 @@ internal static unsafe class MacOSWindowInterop
         SelLayer = ObjC.Sel("layer");
         SelSetNeedsDisplayOnBoundsChange = ObjC.Sel("setNeedsDisplayOnBoundsChange:");
         SelClearColor = ObjC.Sel("clearColor");
-
+        SelRegisterForDraggedTypes = ObjC.Sel("registerForDraggedTypes:");
+        SelDraggingPasteboard = ObjC.Sel("draggingPasteboard");
+        SelDraggingLocation = ObjC.Sel("draggingLocation");
+        SelPropertyListForType = ObjC.Sel("propertyListForType:");
+        SelCount = ObjC.Sel("count");
+        SelObjectAtIndex = ObjC.Sel("objectAtIndex:");
+        SelUTF8String = ObjC.Sel("UTF8String");
         EnsureOpenGLViewSubclass();
 
         SelAppearanceNamed = ObjC.Sel("appearanceNamed:");
@@ -2180,6 +2272,27 @@ internal static unsafe class MacOSWindowInterop
         lock (_textInputTargets)
         {
             _textInputTargets[view] = new WeakReference<MacOSWindowBackend>(backend);
+        }
+    }
+
+    public static void RegisterForDragDrop(nint view)
+    {
+        EnsureInitialized();
+        if (view == 0 || ClsNSArray == 0 || SelArrayWithObject == 0 || SelRegisterForDraggedTypes == 0)
+        {
+            return;
+        }
+
+        var fileNamesType = ObjC.CreateNSString("NSFilenamesPboardType");
+        if (fileNamesType == 0)
+        {
+            return;
+        }
+
+        var array = ObjC.MsgSend_nint_nint(ClsNSArray, SelArrayWithObject, fileNamesType);
+        if (array != 0)
+        {
+            ObjC.MsgSend_void_nint_nint(view, SelRegisterForDraggedTypes, array);
         }
     }
 
@@ -2602,6 +2715,165 @@ internal static unsafe class MacOSWindowInterop
         }
     }
 
+    private static string[] ExtractPathsFromDraggingInfo(nint draggingInfo)
+    {
+        EnsureInitialized();
+        if (draggingInfo == 0 || SelDraggingPasteboard == 0 || SelPropertyListForType == 0 || SelCount == 0 || SelObjectAtIndex == 0 || SelUTF8String == 0)
+        {
+            return [];
+        }
+
+        var pasteboard = ObjC.MsgSend_nint(draggingInfo, SelDraggingPasteboard);
+        if (pasteboard == 0)
+        {
+            return [];
+        }
+
+        var fileNamesType = ObjC.CreateNSString("NSFilenamesPboardType");
+        if (fileNamesType == 0)
+        {
+            return [];
+        }
+
+        var array = ObjC.MsgSend_nint_nint(pasteboard, SelPropertyListForType, fileNamesType);
+        if (array == 0)
+        {
+            return [];
+        }
+
+        ulong count = ObjC.MsgSend_ulong(array, SelCount);
+        if (count == 0)
+        {
+            return [];
+        }
+
+        var paths = new List<string>((int)count);
+        for (ulong i = 0; i < count; i++)
+        {
+            var nsString = ObjC.MsgSend_nint_ulong(array, SelObjectAtIndex, i);
+            if (nsString == 0)
+            {
+                continue;
+            }
+
+            var utf8 = ObjC.MsgSend_nint(nsString, SelUTF8String);
+            var path = utf8 != 0 ? Marshal.PtrToStringUTF8(utf8) : null;
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                paths.Add(path);
+            }
+        }
+
+        return paths.ToArray();
+    }
+
+    [UnmanagedCallersOnly]
+    private static ulong MewUIDragDestination_draggingEntered(nint self, nint _cmd, nint sender)
+    {
+        try
+        {
+            if (TryGetTextInputTarget(self, out var backend))
+            {
+                return backend.HandleNativeDragEnter(
+                    ExtractPathsFromDraggingInfo(sender),
+                    ObjC.MsgSend_point(sender, SelDraggingLocation));
+            }
+        }
+        catch
+        {
+        }
+
+        return 0;
+    }
+
+    [UnmanagedCallersOnly]
+    private static ulong MewUIDragDestination_draggingUpdated(nint self, nint _cmd, nint sender)
+    {
+        try
+        {
+            if (TryGetTextInputTarget(self, out var backend))
+            {
+                return backend.HandleNativeDragOver(
+                    ExtractPathsFromDraggingInfo(sender),
+                    ObjC.MsgSend_point(sender, SelDraggingLocation));
+            }
+        }
+        catch
+        {
+        }
+
+        return 0;
+    }
+
+    [UnmanagedCallersOnly]
+    private static void MewUIDragDestination_draggingExited(nint self, nint _cmd, nint sender)
+    {
+        try
+        {
+            if (TryGetTextInputTarget(self, out var backend))
+            {
+                backend.HandleNativeDragLeave();
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    [UnmanagedCallersOnly]
+    private static byte MewUIDragDestination_performDragOperation(nint self, nint _cmd, nint sender)
+    {
+        try
+        {
+            if (TryGetTextInputTarget(self, out var backend) &&
+                backend.HandleNativeDrop(
+                    ExtractPathsFromDraggingInfo(sender),
+                    ObjC.MsgSend_point(sender, SelDraggingLocation)))
+            {
+                return 1;
+            }
+        }
+        catch
+        {
+        }
+
+        return 0;
+    }
+
+    private static void AddDragDestinationMethods(nint cls)
+    {
+        var selDraggingEntered = ObjC.Sel("draggingEntered:");
+        var selDraggingUpdated = ObjC.Sel("draggingUpdated:");
+        var selDraggingExited = ObjC.Sel("draggingExited:");
+        var selPerformDragOperation = ObjC.Sel("performDragOperation:");
+
+        if (selDraggingEntered != 0)
+        {
+            var imp = (nint)(delegate* unmanaged<nint, nint, nint, ulong>)&MewUIDragDestination_draggingEntered;
+            _ = ObjC.AddMethod(cls, selDraggingEntered, imp, "Q@:@");
+        }
+
+        if (selDraggingUpdated != 0)
+        {
+            var imp = (nint)(delegate* unmanaged<nint, nint, nint, ulong>)&MewUIDragDestination_draggingUpdated;
+            _ = ObjC.AddMethod(cls, selDraggingUpdated, imp, "Q@:@");
+        }
+
+        if (selDraggingExited != 0)
+        {
+            var imp = (nint)(delegate* unmanaged<nint, nint, nint, void>)&MewUIDragDestination_draggingExited;
+            _ = ObjC.AddMethod(cls, selDraggingExited, imp, "v@:@");
+        }
+
+        if (selPerformDragOperation != 0)
+        {
+            var imp = (nint)(delegate* unmanaged<nint, nint, nint, byte>)&MewUIDragDestination_performDragOperation;
+            _ = ObjC.AddMethod(cls, selPerformDragOperation, imp, "B@:@");
+        }
+
+        _ = ObjC.AddProtocol(cls, "NSDraggingDestination");
+    }
+
     [UnmanagedCallersOnly]
     private static void MewUIOpenGLView_reshape(nint self, nint _cmd)
     {
@@ -2666,6 +2938,7 @@ internal static unsafe class MacOSWindowInterop
             // NSTextInputClient / text services
             AddTextInputClientMethods(cls);
             _ = ObjC.AddProtocol(cls, "NSTextInputClient");
+            AddDragDestinationMethods(cls);
 
             if (needsRegister)
             {
@@ -2819,6 +3092,7 @@ internal static unsafe class MacOSWindowInterop
         {
             AddTextInputClientMethods(cls);
             _ = ObjC.AddProtocol(cls, "NSTextInputClient");
+            AddDragDestinationMethods(cls);
             if (needsRegister)
             {
                 ObjC.RegisterClassPair(cls);

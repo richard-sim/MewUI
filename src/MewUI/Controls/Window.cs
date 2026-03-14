@@ -612,6 +612,26 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     public event Action? FrameRendered;
 
     /// <summary>
+    /// Occurs when dragged data enters the window.
+    /// </summary>
+    public event Action<DragEventArgs>? DragEnter;
+
+    /// <summary>
+    /// Occurs when dragged data moves over the window.
+    /// </summary>
+    public event Action<DragEventArgs>? DragOver;
+
+    /// <summary>
+    /// Occurs when dragged data leaves the window.
+    /// </summary>
+    public event Action<DragEventArgs>? DragLeave;
+
+    /// <summary>
+    /// Occurs when data is dropped on the window.
+    /// </summary>
+    public event Action<DragEventArgs>? Drop;
+
+    /// <summary>
     /// Gets the rendering statistics from the most recent frame.
     /// </summary>
     public RenderStats LastFrameStats { get; private set; }
@@ -652,7 +672,22 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     /// </summary>
     public event Action<TextCompositionEventArgs>? PreviewTextCompositionEnd;
 
+    /// <summary>
+    /// Raised before the framework processes a native platform message (Win32 WM_, X11 XEvent, macOS NSEvent).
+    /// Set <see cref="NativeMessageEventArgs.Handled"/> to suppress default processing.
+    /// Cast the argument to the platform-specific subclass to access raw message data.
+    /// </summary>
+    public event Action<NativeMessageEventArgs>? NativeMessage;
+
     #endregion
+
+    internal bool HasNativeMessageHandler => NativeMessage is not null;
+
+    internal bool RaiseNativeMessage(NativeMessageEventArgs args)
+    {
+        NativeMessage?.Invoke(args);
+        return args.Handled;
+    }
 
     internal void RaisePreviewKeyDown(KeyEventArgs e) => PreviewKeyDown?.Invoke(e);
 
@@ -669,6 +704,14 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     internal void RaiseActivated() => Activated?.Invoke();
 
     internal void RaiseDeactivated() => Deactivated?.Invoke();
+
+    internal void RaiseDragEnter(DragEventArgs e) => DragEnter?.Invoke(e);
+
+    internal void RaiseDragOver(DragEventArgs e) => DragOver?.Invoke(e);
+
+    internal void RaiseDragLeave(DragEventArgs e) => DragLeave?.Invoke(e);
+
+    internal void RaiseDrop(DragEventArgs e) => Drop?.Invoke(e);
 
     /// <summary>
     /// Shows the window.

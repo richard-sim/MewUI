@@ -106,6 +106,23 @@ internal static partial class X11
         out nint prop_return);
 
     [LibraryImport(LibraryName)]
+    public static partial int XConvertSelection(
+        nint display,
+        nint selection,
+        nint target,
+        nint property,
+        nint requestor,
+        nint time);
+
+    [LibraryImport(LibraryName)]
+    public static partial int XSendEvent(
+        nint display,
+        nint window,
+        [MarshalAs(UnmanagedType.Bool)] bool propagate,
+        nint event_mask,
+        ref XEvent send_event);
+
+    [LibraryImport(LibraryName)]
     public static partial void XrmInitialize();
 
     [LibraryImport(LibraryName)]
@@ -334,6 +351,9 @@ internal struct XEvent
 
     [FieldOffset(0)]
     public XFocusChangeEvent xfocus;
+
+    [FieldOffset(0)]
+    public XSelectionEvent xselection;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -434,6 +454,21 @@ internal unsafe struct XClientMessageEvent
     public nint message_type;
     public int format;
     public fixed long data[5];
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct XSelectionEvent
+{
+    public int type;
+    public ulong serial;
+    [MarshalAs(UnmanagedType.Bool)]
+    public bool send_event;
+    public nint display;
+    public nint requestor;
+    public nint selection;
+    public nint target;
+    public nint property;
+    public nint time;
 }
 
 [StructLayout(LayoutKind.Sequential)]

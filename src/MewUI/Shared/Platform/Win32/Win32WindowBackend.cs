@@ -256,6 +256,15 @@ internal sealed class Win32WindowBackend : IWindowBackend
 
     public nint ProcessMessage(uint msg, nint wParam, nint lParam)
     {
+        if (Window.HasNativeMessageHandler)
+        {
+            var hookArgs = new Win32NativeMessageEventArgs(msg, wParam, lParam);
+            if (Window.RaiseNativeMessage(hookArgs))
+            {
+                return hookArgs.Result;
+            }
+        }
+
         switch (msg)
         {
             case WindowMessages.WM_SETCURSOR:
@@ -393,6 +402,9 @@ internal sealed class Win32WindowBackend : IWindowBackend
 
                 return 0;
 
+            case WindowMessages.WM_DROPFILES:
+                return HandleDropFiles(wParam);
+
             default:
                 return User32.DefWindowProc(Handle, msg, wParam, lParam);
         }
@@ -434,6 +446,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
         _titleBarThemeSync.Initialize(Handle);
         _host.RegisterWindow(Handle, this);
         Window.AttachBackend(this);
+        Shell32.DragAcceptFiles(Handle, true);
 
         ApplyResizeMode();
         EnsureLayeredStyleIfNeeded();
@@ -472,6 +485,75 @@ internal sealed class Win32WindowBackend : IWindowBackend
         return monitor != 0
             ? Win32DpiApiResolver.GetDpiForMonitor(monitor)
             : Win32DpiApiResolver.GetSystemDpi();
+    }
+
+    private nint HandleDropFiles(nint hDrop)
+    {
+        try
+        {
+            unsafe
+            {
+                uint count = Shell32.DragQueryFile(hDrop, 0xFFFFFFFF, null, 0);
+                if (count == 0)
+                {
+                    return 0;
+                }
+
+                var paths = new List<string>((int)count);
+                for (uint i = 0; i < count; i++)
+                {
+                    uint length = Shell32.DragQueryFile(hDrop, i, null, 0);
+                    if (length == 0)
+                    {
+                        continue;
+                    }
+
+                    char[] rented = ArrayPool<char>.Shared.Rent((int)length + 1);
+                    try
+                    {
+                        fixed (char* buffer = rented)
+                        {
+                            _ = Shell32.DragQueryFile(hDrop, i, buffer, length + 1);
+                            if (buffer[0] != '\0')
+                            {
+                                paths.Add(new string(buffer, 0, (int)length));
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        ArrayPool<char>.Shared.Return(rented, clearArray: true);
+                    }
+                }
+
+                if (paths.Count == 0)
+                {
+                    return 0;
+                }
+
+                POINT clientPointPx = default;
+                _ = Shell32.DragQueryPoint(hDrop, &clientPointPx);
+                var screenPointPx = clientPointPx;
+                User32.ClientToScreen(Handle, ref screenPointPx);
+
+                var data = new DataObject(new Dictionary<string, object>
+                {
+                    [StandardDataFormats.StorageItems] = paths,
+                });
+
+                var args = new DragEventArgs(
+                    data,
+                    new Point(clientPointPx.x / Window.DpiScale, clientPointPx.y / Window.DpiScale),
+                    new Point(screenPointPx.x, screenPointPx.y));
+
+                Window.RaiseDrop(args);
+                return 0;
+            }
+        }
+        finally
+        {
+            Shell32.DragFinish(hDrop);
+        }
     }
 
     private (int X, int Y) ResolveInitialPosition(int windowWidthPx, int windowHeightPx, uint dpi)
