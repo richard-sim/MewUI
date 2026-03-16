@@ -752,6 +752,9 @@ public partial class Window : ContentControl, ILayoutRoundingHost
         ResolveStartupPosition();
         _backend!.EnsureTheme(Theme.IsDark);
         _backend!.Show();
+        // Re-apply after Show for platforms (macOS) where window chrome appearance
+        // may reset when the window is first ordered on screen.
+        _backend!.EnsureTheme(Theme.IsDark);
         _lifetimeState = WindowLifetimeState.Shown;
 
         // Raise Loaded once, and only after the application's dispatcher is ready.
