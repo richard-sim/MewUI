@@ -531,6 +531,17 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     }
 
     /// <summary>
+    /// Centers this window on its owner window. No-op if there is no owner.
+    /// </summary>
+    public void CenterOnOwner()
+    {
+        if (_backend == null || Handle == 0 || Owner == null)
+            return;
+
+        _backend.CenterOnOwner();
+    }
+
+    /// <summary>
     /// Moves the window to the specified screen position (DIPs).
     /// </summary>
     public void MoveTo(double leftDip, double topDip)

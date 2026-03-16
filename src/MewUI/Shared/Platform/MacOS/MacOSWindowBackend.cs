@@ -295,6 +295,19 @@ internal sealed class MacOSWindowBackend : IWindowBackend
         return new Point(windowPoint.x, client.Height - windowPoint.y);
     }
 
+    public void CenterOnOwner()
+    {
+        if (_nsWindow == 0 || _window.Owner is not { } ownerWindow || ownerWindow.Handle == 0)
+            return;
+
+        var ownerFrame = MacOSWindowInterop.GetWindowFrame(MacOSWindowInterop.GetWindowFromView(ownerWindow.Handle));
+        var frame = MacOSWindowInterop.GetWindowFrame(_nsWindow);
+        double x = ownerFrame.origin.x + ((ownerFrame.size.width - frame.size.width) * 0.5);
+        // macOS Y-up: 0.75 = upper bias (equivalent to 0.25 in Y-down systems)
+        double y = ownerFrame.origin.y + ((ownerFrame.size.height - frame.size.height) * 0.75);
+        MacOSWindowInterop.SetWindowPosition(_nsWindow, x, y);
+    }
+
     public void EnsureTheme(bool isDark)
     {
         if (_nsWindow == 0)
@@ -630,7 +643,7 @@ internal sealed class MacOSWindowBackend : IWindowBackend
                     var ownerFrame = MacOSWindowInterop.GetWindowFrame(MacOSWindowInterop.GetWindowFromView(ownerWindow.Handle));
                     var frame = MacOSWindowInterop.GetWindowFrame(_nsWindow);
                     double x = ownerFrame.origin.x + ((ownerFrame.size.width - frame.size.width) * 0.5);
-                    double y = ownerFrame.origin.y + ((ownerFrame.size.height - frame.size.height) * 0.25);
+                    double y = ownerFrame.origin.y + ((ownerFrame.size.height - frame.size.height) * 0.75);
                     MacOSWindowInterop.SetWindowPosition(_nsWindow, x, y);
                 }
                 return;

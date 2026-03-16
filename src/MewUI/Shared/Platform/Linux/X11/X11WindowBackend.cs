@@ -1896,6 +1896,18 @@ internal sealed class X11WindowBackend : IWindowBackend
         try { Window.RaiseClosed(); } catch { }
     }
 
+    public void CenterOnOwner()
+    {
+        if (Display == 0 || Handle == 0 || Window.Owner is not { } ownerWindow || ownerWindow.Handle == 0)
+            return;
+
+        var ownerPos = ownerWindow.Position;
+        var ownerSize = ownerWindow.ClientSize;
+        double x = ownerPos.X + (ownerSize.Width - Window.Width) / 2;
+        double y = ownerPos.Y + (ownerSize.Height - Window.Height) / 2;
+        SetPosition(x, y);
+    }
+
     public void EnsureTheme(bool isDark)
     {
     }

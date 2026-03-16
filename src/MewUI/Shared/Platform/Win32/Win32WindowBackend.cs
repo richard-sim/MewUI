@@ -1695,6 +1695,27 @@ internal sealed class Win32WindowBackend : IWindowBackend
         User32.SetWindowLongPtr(Handle, GWL_HWNDPARENT, ownerHandle);
     }
 
+    public void CenterOnOwner()
+    {
+        if (Handle == 0 || Window.Owner is not { } ownerWindow || ownerWindow.Handle == 0)
+            return;
+
+        if (!TryGetOwnerPlacementRect(ownerWindow, out var ownerRect))
+            return;
+
+        User32.GetWindowRect(Handle, out var windowRect);
+        int w = windowRect.Width;
+        int h = windowRect.Height;
+        int x = ownerRect.left + ((ownerRect.Width - w) / 2);
+        int y = ownerRect.top + ((ownerRect.Height - h) / 2);
+        var (cx, cy) = ClampToWorkArea(x, y, w, h, User32.MonitorFromWindow(ownerWindow.Handle, MonitorDefaultToNearest));
+
+        const uint SWP_NOSIZE = 0x0001;
+        const uint SWP_NOZORDER = 0x0004;
+        const uint SWP_NOACTIVATE = 0x0010;
+        User32.SetWindowPos(Handle, 0, cx, cy, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+
     public void EnsureTheme(bool isDark)
     {
         _titleBarThemeSync.ApplyTheme(isDark);

@@ -142,6 +142,8 @@ internal sealed class TracingPlatformHost : IPlatformHost
         public Point ClientToScreen(Point clientPointDip) => _innerBackend.ClientToScreen(clientPointDip);
         public Point ScreenToClient(Point screenPointPx) => _innerBackend.ScreenToClient(screenPointPx);
 
+        public void CenterOnOwner() => _innerBackend.CenterOnOwner();
+
         public void EnsureTheme(bool isDark)
         {
             DiagLog.Write($"[WindowBackend#{_backendId}] EnsureTheme isDark={isDark}");

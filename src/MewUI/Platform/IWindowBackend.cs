@@ -96,6 +96,11 @@ public interface IWindowBackend : IDisposable
     void EnsureTheme(bool isDark);
 
     /// <summary>
+    /// Centers the window on its owner window (platform-specific coordinate handling).
+    /// </summary>
+    void CenterOnOwner();
+
+    /// <summary>
     /// Attempts to activate the window (bring to front / focus), platform dependent.
     /// </summary>
     void Activate();
