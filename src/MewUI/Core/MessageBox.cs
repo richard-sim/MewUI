@@ -1,3 +1,4 @@
+using Aprillz.MewUI.Controls;
 
 namespace Aprillz.MewUI;
 
@@ -62,5 +63,48 @@ public static class NativeMessageBox
         var host = Application.IsRunning ? Application.Current.PlatformHost : Application.DefaultPlatformHost;
         owner = ResolveOwnerHandle(owner);
         return host.MessageBox.Show(owner, text ?? string.Empty, caption ?? string.Empty, buttons, icon);
+    }
+}
+
+/// <summary>
+/// Managed message box dialogs using <see cref="MessageBoxWindow"/>.
+/// </summary>
+public static class MessageBox
+{
+    public static async Task NotifyAsync(string message, PromptIconKind icon = PromptIconKind.Info, string? detail = null, Window? owner = null)
+    {
+        await PromptAsync(new MessageBoxOptions { Message = message, Icon = icon, Detail = detail, Owner = owner, Buttons = MessageBoxWindow.ButtonsOk });
+    }
+
+    public static async Task<bool> ConfirmAsync(string message, string? detail = null, Window? owner = null)
+    {
+        var r = await PromptAsync(new MessageBoxOptions { Message = message, Icon = PromptIconKind.Question, Detail = detail, Owner = owner, Buttons = MessageBoxWindow.ButtonsOkCancel });
+        return r == true;
+    }
+
+    public static async Task<bool> AskYesNoAsync(string message, string? detail = null, Window? owner = null)
+    {
+        var r = await PromptAsync(new MessageBoxOptions { Message = message, Icon = PromptIconKind.Question, Detail = detail, Owner = owner, Buttons = MessageBoxWindow.ButtonsYesNo });
+        return r == true;
+    }
+
+    public static async Task<bool?> AskYesNoCancelAsync(string message, string? detail = null, Window? owner = null)
+    {
+        return await PromptAsync(new MessageBoxOptions { Message = message, Icon = PromptIconKind.Question, Detail = detail, Owner = owner, Buttons = MessageBoxWindow.ButtonsYesNoCancel });
+    }
+
+    public static async Task<bool?> PromptAsync(MessageBoxOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        var dlg = new MessageBoxWindow(
+            message: options.Message,
+            icon: options.Icon,
+            buttons: options.Buttons,
+            detail: options.Detail,
+            checkBoxes: options.CheckBoxes,
+            title: options.Title ?? "Prompt");
+        dlg.SetMaxHeightFromOwner(options.Owner);
+        await dlg.ShowDialogAsync(options.Owner);
+        return dlg.DialogResult;
     }
 }
