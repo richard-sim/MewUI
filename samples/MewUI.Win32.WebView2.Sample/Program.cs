@@ -33,18 +33,43 @@ try
                             .Spacing(4)
                             .Children(
                                 new Button()
-                                    .Content("Back")
+                                    .Content(
+                                        new StackPanel()
+                                            .Horizontal()
+                                            .Spacing(4)
+                                            .CenterVertical()
+                                            .Children(
+                                                new GlyphElement().Kind(GlyphKind.ChevronLeft).GlyphSize(4),
+                                                new Label().Text("Back")))
                                     .OnClick(() => GetSelectedWebView()?.GoBack()),
                                 new Button()
-                                    .Content("Forward")
+                                    .Content(
+                                        new StackPanel()
+                                            .Horizontal()
+                                            .Spacing(4)
+                                            .CenterVertical()
+                                            .Children(
+                                                new Label().Text("Forward"),
+                                                new GlyphElement().Kind(GlyphKind.ChevronRight).GlyphSize(4)))
                                     .OnClick(() => GetSelectedWebView()?.GoForward()),
                                 new Button()
-                                    .Content("Reload")
+                                    .Content(
+                                        new StackPanel()
+                                            .Horizontal()
+                                            .Spacing(4)
+                                            .CenterVertical()
+                                            .Children(
+                                                new Label().Text("Reload")))
                                     .OnClick(() => GetSelectedWebView()?.Reload()),
                                 new Button()
-                                    .Content("➕")
-                                    .Padding(0)
-                                    .Apply(c => c.Width = c.MinHeight)
+                                    .Content(
+                                        new StackPanel()
+                                            .Horizontal()
+                                            .Spacing(4)
+                                            .CenterVertical()
+                                            .Children(
+                                                new GlyphElement().Kind(GlyphKind.Plus).GlyphSize(4),
+                                                new Label().Text("New Tab")))
                                     .OnClick(() => AddTab(null)),
 
                                 new StackPanel()
@@ -333,7 +358,7 @@ try
                             .Text(initialUri?.Host ?? "New Tab"),
                         new Button()
                             .Margin(8, 0, 0, 0)
-                            .Content("❌")
+                            .Content(new GlyphElement().Kind(GlyphKind.Cross).GlyphSize(3.5))
                             .MinHeight(0)
                             .Size(16, 16)
                             .Padding(new Thickness(0))
@@ -367,7 +392,14 @@ try
                             .Spacing(2)
                             .Children(
                                 new Button()
-                                    .Content("Go")
+                                    .Content(
+                                        new StackPanel()
+                                            .Horizontal()
+                                            .Spacing(4)
+                                            .CenterVertical()
+                                            .Children(
+                                                new Label().Text("Go"),
+                                                new GlyphElement().Kind(GlyphKind.ChevronRight).GlyphSize(4)))
                                     .OnClick(() =>
                                     {
                                         tabControl.SelectedIndex = IndexOfTab(tab);
