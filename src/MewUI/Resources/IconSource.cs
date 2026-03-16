@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace Aprillz.MewUI;
 
 /// <summary>
@@ -14,6 +16,34 @@ public sealed class IconSource
     /// </summary>
     /// <param name="path">Path to an .ico file.</param>
     public static IconSource FromFile(string path) => FromBytes(File.ReadAllBytes(path));
+
+    /// <summary>
+    /// Loads an embedded resource from the specified assembly.
+    /// AOT-friendly: avoids reflection-based discovery; the caller provides the assembly + name.
+    /// </summary>
+    public static IconSource FromResource(Assembly assembly, string resourceName)
+    {
+        ArgumentNullException.ThrowIfNull(assembly);
+
+        if (string.IsNullOrWhiteSpace(resourceName))
+        {
+            throw new ArgumentException("Resource name is required.", nameof(resourceName));
+        }
+
+        using var stream = assembly.GetManifestResourceStream(resourceName);
+        if (stream == null)
+        {
+            throw new FileNotFoundException($"Embedded resource not found: '{resourceName}'", resourceName);
+        }
+
+        return FromStream(stream);
+    }
+
+    /// <summary>
+    /// Loads an embedded resource using an anchor type's assembly (recommended for AOT).
+    /// </summary>
+    public static IconSource FromResource<TAnchor>(string resourceName) =>
+        FromResource(typeof(TAnchor).Assembly, resourceName);
 
     /// <summary>
     /// Loads an icon from a stream.
