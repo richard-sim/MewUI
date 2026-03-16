@@ -44,7 +44,7 @@ partial class WebView2
                 return;
             }
 
-            var hr = WebView2Utilities.Initialize(Assembly.GetEntryAssembly(), false);
+            var hr = WebView2Utilities.Initialize(Assembly.GetExecutingAssembly(), false);
             WebViewInitializationResult = hr;
             if (hr.IsError)
             {
