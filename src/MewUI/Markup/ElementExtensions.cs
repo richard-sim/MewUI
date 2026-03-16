@@ -391,7 +391,7 @@ public static class ElementExtensions
     /// <param name="element">Target element.</param>
     /// <param name="padding">Padding thickness.</param>
     /// <returns>The element for chaining.</returns>
-    public static T Padding<T>(this T element, Thickness padding) where T : FrameworkElement
+    public static T Padding<T>(this T element, Thickness padding) where T : Control
     {
         element.Padding = padding;
         return element;
@@ -404,7 +404,7 @@ public static class ElementExtensions
     /// <param name="element">Target element.</param>
     /// <param name="uniform">Uniform padding value.</param>
     /// <returns>The element for chaining.</returns>
-    public static T Padding<T>(this T element, double uniform) where T : FrameworkElement
+    public static T Padding<T>(this T element, double uniform) where T : Control
     {
         element.Padding = new Thickness(uniform);
         return element;
@@ -418,7 +418,7 @@ public static class ElementExtensions
     /// <param name="horizontal">Horizontal padding.</param>
     /// <param name="vertical">Vertical padding.</param>
     /// <returns>The element for chaining.</returns>
-    public static T Padding<T>(this T element, double horizontal, double vertical) where T : FrameworkElement
+    public static T Padding<T>(this T element, double horizontal, double vertical) where T : Control
     {
         element.Padding = new Thickness(horizontal, vertical, horizontal, vertical);
         return element;
@@ -434,7 +434,7 @@ public static class ElementExtensions
     /// <param name="right">Right padding.</param>
     /// <param name="bottom">Bottom padding.</param>
     /// <returns>The element for chaining.</returns>
-    public static T Padding<T>(this T element, double left, double top, double right, double bottom) where T : FrameworkElement
+    public static T Padding<T>(this T element, double left, double top, double right, double bottom) where T : Control
     {
         element.Padding = new Thickness(left, top, right, bottom);
         return element;

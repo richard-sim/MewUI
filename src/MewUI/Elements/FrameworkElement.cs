@@ -33,9 +33,6 @@ public abstract class FrameworkElement : UIElement, IDisposable
     public static readonly MewProperty<double> MaxHeightProperty =
         MewProperty<double>.Register<FrameworkElement>(nameof(MaxHeight), double.PositiveInfinity, MewPropertyOptions.AffectsLayout);
 
-    public static readonly MewProperty<Thickness> PaddingProperty =
-        MewProperty<Thickness>.Register<FrameworkElement>(nameof(Padding), default, MewPropertyOptions.AffectsLayout);
-
     public static readonly MewProperty<Thickness> MarginProperty =
         MewProperty<Thickness>.Register<FrameworkElement>(nameof(Margin), default, MewPropertyOptions.AffectsLayout);
 
@@ -121,15 +118,6 @@ public abstract class FrameworkElement : UIElement, IDisposable
     }
 
     /// <summary>
-    /// Gets or sets the inner padding.
-    /// </summary>
-    public Thickness Padding
-    {
-        get => GetValue(PaddingProperty);
-        set => SetValue(PaddingProperty, value);
-    }
-
-    /// <summary>
     /// Gets or sets the horizontal alignment within the parent.
     /// </summary>
     public HorizontalAlignment HorizontalAlignment
@@ -175,10 +163,6 @@ public abstract class FrameworkElement : UIElement, IDisposable
         set;
     }
 
-    /// <summary>
-    /// Gets the content bounds (bounds minus padding).
-    /// </summary>
-    protected Rect ContentBounds => Bounds.Deflate(Padding);
 
     public void Dispose()
     {

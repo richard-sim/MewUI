@@ -47,6 +47,10 @@ public abstract class Control : FrameworkElement
         MewProperty<double>.Register<Control>(nameof(BorderThickness), 0.0,
             MewPropertyOptions.AffectsLayout | MewPropertyOptions.AffectsRender);
 
+    /// <summary>Inner padding property.</summary>
+    public static readonly MewProperty<Thickness> PaddingProperty =
+        MewProperty<Thickness>.Register<Control>(nameof(Padding), default, MewPropertyOptions.AffectsLayout);
+
     #endregion
 
     private IFont? _font;
@@ -124,6 +128,20 @@ public abstract class Control : FrameworkElement
         get => GetValue(BorderThicknessProperty);
         set => SetValue(BorderThicknessProperty, value);
     }
+
+    /// <summary>
+    /// Gets or sets the inner padding.
+    /// </summary>
+    public Thickness Padding
+    {
+        get => GetValue(PaddingProperty);
+        set => SetValue(PaddingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets the content bounds (bounds minus padding).
+    /// </summary>
+    protected Rect ContentBounds => Bounds.Deflate(Padding);
 
     /// <summary>
     /// Gets or sets the font family.

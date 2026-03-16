@@ -189,9 +189,7 @@ public sealed partial class TextBlock : FrameworkElement, IDisposable
     {
         if (string.IsNullOrEmpty(Text))
         {
-            return Padding.HorizontalThickness > 0 || Padding.VerticalThickness > 0
-                ? new Size(Padding.HorizontalThickness, Padding.VerticalThickness)
-                : Size.Empty;
+            return Size.Empty;
         }
 
         var wrapping = TextWrapping;
@@ -206,7 +204,7 @@ public sealed partial class TextBlock : FrameworkElement, IDisposable
         double maxWidth = 0;
         if (wrapping != TextWrapping.NoWrap)
         {
-            maxWidth = availableSize.Width - Padding.HorizontalThickness;
+            maxWidth = availableSize.Width;
             if (double.IsNaN(maxWidth) || maxWidth <= 0)
             {
                 maxWidth = 0;
@@ -220,9 +218,8 @@ public sealed partial class TextBlock : FrameworkElement, IDisposable
             maxWidth = maxWidth > 0 ? maxWidth : 1_000_000;
             _lastWrapMeasureWidth = maxWidth;
         }
-        var size = _textMeasureCache.Measure(factory, GetDpi(), font, Text, wrapping, maxWidth);
 
-        return size.Inflate(Padding);
+        return _textMeasureCache.Measure(factory, GetDpi(), font, Text, wrapping, maxWidth);
     }
 
     protected override void ArrangeContent(Rect bounds)
@@ -234,7 +231,7 @@ public sealed partial class TextBlock : FrameworkElement, IDisposable
             return;
         }
 
-        var contentWidth = bounds.Width - Padding.HorizontalThickness;
+        var contentWidth = bounds.Width;
         if (double.IsNaN(contentWidth) || double.IsInfinity(contentWidth))
         {
             return;
@@ -242,9 +239,7 @@ public sealed partial class TextBlock : FrameworkElement, IDisposable
 
         if (!_lastWrapMeasureWidth.HasValue || !_lastWrapMeasureWidth.Value.Equals(contentWidth))
         {
-            // If layout gives us a different width than we measured with, re-measure so wrap height is correct.
             _lastWrapMeasureWidth = contentWidth;
-
             InvalidateMeasure();
         }
     }
@@ -262,10 +257,9 @@ public sealed partial class TextBlock : FrameworkElement, IDisposable
             wrapping = TextWrapping.Wrap;
         }
 
-        var bounds = Bounds.Deflate(Padding);
         var factory = GetGraphicsFactory();
         var font = EnsureFont(factory);
-        context.DrawText(Text, bounds, font, Foreground, TextAlignment, VerticalTextAlignment, wrapping, TextTrimming);
+        context.DrawText(Text, Bounds, font, Foreground, TextAlignment, VerticalTextAlignment, wrapping, TextTrimming);
     }
 
     protected override void OnDpiChanged(uint oldDpi, uint newDpi)

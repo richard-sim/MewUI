@@ -22,6 +22,30 @@ public static class PanelExtensions
         return panel;
     }
 
+    public static T Padding<T>(this T panel, Thickness padding) where T : Panel
+    {
+        panel.Padding = padding;
+        return panel;
+    }
+
+    public static T Padding<T>(this T panel, double uniform) where T : Panel
+    {
+        panel.Padding = new Thickness(uniform);
+        return panel;
+    }
+
+    public static T Padding<T>(this T panel, double horizontal, double vertical) where T : Panel
+    {
+        panel.Padding = new Thickness(horizontal, vertical, horizontal, vertical);
+        return panel;
+    }
+
+    public static T Padding<T>(this T panel, double left, double top, double right, double bottom) where T : Panel
+    {
+        panel.Padding = new Thickness(left, top, right, bottom);
+        return panel;
+    }
+
     #endregion
 
     #region StackPanel

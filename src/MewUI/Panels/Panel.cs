@@ -10,10 +10,22 @@ public abstract class Panel : FrameworkElement
 {
     private readonly List<Element> _children = new();
 
+    public static readonly MewProperty<Thickness> PaddingProperty =
+        MewProperty<Thickness>.Register<Panel>(nameof(Padding), default, MewPropertyOptions.AffectsLayout);
+
     public static readonly MewProperty<bool> ClipToBoundsProperty =
         MewProperty<bool>.Register<Panel>(nameof(ClipToBounds), false, MewPropertyOptions.AffectsRender);
 
     protected override bool InvalidateOnMouseOverChanged => false;
+
+    /// <summary>
+    /// Gets or sets the inner padding.
+    /// </summary>
+    public Thickness Padding
+    {
+        get => GetValue(PaddingProperty);
+        set => SetValue(PaddingProperty, value);
+    }
 
     public bool ClipToBounds
     {

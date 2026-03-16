@@ -83,19 +83,19 @@ public partial record class Theme
         Register(styles, CreateTextBaseStyle());
         
         Register(styles, CreateControlBasedStyle(typeof(CheckBox),
-            Setter.Create(FrameworkElement.PaddingProperty, new Thickness(4, 2, 4, 2)),
+            Setter.Create(Control.PaddingProperty, new Thickness(4, 2, 4, 2)),
             Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
             Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness)));
         
         Register(styles, CreateControlBasedStyle(typeof(RadioButton),
-            Setter.Create(FrameworkElement.PaddingProperty, new Thickness(4, 2, 4, 2)),
+            Setter.Create(Control.PaddingProperty, new Thickness(4, 2, 4, 2)),
             Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
             Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness)));
         
         Register(styles, CreateToggleSwitchStyle());
         
         Register(styles, CreateControlBasedStyle(typeof(NumericUpDown),
-            Setter.Create(FrameworkElement.PaddingProperty, new Thickness(4, 2, 4, 2)),
+            Setter.Create(Control.PaddingProperty, new Thickness(4, 2, 4, 2)),
             Setter.Create(FrameworkElement.MinHeightProperty, Metrics.BaseControlHeight),
             Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
             Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness)));
@@ -127,7 +127,7 @@ public partial record class Theme
             Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness)));
         
         Register(styles, CreateControlBasedStyle(typeof(ToolTip),
-            Setter.Create(FrameworkElement.PaddingProperty, new Thickness(8, 4, 8, 4)),
+            Setter.Create(Control.PaddingProperty, new Thickness(8, 4, 8, 4)),
             Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
             Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness)));
 
@@ -238,7 +238,7 @@ public partial record class Theme
             [
                 Setter.Create(Control.BackgroundProperty, p.ContainerBackground),
                 Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
-                Setter.Create(FrameworkElement.PaddingProperty, new Thickness(8)),
+                Setter.Create(Control.PaddingProperty, new Thickness(8)),
                 Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
                 Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness),
                 ..extraSetters,
@@ -256,7 +256,7 @@ public partial record class Theme
                 Setter.Create(Control.FontFamilyProperty, Metrics.FontFamily),
                 Setter.Create(Control.FontSizeProperty, Metrics.FontSize),
                 Setter.Create(Control.FontWeightProperty, Metrics.FontWeight),
-                Setter.Create(FrameworkElement.PaddingProperty, new Thickness(8)),
+                Setter.Create(Control.PaddingProperty, new Thickness(8)),
             ],
         };
     }
@@ -337,7 +337,7 @@ public partial record class Theme
                 Setter.Create(Control.ForegroundProperty, p.WindowText),
                 Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
                 Setter.Create(ToggleSwitch.ThumbBrushProperty, p.WindowText),
-                Setter.Create(FrameworkElement.PaddingProperty, new Thickness(8, 4, 8, 4)),
+                Setter.Create(Control.PaddingProperty, new Thickness(8, 4, 8, 4)),
                 Setter.Create(FrameworkElement.MinHeightProperty, Metrics.BaseControlHeight),
                 Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
                 Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness),
@@ -531,7 +531,7 @@ public partial record class Theme
             [
                 Setter.Create(Control.BackgroundProperty, tabContentBackground),
                 Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
-                Setter.Create(FrameworkElement.PaddingProperty, new Thickness(8)),
+                Setter.Create(Control.PaddingProperty, new Thickness(8)),
                 Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
                 Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness),
             ],
@@ -556,7 +556,7 @@ public partial record class Theme
                 Setter.Create(Control.BackgroundProperty, p.ButtonFace),
                 Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
                 Setter.Create(Control.ForegroundProperty, p.WindowText),
-                Setter.Create(FrameworkElement.PaddingProperty, new Thickness(4, 2, 4, 2)),
+                Setter.Create(Control.PaddingProperty, new Thickness(4, 2, 4, 2)),
                 Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
             ],
         };
@@ -576,7 +576,7 @@ public partial record class Theme
                 Setter.Create(Control.BackgroundProperty, p.ButtonFace),
                 Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
                 Setter.Create(Control.ForegroundProperty, p.WindowText),
-                Setter.Create(FrameworkElement.PaddingProperty, new Thickness(8, 4, 8, 4)),
+                Setter.Create(Control.PaddingProperty, new Thickness(8, 4, 8, 4)),
                 Setter.Create(FrameworkElement.MinHeightProperty, Metrics.BaseControlHeight),
                 Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
                 Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness),
@@ -642,7 +642,7 @@ public partial record class Theme
                 Setter.Create(Control.BackgroundProperty, p.ButtonFace),
                 Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
                 Setter.Create(Control.ForegroundProperty, p.WindowText),
-                Setter.Create(FrameworkElement.PaddingProperty, new Thickness(8, 4, 8, 4)),
+                Setter.Create(Control.PaddingProperty, new Thickness(8, 4, 8, 4)),
                 Setter.Create(FrameworkElement.MinHeightProperty, Metrics.BaseControlHeight),
                 Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
                 Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness),
@@ -737,7 +737,7 @@ public partial record class Theme
                 Setter.Create(Control.BackgroundProperty, p.ControlBackground),
                 Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
                 Setter.Create(Control.ForegroundProperty, p.WindowText),
-                Setter.Create(FrameworkElement.PaddingProperty, new Thickness(4, 2, 4, 2)),
+                Setter.Create(Control.PaddingProperty, new Thickness(4, 2, 4, 2)),
                 Setter.Create(FrameworkElement.MinHeightProperty, Metrics.BaseControlHeight),
                 Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
                 Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness),
@@ -783,7 +783,7 @@ public partial record class Theme
                 Setter.Create(Control.BackgroundProperty, p.ButtonFace),
                 Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
                 Setter.Create(Control.ForegroundProperty, p.WindowText),
-                Setter.Create(FrameworkElement.PaddingProperty, new Thickness(8, 4, 8, 4)),
+                Setter.Create(Control.PaddingProperty, new Thickness(8, 4, 8, 4)),
                 Setter.Create(FrameworkElement.MinHeightProperty, Metrics.BaseControlHeight),
                 Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
                 Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness),
@@ -848,7 +848,7 @@ public partial record class Theme
                 Setter.Create(Control.BackgroundProperty, p.ButtonFace),
                 Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
                 Setter.Create(Control.ForegroundProperty, p.WindowText),
-                Setter.Create(FrameworkElement.PaddingProperty, new Thickness(8, 4, 8, 4)),
+                Setter.Create(Control.PaddingProperty, new Thickness(8, 4, 8, 4)),
                 Setter.Create(FrameworkElement.MinHeightProperty, Metrics.BaseControlHeight),
                 Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
                 Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness),
