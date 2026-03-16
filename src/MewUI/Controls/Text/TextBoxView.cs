@@ -4,17 +4,22 @@ namespace Aprillz.MewUI.Controls.Text;
 
 internal sealed class TextBoxView
 {
-    private const int MeasureChunkSize = 64;
-
     private readonly record struct MeasureFontKey(string FontFamily, double FontSize, FontWeight FontWeight, uint Dpi);
 
-    private int _measureCacheVersion = -1;
-    private MeasureFontKey _measureCacheFontKey;
-    private char[]? _measureCacheText;
-    private int _measureCacheTextLength;
-    private double[]? _measureCacheChunkPrefixWidths;
-    private double[]? _measureCacheChunkKerningAdjust;
-    private double _measureCacheTotalWidth;
+    private int _cacheVersion = -1;
+    private MeasureFontKey _cacheFontKey;
+    private char[]? _cacheText;
+    private int _cacheTextLength;
+
+    // Chunk-level: absolute prefix width at each chunk boundary.
+    private int _chunkSize;
+    private double[]? _chunkPrefixWidths;   // [chunkCount+1] — _chunkPrefixWidths[i] = width of text[0 .. i*chunkSize)
+    private double[]? _chunkKerningAdjust;  // kerning correction at each chunk boundary
+    private double _totalWidth;
+
+    // Per-chunk character positions (lazily computed).
+    // _charPositions[chunk] = double[chunkLen+1] where [j] = absolute X of text[chunkStart + j].
+    private double[]?[]? _charPositions;
 
     public void Render(
         IGraphicsContext context,
@@ -42,32 +47,33 @@ internal sealed class TextBoxView
         {
             if (isFocused && !isReadOnly)
             {
+                double emptyLineHeight = context.MeasureText("M", font).Height;
+                double emptyLineTop = contentBounds.Y + (contentBounds.Height - emptyLineHeight) / 2;
                 var caretX = contentBounds.X - horizontalOffset;
                 context.DrawLine(
-                    new Point(caretX, contentBounds.Y + 2),
-                    new Point(caretX, contentBounds.Bottom - 2),
+                    new Point(caretX, emptyLineTop + 2),
+                    new Point(caretX, emptyLineTop + emptyLineHeight - 2),
                     theme.Palette.WindowText, 1, pixelSnap: true);
             }
 
             return;
         }
 
-        EnsureMeasureCache(context, font, fontFamily, fontSize, fontWeight, dpi, documentVersion, textLength, copyTextTo);
-        var text = _measureCacheText!.AsSpan(0, _measureCacheTextLength);
+        EnsureCache(context, font, fontFamily, fontSize, fontWeight, dpi, documentVersion, textLength, copyTextTo);
+        var text = _cacheText!.AsSpan(0, _cacheTextLength);
+
+        double lineHeight = context.MeasureText("M", font).Height;
+        double lineTop = contentBounds.Y + (contentBounds.Height - lineHeight) / 2;
 
         double xFrom = Math.Max(0, horizontalOffset);
         double xTo = xFrom + Math.Max(0, contentBounds.Width);
 
-        int startCol = GetCharIndexFromXCached(xFrom, context, font);
-        int endCol = GetCharIndexFromXCached(xTo, context, font);
-        if (endCol < startCol)
-        {
-            endCol = startCol;
-        }
-
+        int startCol = CharIndexFromX(xFrom, context, font);
+        int endCol = CharIndexFromX(xTo, context, font);
+        if (endCol < startCol) endCol = startCol;
         endCol = Math.Min(text.Length, endCol + 2);
 
-        double prefixWidthStart = startCol <= 0 ? 0 : GetPrefixWidthCached(startCol, context, font);
+        double prefixWidthStart = startCol <= 0 ? 0 : GetAbsoluteX(startCol, context, font);
         double drawX = contentBounds.X - horizontalOffset + prefixWidthStart;
 
         var visible = text[startCol..endCol];
@@ -78,11 +84,11 @@ internal sealed class TextBoxView
             int t = Math.Min(selectionEnd, endCol);
             if (s < t)
             {
-                double beforeW = GetPrefixWidthCached(s, context, font) - prefixWidthStart;
-                double selW = GetPrefixWidthCached(t, context, font) - GetPrefixWidthCached(s, context, font);
+                double beforeW = GetAbsoluteX(s, context, font) - prefixWidthStart;
+                double selW = GetAbsoluteX(t, context, font) - GetAbsoluteX(s, context, font);
                 if (selW > 0)
                 {
-                    context.FillRectangle(new Rect(drawX + beforeW, contentBounds.Y, selW, contentBounds.Height), theme.Palette.SelectionBackground);
+                    context.FillRectangle(new Rect(drawX + beforeW, lineTop, selW, lineHeight), theme.Palette.SelectionBackground);
                 }
             }
         }
@@ -96,10 +102,10 @@ internal sealed class TextBoxView
             int caret = Math.Clamp(caretPosition, 0, text.Length);
             if (caret >= startCol && caret <= endCol)
             {
-                double caretX = contentBounds.X - horizontalOffset + GetPrefixWidthCached(caret, context, font);
+                double caretX = contentBounds.X - horizontalOffset + GetAbsoluteX(caret, context, font);
                 context.DrawLine(
-                    new Point(caretX, contentBounds.Y + 2),
-                    new Point(caretX, contentBounds.Bottom - 2),
+                    new Point(caretX, lineTop + 2),
+                    new Point(caretX, lineTop + lineHeight - 2),
                     theme.Palette.WindowText, 1, pixelSnap: true);
             }
         }
@@ -117,28 +123,17 @@ internal sealed class TextBoxView
         int textLength,
         Action<char[], int, int> copyTextTo)
     {
-        if (textLength <= 0)
-        {
-            return 0;
-        }
+        if (textLength <= 0) return 0;
 
-        EnsureMeasureCache(context, font, fontFamily, fontSize, fontWeight, dpi, documentVersion, textLength, copyTextTo);
+        EnsureCache(context, font, fontFamily, fontSize, fontWeight, dpi, documentVersion, textLength, copyTextTo);
+        if (x <= 0) return 0;
 
-        if (x <= 0)
-        {
-            return 0;
-        }
+        int idx = CharIndexFromX(x, context, font);
+        idx = Math.Clamp(idx, 0, _cacheTextLength);
+        if (idx <= 0) return 0;
 
-        int idx = GetCharIndexFromXCached(x, context, font);
-        idx = Math.Clamp(idx, 0, _measureCacheTextLength);
-
-        if (idx <= 0)
-        {
-            return 0;
-        }
-
-        double w0 = GetPrefixWidthCached(idx - 1, context, font);
-        double w1 = GetPrefixWidthCached(idx, context, font);
+        double w0 = GetAbsoluteX(idx - 1, context, font);
+        double w1 = GetAbsoluteX(idx, context, font);
         return x < (w0 + w1) / 2 ? idx - 1 : idx;
     }
 
@@ -157,23 +152,16 @@ internal sealed class TextBoxView
         double endGutterDip,
         Action<char[], int, int> copyTextTo)
     {
-        if (textLength <= 0)
-        {
-            return 0;
-        }
+        if (textLength <= 0) return 0;
 
-        EnsureMeasureCache(context, font, fontFamily, fontSize, fontWeight, dpi, documentVersion, textLength, copyTextTo);
-        double caretX = GetPrefixWidthCached(caretPosition, context, font);
+        EnsureCache(context, font, fontFamily, fontSize, fontWeight, dpi, documentVersion, textLength, copyTextTo);
+        double caretX = GetAbsoluteX(caretPosition, context, font);
 
         double newOffset = horizontalOffset;
         if (caretX - newOffset > viewportWidthDip - 5)
-        {
             newOffset = caretX - viewportWidthDip + 10;
-        }
         else if (caretX - newOffset < 5)
-        {
             newOffset = Math.Max(0, caretX - 10);
-        }
 
         return ClampScrollOffset(context, font, fontFamily, fontSize, fontWeight, dpi, documentVersion, textLength, newOffset, viewportWidthDip, endGutterDip, copyTextTo);
     }
@@ -192,14 +180,10 @@ internal sealed class TextBoxView
         double endGutterDip,
         Action<char[], int, int> copyTextTo)
     {
-        if (textLength <= 0)
-        {
-            return 0;
-        }
+        if (textLength <= 0) return 0;
 
-        EnsureMeasureCache(context, font, fontFamily, fontSize, fontWeight, dpi, documentVersion, textLength, copyTextTo);
-        // Allow a small gutter after the last glyph so it doesn't get clipped at the viewport edge.
-        double maxOffset = Math.Max(0, _measureCacheTotalWidth - Math.Max(0, viewportWidthDip) + Math.Max(0, endGutterDip));
+        EnsureCache(context, font, fontFamily, fontSize, fontWeight, dpi, documentVersion, textLength, copyTextTo);
+        double maxOffset = Math.Max(0, _totalWidth - Math.Max(0, viewportWidthDip) + Math.Max(0, endGutterDip));
         return Math.Clamp(horizontalOffset, 0, maxOffset);
     }
 
@@ -214,16 +198,18 @@ internal sealed class TextBoxView
         int textLength,
         Action<char[], int, int> copyTextTo)
     {
-        if (textLength <= 0)
-        {
-            return 0;
-        }
+        if (textLength <= 0) return 0;
 
-        EnsureMeasureCache(context, font, fontFamily, fontSize, fontWeight, dpi, documentVersion, textLength, copyTextTo);
-        return _measureCacheTotalWidth;
+        EnsureCache(context, font, fontFamily, fontSize, fontWeight, dpi, documentVersion, textLength, copyTextTo);
+        return _totalWidth;
     }
 
-    private void EnsureMeasureCache(
+    #region Cache
+
+    /// <summary>
+    /// Build chunk-level prefix width cache. Per-character positions are computed lazily.
+    /// </summary>
+    private void EnsureCache(
         IGraphicsContext context,
         IFont font,
         string fontFamily,
@@ -235,165 +221,181 @@ internal sealed class TextBoxView
         Action<char[], int, int> copyTo)
     {
         var key = new MeasureFontKey(fontFamily, fontSize, fontWeight, dpi);
-        if (_measureCacheText != null &&
-            _measureCacheVersion == version &&
-            _measureCacheFontKey == key &&
-            _measureCacheTextLength == length &&
-            _measureCacheChunkPrefixWidths != null &&
-            _measureCacheChunkKerningAdjust != null)
+        if (_cacheText != null &&
+            _cacheVersion == version &&
+            _cacheFontKey == key &&
+            _cacheTextLength == length &&
+            _chunkPrefixWidths != null)
         {
             return;
         }
 
-        _measureCacheVersion = version;
-        _measureCacheFontKey = key;
-        _measureCacheTextLength = length;
+        _cacheVersion = version;
+        _cacheFontKey = key;
+        _cacheTextLength = length;
 
         if (length <= 0)
         {
-            _measureCacheText = Array.Empty<char>();
-            _measureCacheChunkPrefixWidths = new[] { 0.0 };
-            _measureCacheChunkKerningAdjust = new[] { 0.0 };
-            _measureCacheTotalWidth = 0;
+            _totalWidth = 0;
+            _chunkSize = 64;
             return;
         }
 
-        _measureCacheText = new char[length];
-        copyTo(_measureCacheText, 0, length);
-        var span = _measureCacheText.AsSpan(0, length);
+        // Reuse text buffer if large enough.
+        if (_cacheText == null || _cacheText.Length < length)
+            _cacheText = new char[length];
+        copyTo(_cacheText, 0, length);
+        var span = _cacheText.AsSpan(0, length);
 
-        int chunkCount = (length + MeasureChunkSize - 1) / MeasureChunkSize;
-        var prefixWidths = new double[chunkCount + 1];
-        var kerningAdjust = new double[chunkCount + 1];
+        // Adaptive chunk size: target ≤256 chunks.
+        int cs = length switch
+        {
+            <= 4096 => 64,
+            <= 32768 => 256,
+            <= 262144 => 1024,
+            _ => 4096,
+        };
+        _chunkSize = cs;
+
+        int chunkCount = (length + cs - 1) / cs;
+        int requiredLen = chunkCount + 1;
+
+        // Reuse chunk-level arrays if large enough.
+        if (_chunkPrefixWidths == null || _chunkPrefixWidths.Length < requiredLen)
+            _chunkPrefixWidths = new double[requiredLen];
+        if (_chunkKerningAdjust == null || _chunkKerningAdjust.Length < requiredLen)
+            _chunkKerningAdjust = new double[requiredLen];
+
+        var prefixWidths = _chunkPrefixWidths;
+        var kerningAdjust = _chunkKerningAdjust;
 
         kerningAdjust[0] = 0;
         for (int i = 1; i <= chunkCount; i++)
         {
-            int idx = i * MeasureChunkSize;
+            int idx = i * cs;
             if (idx <= 0 || idx >= length)
             {
                 kerningAdjust[i] = 0;
                 continue;
             }
 
-            var prev = span.Slice(idx - 1, 1);
-            var first = span.Slice(idx, 1);
-            var pair = span.Slice(idx - 1, 2);
-            double prevW = context.MeasureText(prev, font).Width;
-            double firstW = context.MeasureText(first, font).Width;
-            double pairW = context.MeasureText(pair, font).Width;
+            double prevW = context.MeasureText(span.Slice(idx - 1, 1), font).Width;
+            double firstW = context.MeasureText(span.Slice(idx, 1), font).Width;
+            double pairW = context.MeasureText(span.Slice(idx - 1, 2), font).Width;
             kerningAdjust[i] = pairW - prevW - firstW;
         }
 
         prefixWidths[0] = 0;
         for (int i = 1; i <= chunkCount; i++)
         {
-            int chunkStart = (i - 1) * MeasureChunkSize;
-            int chunkEnd = Math.Min(length, i * MeasureChunkSize);
+            int chunkStart = (i - 1) * cs;
+            int chunkEnd = Math.Min(length, i * cs);
             double chunkW = chunkEnd <= chunkStart ? 0 : context.MeasureText(span.Slice(chunkStart, chunkEnd - chunkStart), font).Width;
             double adjust = i <= 1 ? 0 : kerningAdjust[i - 1];
             prefixWidths[i] = prefixWidths[i - 1] + chunkW + adjust;
         }
 
-        _measureCacheChunkPrefixWidths = prefixWidths;
-        _measureCacheChunkKerningAdjust = kerningAdjust;
-        _measureCacheTotalWidth = prefixWidths[^1];
+        _totalWidth = prefixWidths[chunkCount];
+
+        // Reuse per-chunk position array, clear stale entries.
+        if (_charPositions == null || _charPositions.Length < chunkCount)
+            _charPositions = new double[chunkCount][];
+        else
+            Array.Clear(_charPositions, 0, Math.Min(_charPositions.Length, chunkCount));
     }
 
-    private int GetCharIndexFromXCached(double x, IGraphicsContext context, IFont font)
+    /// <summary>
+    /// Lazily compute per-character absolute X positions for a chunk.
+    /// After this, lookups within the chunk are O(1) array access.
+    /// </summary>
+    private double[] EnsureChunkCharPositions(int chunkIndex, IGraphicsContext context, IFont font)
     {
-        if (_measureCacheTextLength <= 0)
+        var positions = _charPositions![chunkIndex];
+        if (positions != null) return positions;
+
+        var span = _cacheText!.AsSpan(0, _cacheTextLength);
+        int cs = _chunkSize;
+        int chunkStart = chunkIndex * cs;
+        int chunkEnd = Math.Min(_cacheTextLength, chunkStart + cs);
+        int chunkLen = chunkEnd - chunkStart;
+
+        double baseX = _chunkPrefixWidths![chunkIndex];
+        double adjust = chunkStart > 0 ? _chunkKerningAdjust![chunkIndex] : 0;
+
+        // positions[j] = absolute X of character at (chunkStart + j), j in [0..chunkLen].
+        positions = new double[chunkLen + 1];
+        positions[0] = baseX;
+
+        for (int j = 1; j <= chunkLen; j++)
         {
-            return 0;
+            double w = context.MeasureText(span.Slice(chunkStart, j), font).Width;
+            positions[j] = baseX + w + adjust;
         }
 
-        if (x <= 0)
-        {
-            return 0;
-        }
+        _charPositions![chunkIndex] = positions;
+        return positions;
+    }
 
-        if (x >= _measureCacheTotalWidth)
-        {
-            return _measureCacheTextLength;
-        }
+    /// <summary>
+    /// Get absolute X position of character at given index. O(1) after chunk is cached.
+    /// </summary>
+    private double GetAbsoluteX(int index, IGraphicsContext context, IFont font)
+    {
+        index = Math.Clamp(index, 0, _cacheTextLength);
+        if (index <= 0) return 0;
 
-        var span = _measureCacheText!.AsSpan(0, _measureCacheTextLength);
-        var prefixWidths = _measureCacheChunkPrefixWidths!;
-        var kerningAdjust = _measureCacheChunkKerningAdjust!;
+        int cs = _chunkSize;
+        int chunkIndex = Math.Min(_chunkPrefixWidths!.Length - 2, index / cs);
+        int chunkStart = chunkIndex * cs;
 
+        // Exact chunk boundary — use prefix width directly.
+        if (index == chunkStart) return _chunkPrefixWidths[chunkIndex];
+
+        var positions = EnsureChunkCharPositions(chunkIndex, context, font);
+        int localIndex = index - chunkStart;
+        return localIndex < positions.Length ? positions[localIndex] : _chunkPrefixWidths[chunkIndex + 1];
+    }
+
+    /// <summary>
+    /// Find character index from absolute X coordinate.
+    /// Binary search on chunks (O(log chunks)), then binary search within chunk using cached positions (O(log chunkSize), no MeasureText).
+    /// </summary>
+    private int CharIndexFromX(double x, IGraphicsContext context, IFont font)
+    {
+        if (_cacheTextLength <= 0) return 0;
+        if (x <= 0) return 0;
+        if (x >= _totalWidth) return _cacheTextLength;
+
+        var prefixWidths = _chunkPrefixWidths!;
         int chunkCount = prefixWidths.Length - 1;
 
-        int loChunk = 0;
-        int hiChunk = chunkCount;
+        // Binary search for chunk.
+        int loChunk = 0, hiChunk = chunkCount;
         while (loChunk < hiChunk)
         {
             int mid = (loChunk + hiChunk + 1) / 2;
             if (prefixWidths[mid] <= x)
-            {
                 loChunk = mid;
-            }
             else
-            {
                 hiChunk = mid - 1;
-            }
         }
 
         int chunkIndex = loChunk;
-        int chunkStart = chunkIndex * MeasureChunkSize;
-        int chunkEnd = Math.Min(_measureCacheTextLength, chunkStart + MeasureChunkSize);
-        double baseWidth = prefixWidths[chunkIndex];
-        double adjust = chunkStart > 0 ? kerningAdjust[chunkIndex] : 0;
+        var positions = EnsureChunkCharPositions(chunkIndex, context, font);
 
-        int lo = chunkStart;
-        int hi = chunkEnd;
+        // Binary search within chunk using cached positions — no MeasureText calls.
+        int lo = 0, hi = positions.Length - 1;
         while (lo < hi)
         {
             int mid = (lo + hi) / 2;
-            double w = baseWidth;
-            if (mid > chunkStart)
-            {
-                w += context.MeasureText(span.Slice(chunkStart, mid - chunkStart), font).Width;
-                if (adjust != 0)
-                {
-                    w += adjust;
-                }
-            }
-
-            if (w < x)
-            {
+            if (positions[mid] < x)
                 lo = mid + 1;
-            }
             else
-            {
                 hi = mid;
-            }
         }
 
-        return Math.Clamp(lo, 0, _measureCacheTextLength);
+        return Math.Clamp(chunkIndex * _chunkSize + lo, 0, _cacheTextLength);
     }
 
-    private double GetPrefixWidthCached(int index, IGraphicsContext context, IFont font)
-    {
-        index = Math.Clamp(index, 0, _measureCacheTextLength);
-        if (index <= 0)
-        {
-            return 0;
-        }
-
-        var span = _measureCacheText!.AsSpan(0, _measureCacheTextLength);
-        var prefixWidths = _measureCacheChunkPrefixWidths!;
-        var kerningAdjust = _measureCacheChunkKerningAdjust!;
-
-        int chunkIndex = Math.Min(prefixWidths.Length - 1, index / MeasureChunkSize);
-        int chunkStart = chunkIndex * MeasureChunkSize;
-        double baseWidth = prefixWidths[chunkIndex];
-        if (index == chunkStart)
-        {
-            return baseWidth;
-        }
-
-        double extra = context.MeasureText(span.Slice(chunkStart, index - chunkStart), font).Width;
-        double adjust = chunkStart > 0 ? kerningAdjust[chunkIndex] : 0;
-        return baseWidth + extra + adjust;
-    }
+    #endregion
 }

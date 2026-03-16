@@ -184,30 +184,54 @@ public sealed class MultiLineTextBox : TextBase
         var metrics = measure.Context.MeasureText("Mgqy", measure.Font);
         _lineHeight = Math.Max(Math.Max(16, FontSize * 1.4), metrics.Height);
 
-        // Keep previous default width as the baseline; optionally expand a bit for small content.
-        double baseWidth = 16;
-        double textWidth = baseWidth;
+        // Measure actual content width from document lines (capped at 2048 to avoid
+        // pathological sizes). This allows FitContent windows to expand horizontally.
+        // Measure content width from document lines. Capped at 2048px.
+        // Skip expensive measurement for large documents (same threshold as wrap/extent limits).
+        double textWidth = 16;
+        int docLines = Document.LineCount;
+        if (docLines > 0 && Document.Length > 0 && docLines <= ExtentWidthLineCountHardLimit)
+        {
+            const int maxBuf = 512;
+            Span<char> lineBuf = stackalloc char[maxBuf];
+            int sampleLines = Math.Min(docLines, 64);
+            for (int i = 0; i < sampleLines; i++)
+            {
+                int lineLen = Document.GetLineLength(i);
+                if (lineLen <= 0) continue;
 
-        //// Keep desired width stable (scrollbars handle overflow).
-        //// Only allow placeholder to influence the default width.
-        //if (Document.Length == 0 && !string.IsNullOrEmpty(Placeholder))
-        //{
-        //    var placeholder = Placeholder.AsSpan();
-        //    if (placeholder.Length > 64)
-        //    {
-        //        placeholder = placeholder[..64];
-        //    }
-        //    textWidth = Math.Max(baseWidth, measure.Context.MeasureText(placeholder, measure.Font).Width);
-        //}
+                if (lineLen > maxBuf)
+                {
+                    textWidth = 2048;
+                }
+                else
+                {
+                    var lineSpan = Document.GetLineSpan(i, lineBuf);
+                    textWidth = Math.Max(textWidth, measure.Context.MeasureText(lineSpan, measure.Font).Width);
+                }
 
-        // Avoid pathological desired sizes when the document contains very long lines.
+                if (textWidth >= 2048) break;
+            }
+        }
         textWidth = Math.Min(textWidth, 2048);
 
         double chromeW = Padding.HorizontalThickness + borderInset * 2;
         double chromeH = Padding.VerticalThickness + borderInset * 2;
 
         double desiredW = textWidth + chromeW + 4;
-        double desiredH = _lineHeight * 3 + chromeH + 4;
+
+        // Use wrap-aware line count (_lineStarts) when available, otherwise document raw lines.
+        // _lineStarts reflects the previous arrange pass; FitContent layout loops allow convergence.
+        int lineCount = Math.Max(3, Math.Max(Document.LineCount, _lineStarts.Count));
+        double contentH = _lineHeight * lineCount;
+        double desiredH = Math.Min(contentH, 2048) + chromeH + 4;
+
+        // When a finite height is available (e.g. inside a TabControl or Grid row),
+        // don't request more than available — the internal scroll handles overflow.
+        if (!double.IsPositiveInfinity(availableSize.Height) && desiredH > availableSize.Height)
+        {
+            desiredH = availableSize.Height;
+        }
 
         return new Size(desiredW, desiredH);
     }
