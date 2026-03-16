@@ -18,7 +18,7 @@ internal sealed class MacOSMessageBoxService : IMessageBoxService
     private static nint SelImageNamed;
     private static nint SelInitWithSize;
 
-    public MessageBoxResult Show(nint owner, string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon)
+    public bool? Show(nint owner, string text, string caption, NativeMessageBoxButtons buttons, NativeMessageBoxIcon icon)
     {
         MacOSInterop.EnsureApplicationInitialized();
         EnsureInitialized();
@@ -29,7 +29,7 @@ internal sealed class MacOSMessageBoxService : IMessageBoxService
         alert = ObjC.MsgSend_nint(alert, SelInit);
         if (alert == 0)
         {
-            return MessageBoxResult.Ok;
+            return true;
         }
 
         ObjC.MsgSend_void_nint_nint(alert, SelSetMessageText, ObjC.CreateNSString(caption ?? string.Empty));
@@ -76,21 +76,21 @@ internal sealed class MacOSMessageBoxService : IMessageBoxService
         _initialized = true;
     }
 
-    private static nint CreateIconImage(MessageBoxIcon icon)
+    private static nint CreateIconImage(NativeMessageBoxIcon icon)
     {
         // On macOS, NSAlert defaults to the app icon. If the app has no icon, this can look like a generic "folder/app" icon.
-        // For MessageBoxIcon.None we prefer not to show an icon at all, so we set an empty 1x1 NSImage.
+        // For NativeMessageBoxIcon.None we prefer not to show an icon at all, so we set an empty 1x1 NSImage.
         if (ClsNSImage == 0)
         {
             return 0;
         }
 
         nint named = 0;
-        if (icon == MessageBoxIcon.Warning)
+        if (icon == NativeMessageBoxIcon.Warning)
         {
             named = ObjC.MsgSend_nint_nint(ClsNSImage, SelImageNamed, ObjC.CreateNSString("NSImageNameCaution"));
         }
-        else if (icon == MessageBoxIcon.Error)
+        else if (icon == NativeMessageBoxIcon.Error)
         {
             // "Stop" variants differ by macOS version; this name exists on modern macOS.
             named = ObjC.MsgSend_nint_nint(ClsNSImage, SelImageNamed, ObjC.CreateNSString("NSImageNameStopProgressTemplate"));
@@ -105,7 +105,7 @@ internal sealed class MacOSMessageBoxService : IMessageBoxService
             return named;
         }
 
-        if (icon != MessageBoxIcon.None)
+        if (icon != NativeMessageBoxIcon.None)
         {
             return 0;
         }
@@ -116,25 +116,25 @@ internal sealed class MacOSMessageBoxService : IMessageBoxService
         return img;
     }
 
-    private static void AddButtons(nint alert, MessageBoxButtons buttons)
+    private static void AddButtons(nint alert, NativeMessageBoxButtons buttons)
     {
         switch (buttons)
         {
-            case MessageBoxButtons.Ok:
+            case NativeMessageBoxButtons.Ok:
                 ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString("OK"));
                 break;
 
-            case MessageBoxButtons.OkCancel:
+            case NativeMessageBoxButtons.OkCancel:
                 ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString("OK"));
                 ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString("Cancel"));
                 break;
 
-            case MessageBoxButtons.YesNo:
+            case NativeMessageBoxButtons.YesNo:
                 ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString("Yes"));
                 ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString("No"));
                 break;
 
-            case MessageBoxButtons.YesNoCancel:
+            case NativeMessageBoxButtons.YesNoCancel:
                 ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString("Yes"));
                 ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString("No"));
                 ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString("Cancel"));
@@ -146,35 +146,35 @@ internal sealed class MacOSMessageBoxService : IMessageBoxService
         }
     }
 
-    private static MessageBoxResult MapResult(MessageBoxButtons buttons, int buttonIndex)
+    private static bool? MapResult(NativeMessageBoxButtons buttons, int buttonIndex)
     {
         // buttonIndex is 0-based in the order we added buttons.
         return buttons switch
         {
-            MessageBoxButtons.Ok => MessageBoxResult.Ok,
+            NativeMessageBoxButtons.Ok => true,
 
-            MessageBoxButtons.OkCancel => buttonIndex == 0 ? MessageBoxResult.Ok : MessageBoxResult.Cancel,
+            NativeMessageBoxButtons.OkCancel => buttonIndex == 0 ? true : false,
 
-            MessageBoxButtons.YesNo => buttonIndex == 0 ? MessageBoxResult.Yes : MessageBoxResult.No,
+            NativeMessageBoxButtons.YesNo => buttonIndex == 0 ? true : null,
 
-            MessageBoxButtons.YesNoCancel => buttonIndex switch
+            NativeMessageBoxButtons.YesNoCancel => buttonIndex switch
             {
-                0 => MessageBoxResult.Yes,
-                1 => MessageBoxResult.No,
-                _ => MessageBoxResult.Cancel
+                0 => true,
+                1 => (bool?)null,
+                _ => false
             },
 
-            _ => MessageBoxResult.Ok
+            _ => true
         };
     }
 
-    private static int GetAlertStyle(MessageBoxIcon icon)
+    private static int GetAlertStyle(NativeMessageBoxIcon icon)
     {
         // NSAlertStyleInformational = 0, Warning = 1, Critical = 2
         return icon switch
         {
-            MessageBoxIcon.Error => 2,
-            MessageBoxIcon.Warning => 1,
+            NativeMessageBoxIcon.Error => 2,
+            NativeMessageBoxIcon.Warning => 1,
             _ => 0
         };
     }

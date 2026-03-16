@@ -40,6 +40,7 @@ Application
         .OnBuild(x => x
             .Ref(out window)
             .Icon(icon)
+            .StartCenterScreen()
             .Title("Aprillz.MewUI Controls Gallery")
             .Content(
                 new DockPanel()
@@ -282,7 +283,7 @@ static void Startup()
     {
         try
         {
-            _ = MessageBox.ShowDialogAsync(e.Exception.ToString(), "Unhandled UI exception");
+            NativeMessageBox.Show(e.Exception.ToString(), "Unhandled UI exception");
         }
         catch
         {

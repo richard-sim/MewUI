@@ -168,14 +168,14 @@ Element TopSection() => new DockPanel()
 Element MenuDemo()
 {
     var fileMenu = new Menu()
-        .Item("New", () => _ = MessageBox.ShowDialogAsync(window.Handle, "New", "Menu"))
-        .Item("Open...", () => _ = MessageBox.ShowDialogAsync(window.Handle, "Open", "Menu"))
+        .Item("New", () => NativeMessageBox.Show(window.Handle, "New", "Menu"))
+        .Item("Open...", () => NativeMessageBox.Show(window.Handle, "Open", "Menu"))
         .Separator()
         .Item("Exit", () => Application.Quit());
 
     var deepMenu = new Menu()
-        .Item("Deep A", () => _ = MessageBox.ShowDialogAsync(window.Handle, "Deep A", "Menu"))
-        .Item("Deep B", () => _ = MessageBox.ShowDialogAsync(window.Handle, "Deep B", "Menu"));
+        .Item("Deep A", () => NativeMessageBox.Show(window.Handle, "Deep A", "Menu"))
+        .Item("Deep B", () => NativeMessageBox.Show(window.Handle, "Deep B", "Menu"));
 
     var recentMenu = new Menu()
         .Apply(x =>
@@ -183,7 +183,7 @@ Element MenuDemo()
             for (char letter = 'a'; letter <= 'z'; letter++)
             {
                 var text = letter + ".txt";
-                x.Item(text, () => _ = MessageBox.ShowDialogAsync(window.Handle, text, "Recent"));
+                x.Item(text, () => NativeMessageBox.Show(window.Handle, text, "Recent"));
             }
         })
         .Separator()
@@ -196,11 +196,11 @@ Element MenuDemo()
         .Item("Paste", () => { }, shortcutText: "Ctrl+V");
 
     var helpAboutMenu = new Menu()
-        .Item("About", () => _ = MessageBox.ShowDialogAsync(window.Handle, "Aprillz.MewUI", "About"));
+        .Item("About", () => NativeMessageBox.Show(window.Handle, "Aprillz.MewUI", "About"));
 
     var helpDocsMenu = new Menu()
-        .Item("Docs", () => _ = MessageBox.ShowDialogAsync(window.Handle, "docs/", "Help"))
-        .Item("Korean Docs", () => _ = MessageBox.ShowDialogAsync(window.Handle, "ko/docs/", "Help"));
+        .Item("Docs", () => NativeMessageBox.Show(window.Handle, "docs/", "Help"))
+        .Item("Korean Docs", () => NativeMessageBox.Show(window.Handle, "ko/docs/", "Help"));
 
     var helpMenu = new Menu()
         .SubMenu("Documentation", helpDocsMenu)
@@ -288,7 +288,7 @@ Element Buttons() => new StackPanel()
         new Button()
             .Content("OK")
             .Width(80)
-            .OnClick(() => _ = MessageBox.ShowDialogAsync(window.Handle, "OK clicked", "Aprillz.MewUI Demo", MessageBoxButtons.Ok, MessageBoxIcon.Information)),
+            .OnClick(() => NativeMessageBox.Show(window.Handle, "OK clicked", "Aprillz.MewUI Demo", NativeMessageBoxButtons.Ok, NativeMessageBoxIcon.Information)),
 
         new Button()
             .Content("Quit")
@@ -303,12 +303,12 @@ Element NormalControls()
     int appendCount = 0;
     var demoMenu = new ContextMenu();
     var nestedMenu = new ContextMenu()
-        .Item("Option 1", () => _ = MessageBox.ShowDialogAsync(window.Handle, "Option 1", "Nested ContextMenu"))
-        .Item("Option 2", () => _ = MessageBox.ShowDialogAsync(window.Handle, "Option 2", "Nested ContextMenu"));
+        .Item("Option 1", () => NativeMessageBox.Show(window.Handle, "Option 1", "Nested ContextMenu"))
+        .Item("Option 2", () => NativeMessageBox.Show(window.Handle, "Option 2", "Nested ContextMenu"));
 
     var deepMenu = new ContextMenu()
-        .Item("Deep A", () => _ = MessageBox.ShowDialogAsync(window.Handle, "Deep A", "Nested ContextMenu"))
-        .Item("Deep B", () => _ = MessageBox.ShowDialogAsync(window.Handle, "Deep B", "Nested ContextMenu"));
+        .Item("Deep A", () => NativeMessageBox.Show(window.Handle, "Deep A", "Nested ContextMenu"))
+        .Item("Deep B", () => NativeMessageBox.Show(window.Handle, "Deep B", "Nested ContextMenu"));
 
     nestedMenu.SubMenu("More...", deepMenu);
 
@@ -316,7 +316,7 @@ Element NormalControls()
         .Item("Item 1")
         .Item("Item 2")
         .Separator()
-        .Item("Say hello", () => _ = MessageBox.ShowDialogAsync(window.Handle, "Hello from ContextMenu!", "ContextMenu"))
+        .Item("Say hello", () => NativeMessageBox.Show(window.Handle, "Hello from ContextMenu!", "ContextMenu"))
         .Separator()
         .SubMenu("Nested", nestedMenu)
         .Separator()
@@ -434,7 +434,7 @@ Element NormalControls()
 
                                                     if (file is not null)
                                                     {
-                                                        _ = MessageBox.ShowDialogAsync(window.Handle, file, "Open File");
+                                                        NativeMessageBox.Show(window.Handle, file, "Open File");
                                                     }
                                                 }),
 
@@ -451,7 +451,7 @@ Element NormalControls()
 
                                                     if (file is not null)
                                                     {
-                                                        _ = MessageBox.ShowDialogAsync(window.Handle, file, "Save File");
+                                                        NativeMessageBox.Show(window.Handle, file, "Save File");
                                                     }
                                                 }),
 
@@ -466,7 +466,7 @@ Element NormalControls()
 
                                                     if (folder is not null)
                                                     {
-                                                        _ = MessageBox.ShowDialogAsync(window.Handle, folder, "Select Folder");
+                                                        NativeMessageBox.Show(window.Handle, folder, "Select Folder");
                                                     }
                                                 })
                                         )
@@ -856,7 +856,7 @@ FrameworkElement BindSamples()
                         new Button()
                             .BindContent(vm.IsEnabled, x => x ? "Enabled action" : "Disabled action")
                             .BindIsEnabled(vm.IsEnabled)
-                            .OnClick(() => _ = MessageBox.ShowDialogAsync(window.Handle, "Enabled button clicked", "Aprillz.MewUI Demo", MessageBoxButtons.Ok, MessageBoxIcon.Information))
+                            .OnClick(() => NativeMessageBox.Show(window.Handle, "Enabled button clicked", "Aprillz.MewUI Demo", NativeMessageBoxButtons.Ok, NativeMessageBoxIcon.Information))
                     ),
 
                 new Label()

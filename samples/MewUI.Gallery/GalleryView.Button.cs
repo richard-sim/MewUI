@@ -19,7 +19,7 @@ partial class GalleryView
                         new Button().Content("Disabled").Disable(),
                         new Button()
                             .Content("Double Click")
-                            .OnDoubleClick(() => _ = MessageBox.ShowDialogAsync("Double Click"))
+                            .OnDoubleClick(() => NativeMessageBox.Show("Double Click"))
                     )
             ),
 

@@ -6,7 +6,7 @@ namespace Aprillz.MewUI.Platform.Linux;
 
 internal static class LinuxExternalDialogs
 {
-    public static MessageBoxResult ShowMessageBox(nint owner, string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon)
+    public static bool? ShowMessageBox(nint owner, string text, string caption, NativeMessageBoxButtons buttons, NativeMessageBoxIcon icon)
     {
         if (TryShowWithZenity(text, caption, buttons, icon, out var zenityResult))
         {
@@ -72,11 +72,11 @@ internal static class LinuxExternalDialogs
         throw new PlatformNotSupportedException("No supported Linux dialog tool found (zenity/kdialog).");
     }
 
-    private static bool TryShowWithZenity(string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon, out MessageBoxResult result)
+    private static bool TryShowWithZenity(string text, string caption, NativeMessageBoxButtons buttons, NativeMessageBoxIcon icon, out bool? result)
     {
         var args = new List<string>();
 
-        if (buttons == MessageBoxButtons.Ok)
+        if (buttons == NativeMessageBoxButtons.Ok)
         {
             args.Add(GetZenityIconVerb(icon));
             args.Add("--title");
@@ -90,11 +90,11 @@ internal static class LinuxExternalDialogs
                 return false;
             }
 
-            result = MessageBoxResult.Ok;
+            result = true;
             return exitCode == 0;
         }
 
-        if (buttons == MessageBoxButtons.OkCancel)
+        if (buttons == NativeMessageBoxButtons.OkCancel)
         {
             args.Add("--question");
             args.Add("--title");
@@ -112,11 +112,11 @@ internal static class LinuxExternalDialogs
                 return false;
             }
 
-            result = exitCode == 0 ? MessageBoxResult.Ok : MessageBoxResult.Cancel;
+            result = exitCode == 0 ? true : false;
             return true;
         }
 
-        if (buttons == MessageBoxButtons.YesNo)
+        if (buttons == NativeMessageBoxButtons.YesNo)
         {
             args.Add("--question");
             args.Add("--title");
@@ -134,7 +134,7 @@ internal static class LinuxExternalDialogs
                 return false;
             }
 
-            result = exitCode == 0 ? MessageBoxResult.Yes : MessageBoxResult.No;
+            result = exitCode == 0 ? true : (bool?)null;
             return true;
         }
 
@@ -164,31 +164,31 @@ internal static class LinuxExternalDialogs
 
         if (listExitCode != 0)
         {
-            result = MessageBoxResult.Cancel;
+            result = false;
             return true;
         }
 
         var selection = (output ?? string.Empty).Trim();
         result = selection switch
         {
-            "Yes" => MessageBoxResult.Yes,
-            "No" => MessageBoxResult.No,
-            _ => MessageBoxResult.Cancel
+            "Yes" => true,
+            "No" => (bool?)null,
+            _ => false
         };
         return true;
     }
 
-    private static string GetZenityIconVerb(MessageBoxIcon icon)
+    private static string GetZenityIconVerb(NativeMessageBoxIcon icon)
     {
         return icon switch
         {
-            MessageBoxIcon.Warning => "--warning",
-            MessageBoxIcon.Error => "--error",
+            NativeMessageBoxIcon.Warning => "--warning",
+            NativeMessageBoxIcon.Error => "--error",
             _ => "--info"
         };
     }
 
-    private static bool TryShowWithKDialog(string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon, out MessageBoxResult result)
+    private static bool TryShowWithKDialog(string text, string caption, NativeMessageBoxButtons buttons, NativeMessageBoxIcon icon, out bool? result)
     {
         var args = new List<string>();
         args.Add("--title");
@@ -206,34 +206,34 @@ internal static class LinuxExternalDialogs
 
         result = buttons switch
         {
-            MessageBoxButtons.Ok => MessageBoxResult.Ok,
-            MessageBoxButtons.OkCancel => exitCode == 0 ? MessageBoxResult.Ok : MessageBoxResult.Cancel,
-            MessageBoxButtons.YesNo => exitCode == 0 ? MessageBoxResult.Yes : MessageBoxResult.No,
-            MessageBoxButtons.YesNoCancel => exitCode switch
+            NativeMessageBoxButtons.Ok => true,
+            NativeMessageBoxButtons.OkCancel => exitCode == 0 ? true : false,
+            NativeMessageBoxButtons.YesNo => exitCode == 0 ? true : (bool?)null,
+            NativeMessageBoxButtons.YesNoCancel => exitCode switch
             {
-                0 => MessageBoxResult.Yes,
-                1 => MessageBoxResult.No,
-                _ => MessageBoxResult.Cancel
+                0 => true,
+                1 => (bool?)null,
+                _ => false
             },
-            _ => MessageBoxResult.Ok
+            _ => true
         };
 
         return true;
     }
 
-    private static string GetKDialogVerb(MessageBoxButtons buttons, MessageBoxIcon icon)
+    private static string GetKDialogVerb(NativeMessageBoxButtons buttons, NativeMessageBoxIcon icon)
     {
         return buttons switch
         {
-            MessageBoxButtons.Ok => icon switch
+            NativeMessageBoxButtons.Ok => icon switch
             {
-                MessageBoxIcon.Error => "--error",
-                MessageBoxIcon.Warning => "--sorry",
+                NativeMessageBoxIcon.Error => "--error",
+                NativeMessageBoxIcon.Warning => "--sorry",
                 _ => "--msgbox"
             },
-            MessageBoxButtons.OkCancel => "--warningcontinuecancel",
-            MessageBoxButtons.YesNo => "--yesno",
-            MessageBoxButtons.YesNoCancel => "--yesnocancel",
+            NativeMessageBoxButtons.OkCancel => "--warningcontinuecancel",
+            NativeMessageBoxButtons.YesNo => "--yesno",
+            NativeMessageBoxButtons.YesNoCancel => "--yesnocancel",
             _ => "--msgbox"
         };
     }
