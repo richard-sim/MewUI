@@ -64,10 +64,10 @@ internal sealed class TextWrapVirtualizer
         _avgLineLengthVersion = -1;
     }
 
-    public double GetExtentHeight(double wrapWidth, double lineHeight, double fontSize)
+    public double GetExtentHeight(double wrapWidth, double lineHeight, double fontSize, bool bypassCache = false)
     {
         int version = _getDocumentVersion();
-        if (_cachedExtentHeightVersion == version && Math.Abs(_cachedExtentHeightWrapWidth - wrapWidth) < 0.01)
+        if (!bypassCache && _cachedExtentHeightVersion == version && Math.Abs(_cachedExtentHeightWrapWidth - wrapWidth) < 0.01)
         {
             return _cachedExtentHeight;
         }

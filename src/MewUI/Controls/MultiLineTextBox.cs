@@ -317,7 +317,20 @@ public sealed class MultiLineTextBox : TextBase
 
     protected override void RenderTextContent(IGraphicsContext context, Rect contentBounds, IFont font, Theme theme, in VisualState state)
     {
+        double extentBefore = WrapEnabled ? GetExtentHeight(Math.Max(1, contentBounds.Width)) : 0;
+
         RenderText(context, contentBounds, font, theme);
+
+        // Wrap layouts computed during render may change the extent height.
+        // Bypass cache to pick up newly computed wrap layouts.
+        if (WrapEnabled)
+        {
+            double extentAfter = GetExtentHeight(Math.Max(1, contentBounds.Width), bypassCache: true);
+            if (Math.Abs(extentAfter - extentBefore) > 0.5)
+            {
+                InvalidateArrange();
+            }
+        }
     }
 
     protected override void RenderAfterContent(IGraphicsContext context, Theme theme, in VisualState state)
@@ -691,14 +704,14 @@ public sealed class MultiLineTextBox : TextBase
         }
     }
 
-    private double GetExtentHeight(double wrapWidth)
+    private double GetExtentHeight(double wrapWidth, bool bypassCache = false)
     {
         if (!WrapEnabled)
         {
             return Math.Max(0, _lineStarts.Count * GetLineHeight());
         }
 
-        return _wrapVirtualizer.GetExtentHeight(wrapWidth, GetLineHeight(), FontSize);
+        return _wrapVirtualizer.GetExtentHeight(wrapWidth, GetLineHeight(), FontSize, bypassCache);
     }
 
     private double GetExtentWidth()
