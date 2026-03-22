@@ -1,3 +1,4 @@
+using Aprillz.MewUI.Animation;
 using Aprillz.MewUI.Rendering;
 
 namespace Aprillz.MewUI.Controls;
@@ -39,18 +40,18 @@ public sealed class BusyIndicatorService : IOverlayService
     /// <param name="cancellable">If <c>true</c>, an Abort button is shown.</param>
     public IBusyIndicator Create(string? message = null, bool cancellable = false)
     {
-        return new BusyIndicatorHandle(_layer, message, cancellable);
+        return new BusyIndicatorSession(_layer, message, cancellable);
     }
 }
 
-internal sealed class BusyIndicatorHandle : IBusyIndicator
+internal sealed class BusyIndicatorSession : IBusyIndicator
 {
     private readonly OverlayLayer _layer;
     private readonly BusyIndicatorPresenter _presenter;
     private readonly CancellationTokenSource? _cts;
     private bool _disposed;
 
-    internal BusyIndicatorHandle(OverlayLayer layer, string? message, bool cancellable)
+    internal BusyIndicatorSession(OverlayLayer layer, string? message, bool cancellable)
     {
         _layer = layer;
         _cts = cancellable ? new CancellationTokenSource() : null;
@@ -85,31 +86,51 @@ internal sealed class BusyIndicatorHandle : IBusyIndicator
 /// Internal presenter control for busy indicator.
 /// Grid layout: Row 0 (*) = bottom-aligned ring + abort, Row 1 (Auto) = spacing, Row 2 (*) = top-aligned message.
 /// </summary>
-internal sealed class BusyIndicatorPresenter : ContentControl
+internal sealed class BusyIndicatorPresenter : Control, IVisualTreeHost
 {
-    private const int FadeDurationMs = 200;
+    private const int FadeDurationMs = 250;
 
     private readonly ProgressRing _ring;
     private readonly Label _messageLabel;
     private readonly CancellationTokenSource? _cts;
     private readonly bool _cancellable;
-    private Animation.AnimationClock? _fadeClock;
+    private AnimationClock? _fadeClock;
     private double _opacity;
 
     // Abort UI elements — only created when cancellable
     private readonly Label? _abortLabel;
+
     private readonly Label? _confirmLabel;
     private readonly Label? _yesLabel;
     private readonly Label? _noLabel;
     private readonly Label? _abortingLabel;
+    private readonly Border? _abortArea;
     private readonly StackPanel? _normalPanel;
     private readonly StackPanel? _confirmPanel;
-    private readonly StackPanel? _abortArea;
+    private readonly StackPanel? _abortPanel;
 
-    private enum AbortState { Normal, Confirming, Aborting }
+    private enum AbortState
+    { Normal, Confirming, Aborting }
+
     private AbortState _abortState = AbortState.Normal;
 
-    public double RingSize { get; set => field = Math.Max(32, Math.Min(256, value)); } = 64;
+    public static readonly MewProperty<double> RingSizeProperty =
+        MewProperty<double>.Register<BusyIndicatorPresenter>(nameof(RingSize), 64.0,
+            MewPropertyOptions.AffectsLayout,
+            static (self, _, newValue) =>
+            {
+                var clamped = Math.Max(32, Math.Min(256, newValue));
+                self._ring.Width = clamped;
+                self._ring.Height = clamped;
+            });
+
+    private readonly Grid _child;
+
+    public double RingSize
+    {
+        get => GetValue(RingSizeProperty);
+        set => SetValue(RingSizeProperty, value);
+    }
 
     internal BusyIndicatorPresenter(string? message, bool cancellable, CancellationTokenSource? cts)
     {
@@ -119,8 +140,8 @@ internal sealed class BusyIndicatorPresenter : ContentControl
         _ring = new ProgressRing
         {
             IsActive = true,
-            Width = RingSize,
-            Height = RingSize,
+            Width = RingSizeProperty.DefaultValue,
+            Height = RingSizeProperty.DefaultValue,
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         _ring.WithTheme((t, c) => c.Foreground = t.Palette.Accent);
@@ -149,7 +170,7 @@ internal sealed class BusyIndicatorPresenter : ContentControl
         if (cancellable)
         {
             // Normal state: "Abort" label
-            _abortLabel = new Label { Text = MewUIStrings.Abort };
+            _abortLabel = new Label { Text = MewUIStrings.Abort.Value };
             _abortLabel.WithTheme((t, c) => c.Foreground = t.Palette.WindowText);
             _abortLabel.MouseDown += OnAbortClicked;
 
@@ -157,15 +178,14 @@ internal sealed class BusyIndicatorPresenter : ContentControl
             _normalPanel.Horizontal();
             _normalPanel.Add(_abortLabel);
 
-            // Confirming state: "Are you sure...?  YES  NO"
-            _confirmLabel = new Label { Text = MewUIStrings.AbortConfirmation };
+            _confirmLabel = new Label { Text = MewUIStrings.AbortConfirmation.Value };
             _confirmLabel.WithTheme((t, c) => c.Foreground = t.Palette.WindowText);
 
-            _yesLabel = new Label { Text = MewUIStrings.Yes };
-            _yesLabel.WithTheme((t, c) => c.Foreground = t.Palette.Accent);
+            _yesLabel = new Label { Text = MewUIStrings.Yes.Value };
+            _yesLabel.WithTheme((t, c) => c.Foreground = t.Palette.WindowText);
             _yesLabel.MouseDown += OnYesClicked;
 
-            _noLabel = new Label { Text = MewUIStrings.No };
+            _noLabel = new Label { Text = MewUIStrings.No.Value };
             _noLabel.WithTheme((t, c) => c.Foreground = t.Palette.WindowText);
             _noLabel.MouseDown += OnNoClicked;
 
@@ -176,14 +196,17 @@ internal sealed class BusyIndicatorPresenter : ContentControl
             _confirmPanel.Add(_noLabel);
 
             // Aborting state label
-            _abortingLabel = new Label { Text = MewUIStrings.Aborting, IsVisible = false };
+            _abortingLabel = new Label { Text = MewUIStrings.Aborting.Value, IsVisible = false };
             _abortingLabel.WithTheme((t, c) => c.Foreground = t.Palette.WindowText);
 
             // Container that switches between the three states
-            _abortArea = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-            _abortArea.Add(_normalPanel);
-            _abortArea.Add(_confirmPanel);
-            _abortArea.Add(_abortingLabel);
+            _abortPanel = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            _abortPanel.Add(_normalPanel);
+            _abortPanel.Add(_confirmPanel);
+            _abortPanel.Add(_abortingLabel);
+
+            _abortArea = new Border { Child = _abortPanel };
+            _abortArea.WithTheme((t, c) => c.Background = t.Palette.ControlBackground);
 
             centerStack.Add(_abortArea);
         }
@@ -197,14 +220,15 @@ internal sealed class BusyIndicatorPresenter : ContentControl
         centerStack.Row(1);
         grid.Add(centerStack);
 
-        Content = grid;
+        _child = grid;
+        _child.Parent = this;
         IsHitTestVisible = true; // block input to controls behind the overlay
     }
 
     internal void FadeIn()
     {
         _fadeClock?.Stop();
-        _fadeClock = new Animation.AnimationClock(TimeSpan.FromMilliseconds(FadeDurationMs), Animation.Easing.EaseOutCubic);
+        _fadeClock = new AnimationClock(TimeSpan.FromMilliseconds(FadeDurationMs), Easing.EaseOutCubic);
         _fadeClock.TickCallback = progress =>
         {
             _opacity = (float)progress;
@@ -216,7 +240,7 @@ internal sealed class BusyIndicatorPresenter : ContentControl
     internal void FadeOut(Action onCompleted)
     {
         _fadeClock?.Stop();
-        _fadeClock = new Animation.AnimationClock(TimeSpan.FromMilliseconds(FadeDurationMs), Animation.Easing.EaseInCubic);
+        _fadeClock = new AnimationClock(TimeSpan.FromMilliseconds(FadeDurationMs), Easing.EaseInCubic);
         _fadeClock.TickCallback = progress =>
         {
             _opacity = 1.0 - progress;
@@ -235,17 +259,42 @@ internal sealed class BusyIndicatorPresenter : ContentControl
 
         // Dim the entire window with a semi-transparent background
         var bg = Theme.Palette.ControlBackground;
-        context.FillRectangle(Bounds, Color.FromArgb(Theme.IsDark ? (byte)192 : (byte)160, bg.R, bg.G, bg.B)); // ~25% opacity
+        context.FillRectangle(Bounds, Color.FromArgb(Theme.IsDark ? (byte)192 : (byte)160, bg.R, bg.G, bg.B)); // ~75% opacity
 
         base.OnRender(context);
         context.Restore();
+    }
+
+    protected override Size MeasureContent(Size availableSize)
+    {
+        _child.Measure(availableSize);
+        return _child.DesiredSize;
+    }
+
+    protected override void ArrangeContent(Rect bounds)
+    {
+        _child.Arrange(bounds);
     }
 
     protected override void RenderSubtree(IGraphicsContext context)
     {
         if (_opacity <= 0) return;
         base.RenderSubtree(context);
+        _child.Render(context);
     }
+
+    protected override UIElement? OnHitTest(Point point)
+    {
+        if (!IsVisible || !IsHitTestVisible) return null;
+        if (_child is UIElement uiChild)
+        {
+            var result = uiChild.HitTest(point);
+            if (result != null) return result;
+        }
+        return Bounds.Contains(point) ? this : null;
+    }
+
+    bool IVisualTreeHost.VisitChildren(Func<Element, bool> visitor) => visitor(_child);
 
     internal void UpdateMessage(string message)
     {

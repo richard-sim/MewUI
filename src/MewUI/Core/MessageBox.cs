@@ -130,7 +130,7 @@ public static class MessageBox
             buttons: options.Buttons,
             detail: options.Detail,
             checkBoxes: options.CheckBoxes,
-            title: options.Title ?? (options.Icon == PromptIconKind.None ? string.Empty : options.Icon.ToString()));
+            title: options.Title);
         dlg.SetMaxHeightFromOwner(options.Owner);
         await dlg.ShowDialogAsync(options.Owner);
         return dlg.DialogResult;

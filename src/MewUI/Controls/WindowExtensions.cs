@@ -22,7 +22,7 @@ public static class WindowExtensions
     /// Creates and shows a busy indicator overlay.
     /// Dispose the returned <see cref="IBusyIndicator"/> to dismiss it.
     /// </summary>
-    public static IBusyIndicator ShowBusyIndicator(this Window window, string? message = null, bool cancellable = false)
+    public static IBusyIndicator CreateBusyIndicator(this Window window, string? message = null, bool cancellable = false)
     {
         var service = window.OverlayLayer.GetOrCreateService<BusyIndicatorService>(
             layer => new BusyIndicatorService(layer));

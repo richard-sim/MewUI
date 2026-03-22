@@ -102,9 +102,9 @@ internal static class LinuxExternalDialogs
             args.Add("--text");
             args.Add(text);
             args.Add("--ok-label");
-            args.Add(MewUIStrings.OK);
+            args.Add(MewUIStrings.OK.Value);
             args.Add("--cancel-label");
-            args.Add(MewUIStrings.Cancel);
+            args.Add(MewUIStrings.Cancel.Value);
 
             if (!TryRunProcess("zenity", args, out int exitCode, out _))
             {
@@ -124,9 +124,9 @@ internal static class LinuxExternalDialogs
             args.Add("--text");
             args.Add(text);
             args.Add("--ok-label");
-            args.Add(MewUIStrings.Yes);
+            args.Add(MewUIStrings.Yes.Value);
             args.Add("--cancel-label");
-            args.Add(MewUIStrings.No);
+            args.Add(MewUIStrings.No.Value);
 
             if (!TryRunProcess("zenity", args, out int exitCode, out _))
             {
@@ -150,11 +150,11 @@ internal static class LinuxExternalDialogs
         args.Add("--column");
         args.Add("Choice");
         args.Add("TRUE");
-        args.Add(MewUIStrings.Yes);
+        args.Add(MewUIStrings.Yes.Value);
         args.Add("FALSE");
-        args.Add(MewUIStrings.No);
+        args.Add(MewUIStrings.No.Value);
         args.Add("FALSE");
-        args.Add(MewUIStrings.Cancel);
+        args.Add(MewUIStrings.Cancel.Value);
 
         if (!TryRunProcess("zenity", args, out int listExitCode, out var output))
         {
@@ -171,8 +171,8 @@ internal static class LinuxExternalDialogs
         var selection = (output ?? string.Empty).Trim();
         result = selection switch
         {
-            _ when selection == MewUIStrings.Yes => true,
-            _ when selection == MewUIStrings.No => (bool?)null,
+            _ when selection == MewUIStrings.Yes.Value => true,
+            _ when selection == MewUIStrings.No.Value => (bool?)null,
             _ => false
         };
         return true;

@@ -41,16 +41,16 @@ public sealed class MessageBoxWindow : Window
     public bool? DialogResult { get; private set; }
 
     internal static IReadOnlyList<MessageButton> ButtonsOk =>
-        [new(MewUIStrings.OK, MessageButtonRole.Accept)];
+        [new(MewUIStrings.OK.Value, MessageButtonRole.Accept)];
 
     internal static IReadOnlyList<MessageButton> ButtonsOkCancel =>
-        [new(MewUIStrings.OK, MessageButtonRole.Accept), new(MewUIStrings.Cancel, MessageButtonRole.Reject)];
+        [new(MewUIStrings.OK.Value, MessageButtonRole.Accept), new(MewUIStrings.Cancel.Value, MessageButtonRole.Reject)];
 
     internal static IReadOnlyList<MessageButton> ButtonsYesNo =>
-        [new(MewUIStrings.Yes, MessageButtonRole.Accept), new(MewUIStrings.No, MessageButtonRole.Destructive)];
+        [new(MewUIStrings.Yes.Value, MessageButtonRole.Accept), new(MewUIStrings.No.Value, MessageButtonRole.Destructive)];
 
     internal static IReadOnlyList<MessageButton> ButtonsYesNoCancel =>
-        [new(MewUIStrings.Yes, MessageButtonRole.Accept), new(MewUIStrings.No, MessageButtonRole.Destructive), new(MewUIStrings.Cancel, MessageButtonRole.Reject)];
+        [new(MewUIStrings.Yes.Value, MessageButtonRole.Accept), new(MewUIStrings.No.Value, MessageButtonRole.Destructive), new(MewUIStrings.Cancel.Value, MessageButtonRole.Reject)];
 
     public MessageBoxWindow(
         string message,
@@ -58,7 +58,7 @@ public sealed class MessageBoxWindow : Window
         IReadOnlyList<MessageButton>? buttons = null,
         string? detail = null,
         List<MessageBoxCheckBox>? checkBoxes = null,
-        string title = "Prompt")
+        string? title = null)
     {
         _message = message;
         _icon = icon;
@@ -66,7 +66,7 @@ public sealed class MessageBoxWindow : Window
         _detail = detail;
         _checkBoxes = checkBoxes ?? [];
 
-        Title = title;
+        Title = title ?? IconToTitle(icon);
         Padding = new Thickness(16);
         StartupLocation = WindowStartupLocation.CenterOwner;
         IsAlertWindow = true;
@@ -124,7 +124,7 @@ public sealed class MessageBoxWindow : Window
 
             var detailCheckBox = new CheckBox
             {
-                Text = "Show Detail",
+                Text = MewUIStrings.ShowDetail.Value,
                 Margin = new Thickness(0, 12, 0, 0)
             };
             detailCheckBox.CheckedChanged += isChecked =>
@@ -226,6 +226,18 @@ public sealed class MessageBoxWindow : Window
             panel.Add(btn);
         }
     }
+
+    private static string IconToTitle(PromptIconKind icon) => icon switch
+    {
+        PromptIconKind.Info => MewUIStrings.Information.Value,
+        PromptIconKind.Warning => MewUIStrings.Warning.Value,
+        PromptIconKind.Error => MewUIStrings.Error.Value,
+        PromptIconKind.Question => MewUIStrings.Question.Value,
+        PromptIconKind.Success => MewUIStrings.Success.Value,
+        PromptIconKind.Shield => MewUIStrings.Shield.Value,
+        PromptIconKind.Crash => MewUIStrings.Crash.Value,
+        _ => string.Empty,
+    };
 
     private static bool? RoleToResult(MessageButtonRole role) => role switch
     {
