@@ -42,6 +42,9 @@ public abstract class FrameworkElement : UIElement, IDisposable
     public static readonly MewProperty<VerticalAlignment> VerticalAlignmentProperty =
         MewProperty<VerticalAlignment>.Register<FrameworkElement>(nameof(VerticalAlignment), VerticalAlignment.Stretch, MewPropertyOptions.AffectsLayout);
 
+    public static readonly MewProperty<object?> TagProperty =
+        MewProperty<object?>.Register<FrameworkElement>(nameof(Tag), null, MewPropertyOptions.None);
+
     #endregion
 
     /// <summary>
@@ -133,6 +136,15 @@ public abstract class FrameworkElement : UIElement, IDisposable
     {
         get => GetValue(VerticalAlignmentProperty);
         set => SetValue(VerticalAlignmentProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets an arbitrary object value for custom use.
+    /// </summary>
+    public object? Tag
+    {
+        get => GetValue(TagProperty);
+        set => SetValue(TagProperty, value);
     }
 
     /// <summary>
