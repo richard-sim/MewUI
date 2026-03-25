@@ -7,6 +7,7 @@ internal static partial class Imm32
     internal static class CompositionStringFlags
     {
         public const int GCS_COMPSTR = 0x0008;
+        public const int GCS_COMPATTR = 0x0010;
         public const int GCS_RESULTSTR = 0x0800;
     }
 

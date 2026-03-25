@@ -41,6 +41,7 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
     private bool _isTextComposing;
     private int _compositionStart;
     private int _compositionLength;
+    private CompositionAttr[]? _compositionAttributes;
 
     private ContextMenu? _defaultContextMenu;
 
@@ -249,6 +250,8 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
     protected internal int CompositionStartIndex => _compositionStart;
 
     protected internal int CompositionLength => _compositionLength;
+
+    protected internal CompositionAttr[]? CompositionAttributes => _compositionAttributes;
 
     internal (int start, int end) SelectionRange
     {
@@ -775,6 +778,7 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
         }
 
         _compositionLength = text.Length;
+        _compositionAttributes = e.Attributes;
 
         SetCaretAndSelection(_compositionStart + _compositionLength, extendSelection: false);
         EnsureCaretVisibleCore(GetInteractionContentBounds());
@@ -886,6 +890,7 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
         _isTextComposing = true;
         _compositionStart = CaretPosition;
         _compositionLength = 0;
+        _compositionAttributes = null;
     }
 
     private void EndTextCompositionInternal()
@@ -905,6 +910,7 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
         _isTextComposing = false;
         _compositionStart = 0;
         _compositionLength = 0;
+        _compositionAttributes = null;
     }
 
     internal void CommitTextCompositionInternal()
@@ -914,13 +920,19 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
             return;
         }
 
-        // Keep the current preedit text in the document and just finalize the composing state.
-        // (Some platforms deliver the committed string via the same text services pipeline, without a separate TextInput.)
+        // Record the committed composition text as a single undo entry.
+        // The text is already in the document (placed by CompositionUpdate), so we only record — not apply.
+        if (_compositionLength > 0)
+        {
+            _editor.RecordInsertForUndo(_compositionStart, GetTextSubstringCore(_compositionStart, _compositionLength));
+        }
+
         SetCaretAndSelection(_compositionStart + _compositionLength, extendSelection: false);
 
         _isTextComposing = false;
         _compositionStart = 0;
         _compositionLength = 0;
+        _compositionAttributes = null;
     }
 
     protected override void OnMouseDown(MouseEventArgs e)

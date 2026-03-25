@@ -98,6 +98,7 @@ public class TextBox : TextBase
             Document.Length,
             IsComposing ? CompositionStartIndex : 0,
             IsComposing ? CompositionLength : 0,
+            IsComposing ? CompositionAttributes : null,
             (buffer, start, length) => Document.CopyTo(buffer, start, length));
     }
 
