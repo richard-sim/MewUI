@@ -57,6 +57,15 @@ public sealed class GdiGraphicsFactory : IGraphicsFactory, IWindowResourceReleas
 
     private static string ResolveFontFamilyOrFile(string familyOrPath)
     {
+        // 1. Check FontRegistry (registered via FontResources.Register)
+        var resolved = FontRegistry.Resolve(familyOrPath);
+        if (resolved != null)
+        {
+            _ = Win32Fonts.EnsurePrivateFont(resolved.Value.FilePath);
+            return resolved.Value.FamilyName;
+        }
+
+        // 2. Legacy: file path directly in FontFamily
         if (!FontResources.LooksLikeFontFilePath(familyOrPath))
         {
             return familyOrPath;

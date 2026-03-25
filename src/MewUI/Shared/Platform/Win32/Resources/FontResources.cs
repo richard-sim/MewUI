@@ -16,7 +16,9 @@ public static class FontResources
     /// Caches a font from a stream and returns a handle that can be used to set <c>Control.FontFamily</c>.
     /// </summary>
     /// <remarks>
-    /// The returned <see cref="FontResource.FontFamily"/> is the cached font file path.
+    /// The returned <see cref="FontResource.FontFamily"/> is the parsed font family name.
+    /// The font is registered in the global <see cref="FontRegistry"/> so that rendering backends
+    /// can resolve the family name to the cached file path.
     /// </remarks>
     public static FontResource Register(Stream fontStream, string? extensionHint = null, string? nameHint = null)
     {
@@ -25,7 +27,24 @@ public static class FontResources
         var cached = CacheToLocalFile(fontStream, extensionHint, nameHint);
         var entry = EnsureEntry(cached.HashHex, cached.Path, addRef: true);
 
-        return new FontResource(entry.FontFamilyForControls, cached.Path, entry.ParsedFamilyName, cached.HashHex);
+        // Register in global registry: family name → file path
+        var familyForControls = !string.IsNullOrWhiteSpace(entry.ParsedFamilyName)
+            ? entry.ParsedFamilyName
+            : nameHint ?? entry.FontFamilyForControls;
+
+        if (!string.IsNullOrWhiteSpace(entry.ParsedFamilyName))
+        {
+            FontRegistry.Register(entry.ParsedFamilyName, cached.Path);
+        }
+
+        // Also register nameHint if provided and different from parsed name
+        if (!string.IsNullOrWhiteSpace(nameHint) &&
+            !string.Equals(nameHint, entry.ParsedFamilyName, StringComparison.OrdinalIgnoreCase))
+        {
+            FontRegistry.Register(nameHint!, cached.Path);
+        }
+
+        return new FontResource(familyForControls, cached.Path, entry.ParsedFamilyName, cached.HashHex);
     }
 
     /// <summary>

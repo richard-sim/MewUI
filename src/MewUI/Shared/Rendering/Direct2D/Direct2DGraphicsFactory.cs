@@ -223,6 +223,18 @@ public sealed unsafe class Direct2DGraphicsFactory : IGraphicsFactory, IWindowRe
 
     private string ResolveWin32FontFamilyOrFile(string familyOrPath)
     {
+        // 1. Check FontRegistry (registered via FontResources.Register)
+        var resolved = FontRegistry.Resolve(familyOrPath);
+        if (resolved != null)
+        {
+            if (OperatingSystem.IsWindows() && Win32Fonts.EnsurePrivateFontFamily(resolved.Value.FilePath))
+            {
+                RefreshSystemFontCollection();
+            }
+            return resolved.Value.FamilyName;
+        }
+
+        // 2. Legacy: file path directly in FontFamily
         if (!OperatingSystem.IsWindows() || !FontResources.LooksLikeFontFilePath(familyOrPath))
         {
             return familyOrPath;

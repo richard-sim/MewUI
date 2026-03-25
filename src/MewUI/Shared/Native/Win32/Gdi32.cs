@@ -124,6 +124,12 @@ internal static partial class Gdi32
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool GetTextMetrics(nint hdc, out TEXTMETRIC lptm);
 
+    [LibraryImport(LibraryName, EntryPoint = "EnumFontFamiliesExW")]
+    public static partial int EnumFontFamiliesEx(nint hdc, ref LOGFONT lpLogfont, nint lpProc, nint lParam, uint dwFlags);
+
+    [LibraryImport(LibraryName, EntryPoint = "GetTextFaceW", StringMarshalling = StringMarshalling.Utf16)]
+    public static partial int GetTextFace(nint hdc, int c, [Out] char[] lpName);
+
     [LibraryImport(LibraryName, EntryPoint = "GetTextExtentPoint32W", StringMarshalling = StringMarshalling.Utf16)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool GetTextExtentPoint32(nint hdc, string lpString, int c, out SIZE lpSize);

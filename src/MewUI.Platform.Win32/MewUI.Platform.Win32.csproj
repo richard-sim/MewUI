@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\MewUI\Shared\Platform\Win32\**\*.cs" LinkBase="Platform\Win32" />
+    <Compile Include="..\MewUI\Shared\Platform\Win32\*.cs" LinkBase="Platform\Win32" />
     <Compile Include="..\MewUI\Shared\Native\Common\Structs\*.cs" LinkBase="Native\Structs" />
     <Compile Include="..\MewUI\Shared\Native\Win32\Structs\*.cs" LinkBase="Native\Structs" />
     <Compile Include="..\MewUI\Shared\Native\Win32\Constants\*.cs" LinkBase="Native\Constants" />

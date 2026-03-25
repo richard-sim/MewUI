@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Aprillz.MewUI.Native;
 using Aprillz.MewUI.Native.Constants;
 using Aprillz.MewUI.Native.Structs;
@@ -15,8 +16,14 @@ internal sealed class GdiFont : FontBase
     internal nint Handle { get; private set; }
     private uint Dpi { get; }
 
+    /// <summary>
+    /// Cache: (baseFamilyName, weight) → resolved GDI face name (or null if no match).
+    /// Populated once per unique (family, weight) pair via EnumFontFamiliesEx.
+    /// </summary>
+    private static readonly Dictionary<(string Family, FontWeight Weight), string?> s_weightFaceCache = new();
+
     public GdiFont(string family, double size, FontWeight weight, bool italic, bool underline, bool strikethrough, uint dpi)
-        : base(family, size, weight, italic, underline, strikethrough)
+        : base(ResolveFamily(family, weight), size, weight, italic, underline, strikethrough)
     {
         Dpi = dpi;
 
@@ -44,7 +51,7 @@ internal sealed class GdiFont : FontBase
         Descent = tm.tmDescent / dpiScale;
         InternalLeading = tm.tmInternalLeading / dpiScale;
         // GDI TEXTMETRIC doesn't expose cap height directly.
-        // Approximate: pure ascent (without internal leading) ? cap height + overshoot.
+        // Approximate: pure ascent (without internal leading) → cap height + overshoot.
         // ~92% of pure ascent is a reasonable cap height approximation.
         CapHeight = (tm.tmAscent - tm.tmInternalLeading) * 0.92 / dpiScale;
     }
@@ -101,6 +108,93 @@ internal sealed class GdiFont : FontBase
             }
             _disposed = true;
         }
+    }
+
+    /// <summary>
+    /// For non-standard weights (not 400/700), tries to find a GDI sub-family
+    /// that matches the requested weight by enumerating fonts whose face name
+    /// starts with the base family name.
+    /// </summary>
+    private static string ResolveFamily(string family, FontWeight weight)
+    {
+        // GDI natively handles Regular (400) and Bold (700) well.
+        if (weight is FontWeight.Normal or FontWeight.Bold)
+            return family;
+
+        var key = (family, weight);
+        if (s_weightFaceCache.TryGetValue(key, out var cached))
+            return cached ?? family;
+
+        // Enumerate all fonts that match the base family's charset.
+        string? resolved = FindSubFamilyByWeight(family, (int)weight);
+        s_weightFaceCache[key] = resolved;
+        return resolved ?? family;
+    }
+
+    private static unsafe string? FindSubFamilyByWeight(string baseFamily, int targetWeight)
+    {
+        var hdc = User32.GetDC(0);
+        try
+        {
+            var logFont = new LOGFONT();
+            logFont.lfCharSet = (byte)GdiConstants.DEFAULT_CHARSET;
+            logFont.SetFaceName(""); // enumerate all families, filter by prefix
+
+            string? result = null;
+            string prefix = baseFamily + " ";
+
+            // EnumFontFamiliesEx callback: (LOGFONT*, TEXTMETRIC*, uint fontType, LPARAM)
+            delegate* unmanaged[Stdcall]<LOGFONT*, nint, uint, nint, int> callback =
+                &EnumCallback;
+
+            var state = new EnumState { Prefix = prefix, TargetWeight = targetWeight };
+            var handle = GCHandle.Alloc(state);
+            try
+            {
+                Gdi32.EnumFontFamiliesEx(hdc, ref logFont, (nint)callback, GCHandle.ToIntPtr(handle), 0);
+                result = state.Result;
+            }
+            finally
+            {
+                handle.Free();
+            }
+
+            return result;
+        }
+        finally
+        {
+            User32.ReleaseDC(0, hdc);
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvStdcall)])]
+    private static unsafe int EnumCallback(LOGFONT* lf, nint textMetric, uint fontType, nint lParam)
+    {
+        var handle = GCHandle.FromIntPtr(lParam);
+        var state = (EnumState)handle.Target!;
+
+        // Read face name from LOGFONT
+        var faceSpan = new ReadOnlySpan<char>(&lf->lfFaceName, 32);
+        int nullIdx = faceSpan.IndexOf('\0');
+        if (nullIdx >= 0) faceSpan = faceSpan[..nullIdx];
+        var faceName = faceSpan.ToString();
+
+        // Check if it's a sub-family of our base family and weight matches
+        if (faceName.StartsWith(state.Prefix, StringComparison.OrdinalIgnoreCase)
+            && lf->lfWeight == state.TargetWeight)
+        {
+            state.Result = faceName;
+            return 0; // stop enumeration
+        }
+
+        return 1; // continue
+    }
+
+    private sealed class EnumState
+    {
+        public required string Prefix;
+        public required int TargetWeight;
+        public string? Result;
     }
 }
 
