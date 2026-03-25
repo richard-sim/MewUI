@@ -318,10 +318,11 @@ public abstract class Control : FrameworkElement
 
         var flags = ComputeVisualState().Flags;
 
+        var theme = Theme;
         for (int i = 0; i < style.Setters.Count; i++)
         {
             if (style.Setters[i] is Setter s)
-                PropertyStore.SetTarget(s.Property, s.Value);
+                PropertyStore.SetTarget(s.Property, s.ResolveValue(theme));
         }
 
         for (int i = 0; i < style.Triggers.Count; i++)
@@ -332,7 +333,7 @@ public abstract class Control : FrameworkElement
                 for (int j = 0; j < trigger.Setters.Count; j++)
                 {
                     if (trigger.Setters[j] is Setter s)
-                        PropertyStore.SetTarget(s.Property, s.Value);
+                        PropertyStore.SetTarget(s.Property, s.ResolveValue(theme));
                 }
             }
         }
@@ -438,14 +439,15 @@ public abstract class Control : FrameworkElement
         switch (setter)
         {
             case Setter s:
+                var value = s.ResolveValue(Theme);
                 if (!snap && _style?.FindTransition(s.Property.Id) is Transition transition)
-                    Animator.Animate(s.Property, s.Value, transition.Duration, transition.Easing);
+                    Animator.Animate(s.Property, value, transition.Duration, transition.Easing);
                 else
-                    PropertyStore.SetTarget(s.Property, s.Value);
+                    PropertyStore.SetTarget(s.Property, value);
                 break;
 
             case TargetSetter ts:
-                GetPart(ts.TargetName)?.SetTargetInternal(ts.Property, ts.Value);
+                GetPart(ts.TargetName)?.SetTargetInternal(ts.Property, ts.ResolveValue(Theme));
                 break;
         }
     }
