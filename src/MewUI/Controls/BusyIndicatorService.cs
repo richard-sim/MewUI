@@ -145,7 +145,7 @@ internal sealed class BusyIndicatorPresenter : Control, IVisualTreeHost
     private readonly Button? _noButton;
     private readonly TextBlock? _abortingLabel;
     private readonly Border? _abortArea;
-    private readonly StackPanel? _confirmPanel;
+    private readonly Grid? _confirmPanel;
     private readonly StackPanel? _abortPanel;
 
     private AbortState _abortState = AbortState.Normal;
@@ -243,6 +243,7 @@ internal sealed class BusyIndicatorPresenter : Control, IVisualTreeHost
             {
                 Content = new TextBlock
                 {
+                    HorizontalAlignment = HorizontalAlignment.Center,
                     Text = StripAccessKey(MewUIStrings.Yes.Value)
                 },
             };
@@ -253,18 +254,19 @@ internal sealed class BusyIndicatorPresenter : Control, IVisualTreeHost
             {
                 Content = new TextBlock
                 {
+                    HorizontalAlignment = HorizontalAlignment.Center,
                     Text = StripAccessKey(MewUIStrings.No.Value)
                 },
             };
             ApplyFlatButtonStyle(_noButton);
             _noButton.Click += OnNoClicked;
 
-            _confirmPanel = new StackPanel
+            _confirmPanel = new Grid
             {
                 HorizontalAlignment = HorizontalAlignment.Center,
                 IsVisible = false
             };
-            _confirmPanel.Horizontal().Spacing(8);
+            _confirmPanel.Columns("Auto,*,*").Spacing(8);
             _confirmPanel.Add(_confirmLabel);
             _confirmPanel.Add(_yesButton);
             _confirmPanel.Add(_noButton);
