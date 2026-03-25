@@ -223,7 +223,8 @@ public sealed class MessageBoxWindow : Window
                 Content = new Label
                 {
                     Text = button.Text,
-                    HorizontalAlignment = HorizontalAlignment.Center
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
                 }
             };
             btn.Click += () => CloseWith(result);

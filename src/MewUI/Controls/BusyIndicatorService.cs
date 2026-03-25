@@ -78,13 +78,21 @@ internal sealed class BusyIndicatorSession : IBusyIndicator
 
     public void NotifyProgress(string message)
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _presenter.UpdateMessage(message);
     }
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
 
         // Restore window state
@@ -92,7 +100,9 @@ internal sealed class BusyIndicatorSession : IBusyIndicator
         {
             _window.Closing -= OnWindowClosing;
             if (_window.Content is UIElement content)
+            {
                 content.IsEnabled = _contentWasEnabled;
+            }
         }
 
         _presenter.FadeOut(() =>
@@ -106,7 +116,9 @@ internal sealed class BusyIndicatorSession : IBusyIndicator
     private void OnWindowClosing(ClosingEventArgs e)
     {
         if (!_disposed)
+        {
             e.Cancel = true;
+        }
     }
 }
 
@@ -126,33 +138,37 @@ internal sealed class BusyIndicatorPresenter : Control, IVisualTreeHost
     private double _opacity;
 
     // Abort UI elements — only created when cancellable
-    private readonly Label? _abortLabel;
+    private readonly Button? _abortButton;
 
     private readonly TextBlock? _confirmLabel;
-    private readonly Label? _yesLabel;
-    private readonly Label? _noLabel;
+    private readonly Button? _yesButton;
+    private readonly Button? _noButton;
     private readonly TextBlock? _abortingLabel;
     private readonly Border? _abortArea;
-    private readonly StackPanel? _normalPanel;
     private readonly StackPanel? _confirmPanel;
     private readonly StackPanel? _abortPanel;
 
-    private enum AbortState
-    { Normal, Confirming, Aborting }
-
     private AbortState _abortState = AbortState.Normal;
+    private readonly Grid _child;
+
+    private enum AbortState
+    {
+        Normal, Confirming, Aborting
+    }
+
 
     public static readonly MewProperty<double> RingSizeProperty =
         MewProperty<double>.Register<BusyIndicatorPresenter>(nameof(RingSize), 64.0,
             MewPropertyOptions.AffectsLayout,
-            static (self, _, newValue) =>
-            {
-                var clamped = Math.Max(32, Math.Min(256, newValue));
-                self._ring.Width = clamped;
-                self._ring.Height = clamped;
-            });
+            static (self, _, newValue) => self.OnRingSizePropertyChanged(newValue));
 
-    private readonly Grid _child;
+    private void OnRingSizePropertyChanged(double ringSize)
+    {
+        var clamped = Math.Max(32, Math.Min(256, ringSize));
+        _ring.Width = clamped;
+        _ring.Height = clamped;
+    }
+
 
     public double RingSize
     {
@@ -178,7 +194,7 @@ internal sealed class BusyIndicatorPresenter : Control, IVisualTreeHost
         {
             HorizontalAlignment = HorizontalAlignment.Center,
             Padding = new Thickness(8, 4),
-            Margin = new Thickness(0, 12, 0, 0),
+            Margin = new Thickness(0, 8, 0, 0),
             IsVisible = message != null,
         };
         _messageLabel.WithTheme((t, c) =>
@@ -188,54 +204,84 @@ internal sealed class BusyIndicatorPresenter : Control, IVisualTreeHost
         });
 
         if (message != null)
+        {
             _messageLabel.Text = message;
+        }
 
         // Center stack: ring + abort + message, all vertically stacked
-        var centerStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+        var centerStack = new StackPanel
+        {
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
         centerStack.Vertical().Spacing(4);
         centerStack.Add(_ring);
 
         if (cancellable)
         {
-            // Normal state: "Abort" label
-            _abortLabel = new Label { Text = MewUIStrings.Abort.Value, Cursor = CursorType.Hand };
-            SetupHoverAccent(_abortLabel);
-            _abortLabel.MouseDown += OnAbortClicked;
+            // Normal state: "Abort" button (flat style)
+            _abortButton = new Button
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Content = new TextBlock
+                {
+                    Text = MewUIStrings.Abort.Value
+                },
+            };
+            ApplyFlatButtonStyle(_abortButton);
+            _abortButton.Click += OnAbortClicked;
 
-            _normalPanel = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-            _normalPanel.Horizontal();
-            _normalPanel.Add(_abortLabel);
 
-            _confirmLabel = new TextBlock { Text = MewUIStrings.AbortConfirmation.Value };
+            // Confirm state: message + Yes/No buttons
+            _confirmLabel = new TextBlock
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Text = MewUIStrings.AbortConfirmation.Value
+            };
             _confirmLabel.WithTheme((t, c) => c.Foreground = t.Palette.WindowText);
 
-            _yesLabel = new Label { Text = StripAccessKey(MewUIStrings.Yes.Value), Cursor = CursorType.Hand };
-            SetupHoverAccent(_yesLabel);
-            _yesLabel.MouseDown += OnYesClicked;
+            _yesButton = new Button
+            {
+                Content = new TextBlock
+                {
+                    Text = StripAccessKey(MewUIStrings.Yes.Value)
+                },
+            };
+            ApplyFlatButtonStyle(_yesButton);
+            _yesButton.Click += OnYesClicked;
 
-            _noLabel = new Label { Text = StripAccessKey(MewUIStrings.No.Value), Cursor = CursorType.Hand };
-            SetupHoverAccent(_noLabel);
-            _noLabel.MouseDown += OnNoClicked;
+            _noButton = new Button
+            {
+                Content = new TextBlock
+                {
+                    Text = StripAccessKey(MewUIStrings.No.Value)
+                },
+            };
+            ApplyFlatButtonStyle(_noButton);
+            _noButton.Click += OnNoClicked;
 
-            _confirmPanel = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, IsVisible = false };
+            _confirmPanel = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                IsVisible = false
+            };
             _confirmPanel.Horizontal().Spacing(8);
             _confirmPanel.Add(_confirmLabel);
-            _confirmPanel.Add(_yesLabel);
-            _confirmPanel.Add(_noLabel);
+            _confirmPanel.Add(_yesButton);
+            _confirmPanel.Add(_noButton);
 
             // Aborting state label
-            _abortingLabel = new TextBlock { Text = MewUIStrings.Aborting.Value, IsVisible = false };
+            _abortingLabel = new TextBlock
+            {
+                Text = MewUIStrings.Aborting.Value,
+                IsVisible = false
+            };
             _abortingLabel.WithTheme((t, c) => c.Foreground = t.Palette.WindowText);
 
-            // Container that switches between the three states
-            _abortPanel = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-            _abortPanel.Add(_normalPanel);
-            _abortPanel.Add(_confirmPanel);
-            _abortPanel.Add(_abortingLabel);
-
+            // Border wraps abort message area
             _abortArea = new Border
             {
-                Child = _abortPanel,
+                Child = _abortingLabel,
                 Padding = new(8, 4),
                 HorizontalAlignment = HorizontalAlignment.Center
             };
@@ -245,7 +291,18 @@ internal sealed class BusyIndicatorPresenter : Control, IVisualTreeHost
                 c.CornerRadius = t.Metrics.ControlCornerRadius;
             });
 
-            centerStack.Add(_abortArea);
+            // Container that switches between the three states
+            _abortPanel = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 8, 0, 0)
+            };
+            _abortPanel.Add(_abortButton);
+            _abortPanel.Add(_confirmPanel);
+            _abortPanel.Add(_abortArea);
+
+
+            centerStack.Add(_abortPanel);
         }
 
         centerStack.Add(_messageLabel);
@@ -260,6 +317,14 @@ internal sealed class BusyIndicatorPresenter : Control, IVisualTreeHost
         _child = grid;
         _child.Parent = this;
         IsHitTestVisible = true; // block input to controls behind the overlay
+    }
+
+    private void ApplyFlatButtonStyle(Button button)
+    {
+        button.Padding(4, 2);
+        button.VerticalAlignment = VerticalAlignment.Center;
+        button.MinHeight = 0;
+        button.Height = double.NaN;
     }
 
     internal void FadeIn()
@@ -289,7 +354,10 @@ internal sealed class BusyIndicatorPresenter : Control, IVisualTreeHost
 
     protected override void OnRender(IGraphicsContext context)
     {
-        if (_opacity <= 0) return;
+        if (_opacity <= 0)
+        {
+            return;
+        }
 
         context.Save();
         context.GlobalAlpha *= (float)_opacity;
@@ -315,18 +383,29 @@ internal sealed class BusyIndicatorPresenter : Control, IVisualTreeHost
 
     protected override void RenderSubtree(IGraphicsContext context)
     {
-        if (_opacity <= 0) return;
+        if (_opacity <= 0)
+        {
+            return;
+        }
+
         base.RenderSubtree(context);
         _child.Render(context);
     }
 
     protected override UIElement? OnHitTest(Point point)
     {
-        if (!IsVisible || !IsHitTestVisible) return null;
+        if (!IsVisible || !IsHitTestVisible)
+        {
+            return null;
+        }
+
         if (_child is UIElement uiChild)
         {
             var result = uiChild.HitTest(point);
-            if (result != null) return result;
+            if (result != null)
+            {
+                return result;
+            }
         }
         return Bounds.Contains(point) ? this : null;
     }
@@ -346,51 +425,47 @@ internal sealed class BusyIndicatorPresenter : Control, IVisualTreeHost
 
     private void SetAbortState(AbortState state)
     {
-        if (!_cancellable) return;
+        if (!_cancellable)
+        {
+            return;
+        }
+
         _abortState = state;
 
-        _normalPanel!.IsVisible = state == AbortState.Normal;
+        _abortButton!.IsVisible = state == AbortState.Normal;
         _confirmPanel!.IsVisible = state == AbortState.Confirming;
         _abortingLabel!.IsVisible = state == AbortState.Aborting;
     }
 
-    private static void SetupHoverAccent(Control label)
-    {
-        Color accentColor = default;
-        Color normalColor = default;
-        label.WithTheme((t, c) =>
-        {
-            accentColor = t.Palette.Accent;
-            normalColor = t.Palette.WindowText;
-            c.Foreground = normalColor;
-        });
-        label.MouseEnter += () => label.Foreground = accentColor;
-        label.MouseLeave += () => label.Foreground = normalColor;
-    }
+
 
     private static string StripAccessKey(string text) => text.Replace("_", "");
 
-    private void OnAbortClicked(MouseEventArgs e)
+    private void OnAbortClicked()
     {
         if (_abortState == AbortState.Normal)
+        {
             SetAbortState(AbortState.Confirming);
-        e.Handled = true;
+        }
     }
 
-    private void OnYesClicked(MouseEventArgs e)
+    private void OnYesClicked()
     {
         if (_abortState == AbortState.Confirming)
         {
             SetAbortState(AbortState.Aborting);
-            _cts?.Cancel();
+            if (_cts?.Token.CanBeCanceled == true)
+            {
+                _cts?.Cancel();
+            }
         }
-        e.Handled = true;
     }
 
-    private void OnNoClicked(MouseEventArgs e)
+    private void OnNoClicked()
     {
         if (_abortState == AbortState.Confirming)
+        {
             SetAbortState(AbortState.Normal);
-        e.Handled = true;
+        }
     }
 }
