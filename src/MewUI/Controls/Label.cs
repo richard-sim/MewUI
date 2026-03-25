@@ -3,7 +3,11 @@ using Aprillz.MewUI.Rendering;
 namespace Aprillz.MewUI.Controls;
 
 /// <summary>
-/// A control that displays text, using an internal TextBlock for rendering.
+/// A control that displays text with access key support.
+/// Text containing an underscore prefix (e.g. "_Name") will parse the character
+/// following the underscore as an access key, rendering it with an underline when
+/// Alt is pressed. Use <see cref="Target"/> to direct access key activation to
+/// another control. For plain text without access key parsing, use <see cref="TextBlock"/> instead.
 /// </summary>
 public partial class Label : Control, IVisualTreeHost
 {
@@ -41,7 +45,8 @@ public partial class Label : Control, IVisualTreeHost
     }
 
     /// <summary>
-    /// Gets or sets the target element that receives focus when this label's access key is activated.
+    /// Gets or sets the target control that receives <see cref="UIElement.OnAccessKey"/> when
+    /// this label's access key is activated. If null, the access key bubbles up the parent chain.
     /// </summary>
     public UIElement? Target
     {
@@ -70,7 +75,8 @@ public partial class Label : Control, IVisualTreeHost
     protected override bool InvalidateOnMouseOverChanged => false;
 
     /// <summary>
-    /// Gets or sets the text content.
+    /// Gets or sets the text content. Use underscore prefix to define an access key
+    /// (e.g. "_Name" registers Alt+N). Use double underscore ("__") for a literal underscore.
     /// </summary>
     public string Text
     {

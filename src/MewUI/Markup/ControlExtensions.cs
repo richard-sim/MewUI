@@ -419,18 +419,39 @@ public static class ControlExtensions
         return element;
     }
 
+    /// <summary>
+    /// Adds a text composition start event handler.
+    /// </summary>
+    /// <typeparam name="T">Visual type.</typeparam>
+    /// <param name="element">Target element.</param>
+    /// <param name="handler">Event handler.</param>
+    /// <returns>The element for chaining.</returns>
     public static T OnTextCompositionStart<T>(this T element, Action<TextCompositionEventArgs> handler) where T : TextBase
     {
         element.TextCompositionStart += handler;
         return element;
     }
 
+    /// <summary>
+    /// Adds a text composition update event handler.
+    /// </summary>
+    /// <typeparam name="T">Visual type.</typeparam>
+    /// <param name="element">Target element.</param>
+    /// <param name="handler">Event handler.</param>
+    /// <returns>The element for chaining.</returns>
     public static T OnTextCompositionUpdate<T>(this T element, Action<TextCompositionEventArgs> handler) where T : TextBase
     {
         element.TextCompositionUpdate += handler;
         return element;
     }
 
+    /// <summary>
+    /// Adds a text composition end event handler.
+    /// </summary>
+    /// <typeparam name="T">Visual type.</typeparam>
+    /// <param name="element">Target element.</param>
+    /// <param name="handler">Event handler.</param>
+    /// <returns>The element for chaining.</returns>
     public static T OnTextCompositionEnd<T>(this T element, Action<TextCompositionEventArgs> handler) where T : TextBase
     {
         element.TextCompositionEnd += handler;
@@ -1244,10 +1265,6 @@ public static class ControlExtensions
     #region RadioButton
 
     /// <summary>
-    /// Sets the content to a text label (no access key parsing).
-    /// </summary>
-
-    /// <summary>
     /// Sets the group name.
     /// </summary>
     /// <param name="radioButton">Target radio button.</param>
@@ -1567,6 +1584,12 @@ public static class ControlExtensions
         return listBox;
     }
 
+    /// <summary>
+    /// Enables or disables alternating row background colors.
+    /// </summary>
+    /// <param name="listBox">Target list box.</param>
+    /// <param name="value">Whether to enable zebra striping.</param>
+    /// <returns>The list box for chaining.</returns>
     public static ListBox ZebraStriping(this ListBox listBox, bool value = true)
     {
         ArgumentNullException.ThrowIfNull(listBox);

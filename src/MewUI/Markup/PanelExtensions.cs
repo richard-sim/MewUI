@@ -22,24 +22,56 @@ public static class PanelExtensions
         return panel;
     }
 
+    /// <summary>
+    /// Sets the padding.
+    /// </summary>
+    /// <typeparam name="T">Panel type.</typeparam>
+    /// <param name="panel">Target panel.</param>
+    /// <param name="padding">Padding thickness.</param>
+    /// <returns>The panel for chaining.</returns>
     public static T Padding<T>(this T panel, Thickness padding) where T : Panel
     {
         panel.Padding = padding;
         return panel;
     }
 
+    /// <summary>
+    /// Sets uniform padding on all sides.
+    /// </summary>
+    /// <typeparam name="T">Panel type.</typeparam>
+    /// <param name="panel">Target panel.</param>
+    /// <param name="uniform">Uniform padding value.</param>
+    /// <returns>The panel for chaining.</returns>
     public static T Padding<T>(this T panel, double uniform) where T : Panel
     {
         panel.Padding = new Thickness(uniform);
         return panel;
     }
 
+    /// <summary>
+    /// Sets horizontal and vertical padding.
+    /// </summary>
+    /// <typeparam name="T">Panel type.</typeparam>
+    /// <param name="panel">Target panel.</param>
+    /// <param name="horizontal">Left and right padding.</param>
+    /// <param name="vertical">Top and bottom padding.</param>
+    /// <returns>The panel for chaining.</returns>
     public static T Padding<T>(this T panel, double horizontal, double vertical) where T : Panel
     {
         panel.Padding = new Thickness(horizontal, vertical, horizontal, vertical);
         return panel;
     }
 
+    /// <summary>
+    /// Sets padding for each side individually.
+    /// </summary>
+    /// <typeparam name="T">Panel type.</typeparam>
+    /// <param name="panel">Target panel.</param>
+    /// <param name="left">Left padding.</param>
+    /// <param name="top">Top padding.</param>
+    /// <param name="right">Right padding.</param>
+    /// <param name="bottom">Bottom padding.</param>
+    /// <returns>The panel for chaining.</returns>
     public static T Padding<T>(this T panel, double left, double top, double right, double bottom) where T : Panel
     {
         panel.Padding = new Thickness(left, top, right, bottom);
@@ -219,72 +251,142 @@ public static class PanelExtensions
 
     #region SplitPanel
 
+    /// <summary>
+    /// Sets the orientation.
+    /// </summary>
+    /// <param name="panel">Target split panel.</param>
+    /// <param name="orientation">Orientation value.</param>
+    /// <returns>The split panel for chaining.</returns>
     public static SplitPanel Orientation(this SplitPanel panel, Orientation orientation)
     {
         panel.Orientation = orientation;
         return panel;
     }
 
+    /// <summary>
+    /// Sets horizontal orientation.
+    /// </summary>
+    /// <param name="panel">Target split panel.</param>
+    /// <returns>The split panel for chaining.</returns>
     public static SplitPanel Horizontal(this SplitPanel panel)
     {
         panel.Orientation = MewUI.Orientation.Horizontal;
         return panel;
     }
 
+    /// <summary>
+    /// Sets vertical orientation.
+    /// </summary>
+    /// <param name="panel">Target split panel.</param>
+    /// <returns>The split panel for chaining.</returns>
     public static SplitPanel Vertical(this SplitPanel panel)
     {
         panel.Orientation = MewUI.Orientation.Vertical;
         return panel;
     }
 
+    /// <summary>
+    /// Sets the splitter thickness.
+    /// </summary>
+    /// <param name="panel">Target split panel.</param>
+    /// <param name="thickness">Splitter thickness in DIPs.</param>
+    /// <returns>The split panel for chaining.</returns>
     public static SplitPanel SplitterThickness(this SplitPanel panel, double thickness)
     {
         panel.SplitterThickness = thickness;
         return panel;
     }
 
+    /// <summary>
+    /// Sets the first pane length.
+    /// </summary>
+    /// <param name="panel">Target split panel.</param>
+    /// <param name="length">Grid length for the first pane.</param>
+    /// <returns>The split panel for chaining.</returns>
     public static SplitPanel FirstLength(this SplitPanel panel, GridLength length)
     {
         panel.FirstLength = length;
         return panel;
     }
 
+    /// <summary>
+    /// Sets the second pane length.
+    /// </summary>
+    /// <param name="panel">Target split panel.</param>
+    /// <param name="length">Grid length for the second pane.</param>
+    /// <returns>The split panel for chaining.</returns>
     public static SplitPanel SecondLength(this SplitPanel panel, GridLength length)
     {
         panel.SecondLength = length;
         return panel;
     }
 
+    /// <summary>
+    /// Sets the minimum size for the first pane.
+    /// </summary>
+    /// <param name="panel">Target split panel.</param>
+    /// <param name="value">Minimum size in DIPs.</param>
+    /// <returns>The split panel for chaining.</returns>
     public static SplitPanel MinFirst(this SplitPanel panel, double value)
     {
         panel.MinFirst = value;
         return panel;
     }
 
+    /// <summary>
+    /// Sets the minimum size for the second pane.
+    /// </summary>
+    /// <param name="panel">Target split panel.</param>
+    /// <param name="value">Minimum size in DIPs.</param>
+    /// <returns>The split panel for chaining.</returns>
     public static SplitPanel MinSecond(this SplitPanel panel, double value)
     {
         panel.MinSecond = value;
         return panel;
     }
 
+    /// <summary>
+    /// Sets the maximum size for the first pane.
+    /// </summary>
+    /// <param name="panel">Target split panel.</param>
+    /// <param name="value">Maximum size in DIPs.</param>
+    /// <returns>The split panel for chaining.</returns>
     public static SplitPanel MaxFirst(this SplitPanel panel, double value)
     {
         panel.MaxFirst = value;
         return panel;
     }
 
+    /// <summary>
+    /// Sets the maximum size for the second pane.
+    /// </summary>
+    /// <param name="panel">Target split panel.</param>
+    /// <param name="value">Maximum size in DIPs.</param>
+    /// <returns>The split panel for chaining.</returns>
     public static SplitPanel MaxSecond(this SplitPanel panel, double value)
     {
         panel.MaxSecond = value;
         return panel;
     }
 
+    /// <summary>
+    /// Sets the first pane content.
+    /// </summary>
+    /// <param name="panel">Target split panel.</param>
+    /// <param name="element">Content element.</param>
+    /// <returns>The split panel for chaining.</returns>
     public static SplitPanel First(this SplitPanel panel, UIElement? element)
     {
         panel.First = element;
         return panel;
     }
 
+    /// <summary>
+    /// Sets the second pane content.
+    /// </summary>
+    /// <param name="panel">Target split panel.</param>
+    /// <param name="element">Content element.</param>
+    /// <returns>The split panel for chaining.</returns>
     public static SplitPanel Second(this SplitPanel panel, UIElement? element)
     {
         panel.Second = element;

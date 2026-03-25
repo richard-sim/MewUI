@@ -272,6 +272,13 @@ public static class GridViewExtensions
         return column;
     }
 
+    /// <summary>
+    /// Sets the cell template. Alias for <see cref="Bind{TItem}(GridViewColumn{TItem}, IDataTemplate{TItem})"/>.
+    /// </summary>
+    /// <typeparam name="TItem">Item type.</typeparam>
+    /// <param name="column">Target column.</param>
+    /// <param name="template">Cell template.</param>
+    /// <returns>The column for chaining.</returns>
     public static GridViewColumn<TItem> Template<TItem>(
         this GridViewColumn<TItem> column,
         IDataTemplate<TItem> template)
@@ -307,18 +314,43 @@ public static class GridViewExtensions
         Action<TElement, TItem> bind) where TElement : FrameworkElement
         => Bind(column, new DelegateTemplate<TItem>(build, (view, item, index, ctx) => bind((TElement)view, item)));
 
+    /// <summary>
+    /// Sets the cell template using delegate-based templating. Alias for <see cref="Bind{TItem, TElement}(GridViewColumn{TItem}, Func{TemplateContext, TElement}, Action{TElement, TItem, int, TemplateContext})"/>.
+    /// </summary>
+    /// <typeparam name="TItem">Item type.</typeparam>
+    /// <typeparam name="TElement">Template root element type.</typeparam>
+    /// <param name="column">Target column.</param>
+    /// <param name="build">Template build callback.</param>
+    /// <param name="bind">Template bind callback.</param>
+    /// <returns>The column for chaining.</returns>
     public static GridViewColumn<TItem> Template<TItem, TElement>(
         this GridViewColumn<TItem> column,
         Func<TemplateContext, TElement> build,
         Action<TElement, TItem, int, TemplateContext> bind) where TElement : FrameworkElement
         => Bind(column, build, bind);
 
+    /// <summary>
+    /// Sets the cell template using delegate-based templating with a simple bind callback. Alias for <see cref="Bind{TItem, TElement}(GridViewColumn{TItem}, Func{TemplateContext, TElement}, Action{TElement, TItem})"/>.
+    /// </summary>
+    /// <typeparam name="TItem">Item type.</typeparam>
+    /// <typeparam name="TElement">Template root element type.</typeparam>
+    /// <param name="column">Target column.</param>
+    /// <param name="build">Template build callback.</param>
+    /// <param name="bind">Template bind callback.</param>
+    /// <returns>The column for chaining.</returns>
     public static GridViewColumn<TItem> Template<TItem, TElement>(
         this GridViewColumn<TItem> column,
         Func<TemplateContext, TElement> build,
         Action<TElement, TItem> bind) where TElement : FrameworkElement
         => Bind(column, build, bind);
 
+    /// <summary>
+    /// Sets a text-based cell template that displays the result of <paramref name="textSelector"/>.
+    /// </summary>
+    /// <typeparam name="TItem">Item type.</typeparam>
+    /// <param name="column">Target column.</param>
+    /// <param name="textSelector">Function that extracts display text from the item.</param>
+    /// <returns>The column for chaining.</returns>
     public static GridViewColumn<TItem> Text<TItem>(
         this GridViewColumn<TItem> column,
         Func<TItem, string> textSelector)
