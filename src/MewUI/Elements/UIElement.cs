@@ -635,9 +635,14 @@ public abstract partial class UIElement : Element
     {
         base.OnVisualRootChanged(oldRoot, newRoot);
 
-        // Stop property animations when detached from the visual tree.
-        if (newRoot == null)
+        if (newRoot != null)
         {
+            // Re-evaluate enabled state — parent may already be disabled.
+            ReevaluateSuggestedIsEnabled();
+        }
+        else
+        {
+            // Stop property animations when detached from the visual tree.
             StopAllPropertyAnimations();
         }
     }

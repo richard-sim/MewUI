@@ -475,6 +475,10 @@ public abstract class Control : FrameworkElement
         if (currentSource >= ValueSource.Local)
             return;
 
+        // Clear the trigger source first so Style can take effect
+        // (SetStyle would be skipped if source is still Trigger because Style < Trigger)
+        PropertyStore.ClearSource(propertyId, ValueSource.Trigger);
+
         // Find the base setter value for this property from the style chain
         var setterValue = FindStyleSetterValue(style, propertyId);
         if (setterValue != null)
@@ -488,21 +492,17 @@ public abstract class Control : FrameworkElement
                     PropertyStore.SetStyle(property, setterValue);
             }
         }
-        else
-        {
-            // No style setter — clear to let inherited/default take effect
-            PropertyStore.ClearSource(propertyId, ValueSource.Trigger);
-        }
+        // If no style setter, already cleared — inherited/default takes effect
     }
 
-    private static object? FindStyleSetterValue(Style? style, int propertyId)
+    private object? FindStyleSetterValue(Style? style, int propertyId)
     {
         while (style != null)
         {
             for (int i = 0; i < style.Setters.Count; i++)
             {
                 if (style.Setters[i] is Setter s && s.Property.Id == propertyId)
-                    return s.Value;
+                    return s.ResolveValue(Theme);
             }
             style = style.BasedOn;
         }

@@ -830,6 +830,18 @@ public partial record class Theme
         
                     ],
                 },
+                // Disabled (non-selected)
+                new StateTrigger
+                {
+                    Match = VisualStateFlags.None,
+                    Exclude = VisualStateFlags.Enabled,
+                    Setters =
+                    [
+                        Setter.Create(Control.BackgroundProperty, t => t.Palette.ButtonDisabledBackground),
+                        Setter.Create(Control.ForegroundProperty, t => t.Palette.DisabledText),
+                    ],
+                },
+                // Disabled + Selected
                 new StateTrigger
                 {
                     Match = VisualStateFlags.Selected,
