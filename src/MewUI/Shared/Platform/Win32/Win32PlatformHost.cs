@@ -40,7 +40,6 @@ public sealed class Win32PlatformHost : IPlatformHost
             // On Vista+ the struct is 504 bytes (with iPaddedBorderWidth).
             const int NONCLIENTMETRICS_SIZE = 504;
             const int LOGFONT_FACENAME_OFFSET = 436; // offset 408 (lfMessageFont) + 28 (lfFaceName in LOGFONT)
-            const int LF_FACESIZE = 32; // max chars including null
 
             nint buffer = Marshal.AllocHGlobal(NONCLIENTMETRICS_SIZE);
             try
