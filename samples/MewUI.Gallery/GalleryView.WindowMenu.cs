@@ -29,7 +29,7 @@ partial class GalleryView
                             .Vertical()
                             .Spacing(10)
                             .Children(
-                                new Label()
+                                new TextBlock()
                                     .Text("This is a modal window. The owner is disabled until you close this dialog."),
 
                                 new StackPanel()
@@ -103,7 +103,7 @@ partial class GalleryView
                                                         .Vertical()
                                                         .Spacing(6)
                                                         .Children(
-                                                            new Label()
+                                                            new TextBlock()
                                                                 .TextWrapping(TextWrapping.Wrap)
                                                                 .Text("Wrapped label followed by a button. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog."),
                                                             new Button()
@@ -147,9 +147,9 @@ partial class GalleryView
                             .Vertical()
                             .Spacing(10)
                             .Children(
-                                new Label()
+                                new TextBlock()
                                     .Text($"StartupLocation.Manual\nLeft: {left}\nTop: {top}"),
-                                new Label()
+                                new TextBlock()
                                     .FontSize(11)
                                     .Text("Use this sample to verify startup manual placement against the requested DIP coordinates."),
                                 new Button()
@@ -182,7 +182,7 @@ partial class GalleryView
                         new Button()
                             .Content("Open dialog")
                             .OnClick(ShowDialogSample),
-                        new Label()
+                        new TextBlock()
                             .BindText(dialogStatus)
                             .FontSize(11)
                     )
@@ -197,7 +197,7 @@ partial class GalleryView
                         new Button()
                             .Content("Open transparent window")
                             .OnClick(ShowTransparentSample),
-                        new Label()
+                        new TextBlock()
                             .BindText(transparentStatus)
                             .FontSize(11)
                     )
@@ -209,13 +209,13 @@ partial class GalleryView
                     .Vertical()
                     .Spacing(8)
                     .Children(
-                        new Label()
+                        new TextBlock()
                             .FontSize(11)
                             .Text("Opens a window with StartManualPosition(120, 140)."),
                         new Button()
                             .Content("Open manual-position window")
                             .OnClick(ShowManualPositionSample),
-                        new Label()
+                        new TextBlock()
                             .BindText(manualPositionStatus)
                             .FontSize(11)
                     )
@@ -277,17 +277,17 @@ partial class GalleryView
                                     })
                             ),
 
-                        new Label()
+                        new TextBlock()
                             .BindText(openFilesStatus)
                             .FontSize(11)
                             .TextWrapping(TextWrapping.Wrap),
 
-                        new Label()
+                        new TextBlock()
                             .BindText(saveFileStatus)
                             .FontSize(11)
                             .TextWrapping(TextWrapping.Wrap),
 
-                        new Label()
+                        new TextBlock()
                             .BindText(folderStatus)
                             .FontSize(11)
                             .TextWrapping(TextWrapping.Wrap)
@@ -298,54 +298,101 @@ partial class GalleryView
 
             NativeMessageHookCard(),
 
+            AccessKeyCard(),
+
             DevToolsCard()
+        );
+    }
+
+    private FrameworkElement AccessKeyCard()
+    {
+        var nameBox = new TextBox().Placeholder("Name").Width(160);
+
+        return Card(
+            "AccessKey & Shortcuts",
+            new StackPanel()
+                .Vertical()
+                .Spacing(8)
+                .Children(
+                    new TextBlock().Text("Press Alt to show access key underlines (Windows/Linux).").FontSize(11),
+
+                    new StackPanel().Horizontal().Spacing(8).Children(
+                        new Label().CenterVertical().Text("_Name:").AccessKeyTarget(nameBox),
+                        nameBox
+                    ),
+
+                    new StackPanel().Horizontal().Spacing(8).Children(
+                        new Button().Content("_OK"),
+                        new Button().Content("_Cancel")
+                    ),
+
+                    new StackPanel().Vertical().Spacing(4).Children(
+                        new CheckBox().Content("_Remember me"),
+                        new Label().Text("_Remember me"),
+                        new CheckBox().Content("_Auto-save")
+                    ),
+
+                    new StackPanel().Vertical().Spacing(4).Children(
+                        new RadioButton().Content("_Small").GroupName("size"),
+                        new RadioButton().Content("_Medium").GroupName("size"),
+                        new RadioButton().Content("_Large").GroupName("size")
+                    )
+                )
         );
     }
 
 
     private FrameworkElement MenusCard()
     {
+        var p = ModifierKeys.Primary;
+        var shortcutLog = new TextBlock()
+            .FontSize(11)
+            .TextWrapping(TextWrapping.Wrap)
+            .Text("Press a shortcut key (e.g. (Ctrl or Cmd)+N, (Ctrl or Cmd)+S, ...)");
+
+        void OnShortcut(string action) => shortcutLog.Text = $"[{DateTime.Now:HH:mm:ss.fff}] {action}";
+
         var fileMenu = new Menu()
-            .Item("New", shortcutText: "Ctrl+N")
-            .Item("Open...", shortcutText: "Ctrl+O")
-            .Item("Save", shortcutText: "Ctrl+S")
-            .Item("Save As...")
+            .Item("_New", () => OnShortcut("File > New document created"), shortcut: new KeyGesture(Key.N, p))
+            .Item("_Open...", () => OnShortcut("File > Open file dialog"), shortcut: new KeyGesture(Key.O, p))
+            .Item("_Save", () => OnShortcut("File > Document saved"), shortcut: new KeyGesture(Key.S, p))
+            .Item("Save _As...", () => OnShortcut("File > Save As dialog"))
             .Separator()
-            .SubMenu("Export", new Menu()
-                .Item("PNG")
-                .Item("JPEG")
-                .SubMenu("Advanced", new Menu()
-                    .Item("With metadata")
-                    .Item("Optimized")
+            .SubMenu("_Export", new Menu()
+                .Item("_PNG", () => OnShortcut("File > Export > PNG format"))
+                .Item("_JPEG", () => OnShortcut("File > Export > JPEG format"))
+                .SubMenu("_Advanced", new Menu()
+                    .Item("With _metadata", () => OnShortcut("File > Export > Advanced > Include metadata"))
+                    .Item("_Optimized", () => OnShortcut("File > Export > Advanced > Optimized output"))
                 )
             )
             .Separator()
-            .Item("Exit");
+            .Item("E_xit", () => OnShortcut("File > Exit application"));
 
         var editMenu = new Menu()
-            .Item("Undo", shortcutText: "Ctrl+Z")
-            .Item("Redo", shortcutText: "Ctrl+Y")
+            .Item("_Undo", () => OnShortcut("Edit > Undo last action"), shortcut: new KeyGesture(Key.Z, p))
+            .Item("_Redo", () => OnShortcut("Edit > Redo last action"), shortcut: new KeyGesture(Key.Y, p))
             .Separator()
-            .Item("Cut", shortcutText: "Ctrl+X")
-            .Item("Copy", shortcutText: "Ctrl+C")
-            .Item("Paste", shortcutText: "Ctrl+V")
+            .Item("Cu_t", () => OnShortcut("Edit > Cut to clipboard"), shortcut: new KeyGesture(Key.X, p))
+            .Item("_Copy", () => OnShortcut("Edit > Copy to clipboard"), shortcut: new KeyGesture(Key.C, p))
+            .Item("_Paste", () => OnShortcut("Edit > Paste from clipboard"), shortcut: new KeyGesture(Key.V, p))
             .Separator()
-            .SubMenu("Find", new Menu()
-                .Item("Find...", shortcutText: "Ctrl+F")
-                .Item("Find Next", shortcutText: "F3")
-                .Item("Replace...", shortcutText: "Ctrl+H")
+            .SubMenu("_Find", new Menu()
+                .Item("_Find...", () => OnShortcut("Edit > Find > Open find dialog"), shortcut: new KeyGesture(Key.F, p))
+                .Item("Find _Next", () => OnShortcut("Edit > Find > Find next occurrence"), shortcut: new KeyGesture(Key.F3))
+                .Item("_Replace...", () => OnShortcut("Edit > Find > Open replace dialog"), shortcut: new KeyGesture(Key.H, p))
             );
 
         var viewMenu = new Menu()
-            .Item("Toggle Sidebar")
-            .SubMenu("Zoom", new Menu()
-                .Item("Zoom In", shortcutText: "Ctrl++")
-                .Item("Zoom Out", shortcutText: "Ctrl+-")
-                .Item("Reset", shortcutText: "Ctrl+0")
+            .Item("_Toggle Sidebar", () => OnShortcut("View > Toggle sidebar visibility"))
+            .SubMenu("_Zoom", new Menu()
+                .Item("Zoom _In", () => OnShortcut("View > Zoom > Zoom in"), shortcut: new KeyGesture(Key.Add, p))
+                .Item("Zoom _Out", () => OnShortcut("View > Zoom > Zoom out"), shortcut: new KeyGesture(Key.Subtract, p))
+                .Item("_Reset", () => OnShortcut("View > Zoom > Reset to 100%"), shortcut: new KeyGesture(Key.D0, p))
             );
 
         return Card(
-                "MenuBar (Multi-depth)",
+                "MenuBar (Multi-depth, AccessKeys + Shortcuts)",
                 new StackPanel()
                     .Width(290)
                     .Vertical()
@@ -354,13 +401,17 @@ partial class GalleryView
                         new MenuBar()
                             .Height(28)
                             .Items(
-                                new MenuItem("File").Menu(fileMenu),
-                                new MenuItem("Edit").Menu(editMenu),
-                                new MenuItem("View").Menu(viewMenu)
+                                new MenuItem("_File").Menu(fileMenu),
+                                new MenuItem("_Edit").Menu(editMenu),
+                                new MenuItem("_View").Menu(viewMenu)
                             ),
-                        new Label()
+
+                        new TextBlock()
                             .FontSize(11)
-                            .Text("Hover to switch menus while a popup is open. Submenus supported.")
+                            .TextWrapping(TextWrapping.Wrap)
+                            .Text("Hover to switch menus while a popup is open. Submenus supported."),
+
+                        shortcutLog
                     )
             );
     }
@@ -375,7 +426,7 @@ partial class GalleryView
                 .Vertical()
                 .Spacing(8)
                 .Children(
-                    new Label()
+                    new TextBlock()
                         .FontSize(11)
                         .Text("Opens a FitContentHeight dialog.\nWindow height adjusts to content."),
                     new Button()
@@ -391,7 +442,7 @@ partial class GalleryView
                                 ? "Result: canceled"
                                 : $"Result: {result}";
                         }),
-                    new Label()
+                    new TextBlock()
                         .BindText(promptStatus)
                         .FontSize(11)
                 )
@@ -418,7 +469,7 @@ partial class GalleryView
                     .Vertical()
                     .Spacing(12)
                     .Children(
-                        new Label()
+                        new TextBlock()
                             .Text(message),
                         new TextBox()
                             .Ref(out input)
@@ -448,7 +499,7 @@ partial class GalleryView
 
     private FrameworkElement DevToolsCard()
     {
-        var shortcuts = new Label()
+        var shortcuts = new TextBlock()
             .FontSize(11)
             .Text("Shortcuts:\n- Inspector: Ctrl/Cmd+Shift+I\n- Visual Tree: Ctrl/Cmd+Shift+T");
 
@@ -513,7 +564,7 @@ partial class GalleryView
         .Vertical()
         .Spacing(8)
         .Children(
-            new Label()
+            new TextBlock()
                 .FontSize(11)
                 .Text("DevTools are available in Debug builds only."),
             shortcuts
@@ -552,7 +603,7 @@ partial class GalleryView
                 .Vertical()
                 .Spacing(8)
                 .Children(
-                    new Label()
+                    new TextBlock()
                         .FontSize(11)
                         .Text("Subscribes to Window.NativeMessage to observe raw platform messages."),
                     new StackPanel()
@@ -583,7 +634,7 @@ partial class GalleryView
                                     }
                                 })
                         ),
-                    new Label()
+                    new TextBlock()
                         .BindText(hookLog)
                         .FontSize(11)
                         .TextWrapping(TextWrapping.Wrap)
@@ -669,7 +720,7 @@ partial class GalleryView
             var screen = window.ClientToScreen(e.GetPosition(window));
             var scale = Math.Max(1.0, window.DpiScale);
             if (OperatingSystem.IsMacOS())
-                return new Point(screen.X / scale, -screen.Y / scale); // Cocoa Y (bottom-up) ¡æ top-down
+                return new Point(screen.X / scale, -screen.Y / scale); // Cocoa Y (bottom-up) -> top-down
 
             return new Point(screen.X / scale, screen.Y / scale);
         }

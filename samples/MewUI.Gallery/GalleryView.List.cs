@@ -62,7 +62,7 @@ partial class GalleryView
 
         FrameworkElement ListBoxClassItemsCard()
         {
-            Label selectedText = null!;
+            TextBlock selectedText = null!;
 
             var listBox = new ListBox()
                 .Height(160)
@@ -77,7 +77,7 @@ partial class GalleryView
             return new DockPanel()
                 .Spacing(6)
                 .Children(
-                    new Label()
+                    new TextBlock()
                         .DockBottom()
                         .Ref(out selectedText)
                         .FontSize(11)
@@ -96,7 +96,7 @@ partial class GalleryView
             var nextId = users.Max(u => u.Id) + 1;
 
             ListBox listBox = null!;
-            Label selectedText = null!;
+            TextBlock selectedText = null!;
 
             var add = new Button()
                 .Content("Add")
@@ -124,7 +124,7 @@ partial class GalleryView
                         .Horizontal()
                         .Spacing(8)
                         .Children(add, remove),
-                    new Label()
+                    new TextBlock()
                         .DockBottom()
                         .Ref(out selectedText)
                         .FontSize(11)
@@ -158,18 +158,18 @@ partial class GalleryView
                                     .Vertical()
                                     .Spacing(0)
                                     .Children(
-                                        new Label()
+                                        new TextBlock()
                                             .Register(ctx, "Name")
                                             .FontSize(12)
                                             .Bold(),
-                                        new Label()
+                                        new TextBlock()
                                             .Register(ctx, "Role")
                                             .FontSize(10)
                                     ))),
                 bind: (root, u, _, ctx) =>
                 {
-                    ctx.Get<Label>("Name").Text = u.Name;
-                    ctx.Get<Label>("Role").Text = u.Role;
+                    ctx.Get<TextBlock>("Name").Text = u.Name;
+                    ctx.Get<TextBlock>("Role").Text = u.Role;
 
                     var dot = ctx.Get<Ellipse>("Dot");
                     dot.WithTheme((t, b) =>
@@ -209,7 +209,7 @@ partial class GalleryView
                 ])
             };
 
-            Label selectedNodeText = null!;
+            TextBlock selectedNodeText = null!;
 
             var treeView = new TreeView()
                 .Width(200)
@@ -231,14 +231,14 @@ partial class GalleryView
                             .Size(16, 16)
                             .StretchMode(Stretch.None)
                             .CenterVertical(),
-                        new Label()
+                        new TextBlock()
                             .Register(ctx, "Text")
                             .CenterVertical()
                     ),
                 bind: (view, item, _, ctx) =>
                 {
                     ctx.Get<Image>("Icon").Source(item.HasChildren ? (treeView.IsExpanded(item) ? iconFolderOpen : iconFolderClose) : iconFile);
-                    ctx.Get<Label>("Text").Text(item.Text);
+                    ctx.Get<TextBlock>("Text").Text(item.Text);
                 });
 
             treeView.Expand(treeItems[0]);
@@ -248,7 +248,7 @@ partial class GalleryView
                         .Height(240)
                         .Spacing(6)
                         .Children(
-                            new Label()
+                            new TextBlock()
                                 .DockBottom()
                                 .Ref(out selectedNodeText)
                                 .FontSize(11)
@@ -353,7 +353,7 @@ partial class GalleryView
                                     UpdateStatus();
                                 }),
 
-                            new Label()
+                            new TextBlock()
                                 .BindText(status)
                                 .FontSize(11)
                                 .CenterVertical()
@@ -408,19 +408,19 @@ partial class GalleryView
                                         .Vertical()
                                         .Spacing(2)
                                         .Children(
-                                            new Label()
+                                            new TextBlock()
                                                 .Register(ctx, "Sender")
                                                 .FontSize(10)
                                                 .Bold(),
-                                            new Label()
+                                            new TextBlock()
                                                 .Register(ctx, "Text")
                                                 .TextWrapping(TextWrapping.Wrap)
                                         )),
                             bind: (view, msg, _, ctx) =>
                             {
                                 var bubble = ctx.Get<Border>("Bubble");
-                                var sender = ctx.Get<Label>("Sender");
-                                var text = ctx.Get<Label>("Text");
+                                var sender = ctx.Get<TextBlock>("Sender");
+                                var text = ctx.Get<TextBlock>("Text");
 
                                 sender.Text = msg.Sender;
                                 sender.IsVisible = !msg.Mine;

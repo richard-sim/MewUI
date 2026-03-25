@@ -192,8 +192,8 @@ Element MenuDemo()
     var editMenu = new Menu()
         .SubMenu("Recent", recentMenu)
         .Separator()
-        .Item("Copy", () => { }, shortcutText: "Ctrl+C")
-        .Item("Paste", () => { }, shortcutText: "Ctrl+V");
+        .Item("Copy", () => { }, shortcut: new KeyGesture(Key.C, ModifierKeys.Primary))
+        .Item("Paste", () => { }, shortcut: new KeyGesture(Key.V, ModifierKeys.Primary));
 
     var helpAboutMenu = new Menu()
         .Item("About", () => NativeMessageBox.Show(window.Handle, "Aprillz.MewUI", "About"));
@@ -209,9 +209,9 @@ Element MenuDemo()
 
     return new MenuBar()
         .Items(
-            new MenuItem("File").Menu(fileMenu),
-            new MenuItem("Edit").Menu(editMenu),
-            new MenuItem("Help").Menu(helpMenu)
+            new MenuItem("_File").Menu(fileMenu),
+            new MenuItem("_Edit").Menu(editMenu),
+            new MenuItem("_Help").Menu(helpMenu)
         );
 }
 
@@ -224,23 +224,23 @@ Element ThemeControls()
         .Spacing(12)
         .Children(
             new RadioButton()
-                .Text("System")
+                .Content("System")
                 .GroupName(group)
                 .IsChecked()
                 .OnChecked(() => Application.Current.SetThemeMode(ThemeVariant.System)),
 
             new RadioButton()
-                .Text("Light")
+                .Content("Light")
                 .GroupName(group)
                 .OnChecked(() => Application.Current.SetThemeMode(ThemeVariant.Light)),
 
             new RadioButton()
-                .Text("Dark")
+                .Content("Dark")
                 .GroupName(group)
                 .OnChecked(() => Application.Current.SetThemeMode(ThemeVariant.Dark)),
 
             new CheckBox()
-                .Text("Max FPS")
+                .Content("Max FPS")
                 .BindIsChecked(maxFpsEnabled)
                 .OnCheckedChanged(_ => EnsureMaxFpsLoop())
                 .CenterVertical(),
@@ -480,7 +480,7 @@ Element NormalControls()
                                 .Spacing(8)
                                 .Padding(4)
                                 .Children(
-                                    new CheckBox().Text("Enable feature"),
+                                    new CheckBox().Content("Enable feature"),
                                     new Slider().Minimum(0).Maximum(100).Value(25)
                                 )),
 
@@ -519,10 +519,10 @@ Element NormalControls()
                                 .Spacing(8)
                                 .Children(
                                     new CheckBox()
-                                        .Text("Enable feature"),
+                                        .Content("Enable feature"),
 
                                     new CheckBox()
-                                        .Text("Three-state (Indeterminate)")
+                                        .Content("Three-state (Indeterminate)")
                                         .IsThreeState(true)
                                         .IsChecked(null),
 
@@ -535,12 +535,12 @@ Element NormalControls()
                                                 .CenterVertical(),
 
                                             new RadioButton()
-                                                .Text("A")
+                                                .Content("A")
                                                 .GroupName("group1")
                                                 .IsChecked(true),
 
                                             new RadioButton()
-                                                .Text("B")
+                                                .Content("B")
                                                 .GroupName("group1")
                                         ),
 
@@ -552,12 +552,12 @@ Element NormalControls()
                                                 .CenterVertical(),
 
                                             new RadioButton()
-                                                .Text("C")
+                                                .Content("C")
                                                 .GroupName("group2")
                                                 .IsChecked(true),
 
                                             new RadioButton()
-                                                .Text("D")
+                                                .Content("D")
                                                 .GroupName("group2")
                                         ),
 
@@ -569,11 +569,11 @@ Element NormalControls()
                                                 .CenterVertical(),
 
                                             new RadioButton()
-                                                .Text("X")
+                                                .Content("X")
                                                 .IsChecked(true),
 
                                             new RadioButton()
-                                                .Text("Y")
+                                                .Content("Y")
                                         )
                                 )
                         ),
@@ -605,7 +605,7 @@ Element NormalControls()
                                         .DockBottom()
                                         .Ref(out wrapCheck)
                                         .IsChecked(true)
-                                        .Text("Wrap")
+                                        .Content("Wrap")
                                         .OnCheckedChanged(x => notesTextBox.Wrap = x),
 
                                     new MultiLineTextBox()
@@ -731,7 +731,7 @@ FrameworkElement CommandingSamples() => new StackPanel()
                         .Spacing(8)
                         .Children(
                             new CheckBox()
-                                .Text("Enable Premium Features")
+                                .Content("Enable Premium Features")
                                 .BindIsChecked(vm.IsFeatureEnabled),
 
                             new StackPanel()
@@ -850,7 +850,7 @@ FrameworkElement BindSamples()
                     .Spacing(8)
                     .Children(
                         new CheckBox()
-                            .Text("Enabled")
+                            .Content("Enabled")
                             .BindIsChecked(vm.IsEnabled),
 
                         new Button()

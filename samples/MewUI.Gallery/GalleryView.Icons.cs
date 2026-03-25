@@ -67,12 +67,12 @@ partial class GalleryView
                                 .Width(200)
                                 .Placeholder("Filter icons...")
                                 .BindText(query),
-                            new Label()
+                            new TextBlock()
                                 .BindText(countText)
                                 .CenterVertical()
                                 .FontSize(11),
 
-                            new Label()
+                            new TextBlock()
                                 .Text("Fluent System Icons by Microsoft (MIT License)")
                                 .WithTheme((t, c) => c.Foreground(t.Palette.DisabledText))
                                 .CenterVertical()

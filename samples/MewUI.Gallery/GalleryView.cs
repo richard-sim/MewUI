@@ -32,7 +32,7 @@ partial class GalleryView : UserControl
                     .Vertical()
                     .Spacing(8)
                     .Children(
-                        new Label()
+                        new TextBlock()
                             .WithTheme((t, c) => c.Foreground(t.Palette.Accent))
                             .Text(title)
                             .Bold(),
@@ -51,7 +51,7 @@ partial class GalleryView : UserControl
                 .Vertical()
                 .Spacing(8)
                 .Children(
-                    new Label()
+                    new TextBlock()
                         .Text(title)
                         .FontSize(18)
                         .Bold(),

@@ -15,7 +15,7 @@ partial class GalleryView
                 .Vertical()
                 .Spacing(4)
                 .Children(
-                    new Label()
+                    new TextBlock()
                         .Text(title)
                         .FontSize(11),
                     new Border()
@@ -26,7 +26,7 @@ partial class GalleryView
                         .CornerRadius(6)
                         .WithTheme((t, b) => b.Background(t.Palette.ContainerBackground).BorderBrush(t.Palette.ControlBorder))
                         .Child(
-                            new Label()
+                            new TextBlock()
                                 .Text(sample)
                                 .TextWrapping(wrapping)
                                 .TextAlignment(horizontal)
@@ -45,7 +45,7 @@ partial class GalleryView
                             .Vertical()
                             .Spacing(6)
                             .Children(
-                                new Label().Text("GroupBox content"),
+                                new TextBlock().Text("GroupBox content"),
                                 new Button().Content("Action")
                             )
                     )
@@ -58,7 +58,7 @@ partial class GalleryView
                     .WithTheme((t, b) => b.Background(t.Palette.ContainerBackground).BorderBrush(t.Palette.ControlBorder))
                     .BorderThickness(1)
                     .CornerRadius(12)
-                    .Child(new Label()
+                    .Child(new TextBlock()
                             .Text("Centered Text")
                             .Center()
                             .Bold())
@@ -90,7 +90,7 @@ partial class GalleryView
                     .CornerRadius(8)
                     .WithTheme((t, b) => b.Background(t.Palette.ContainerBackground).BorderBrush(t.Palette.ControlBorder))
                     .Child(
-                        new Label()
+                        new TextBlock()
                             .TextWrapping(TextWrapping.Wrap)
                             .Text("Top-aligned border should grow with wrapped text. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog.")
                     )
@@ -110,10 +110,10 @@ partial class GalleryView
                             .Vertical()
                             .Spacing(6)
                             .Children(
-                                new Label()
+                                new TextBlock()
                                     .TextWrapping(TextWrapping.Wrap)
                                     .Text("First wrapped label. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog."),
-                                new Label()
+                                new TextBlock()
                                     .TextWrapping(TextWrapping.Wrap)
                                     .Text("Second wrapped label. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog.")
                             )
@@ -134,13 +134,13 @@ partial class GalleryView
                             .Vertical()
                             .Spacing(6)
                             .Children(
-                                new Label()
+                                new TextBlock()
                                     .TextWrapping(TextWrapping.Wrap)
                                     .Text("Wrapped label followed by a button. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog."),
                                 new Border()
                                     .WithTheme((t, b) => b.Background(t.Palette.ContainerBackground).BorderBrush(t.Palette.ControlBorder))
                                     .Child(
-                                        new Label()
+                                        new TextBlock()
                                             .Center()
                                             .Text("After Wrap"))
                             )
@@ -160,7 +160,7 @@ partial class GalleryView
                             .CornerRadius(6)
                             .WithTheme((t, b) => b.Background(t.Palette.ContainerBackground).BorderBrush(t.Palette.ControlBorder))
                             .Child(
-                                new Label()
+                                new TextBlock()
                                     .Text("No trimming: The quick brown fox jumps over the lazy dog")
                             ),
                         new Border()
@@ -170,7 +170,7 @@ partial class GalleryView
                             .CornerRadius(6)
                             .WithTheme((t, b) => b.Background(t.Palette.ContainerBackground).BorderBrush(t.Palette.ControlBorder))
                             .Child(
-                                new Label()
+                                new TextBlock()
                                     .Text("CharacterEllipsis: The quick brown fox jumps over the lazy dog")
                                     .TextTrimming(TextTrimming.CharacterEllipsis)
                             ),
@@ -181,7 +181,7 @@ partial class GalleryView
                             .CornerRadius(6)
                             .WithTheme((t, b) => b.Background(t.Palette.ContainerBackground).BorderBrush(t.Palette.ControlBorder))
                             .Child(
-                                new Label()
+                                new TextBlock()
                                     .Text("Ellipsis + Center: The quick brown fox jumps over the lazy dog")
                                     .TextTrimming(TextTrimming.CharacterEllipsis)
                                     .TextAlignment(TextAlignment.Center)
@@ -194,7 +194,7 @@ partial class GalleryView
                             .CornerRadius(6)
                             .WithTheme((t, b) => b.Background(t.Palette.ContainerBackground).BorderBrush(t.Palette.ControlBorder))
                             .Child(
-                                new Label()
+                                new TextBlock()
                                     .Text("Wrap + Ellipsis: The quick brown fox jumps over the lazy dog. The quick brown fox jumps.")
                                     .TextWrapping(TextWrapping.Wrap)
                                     .TextTrimming(TextTrimming.CharacterEllipsis)
@@ -213,7 +213,7 @@ partial class GalleryView
                         new StackPanel()
                             .Vertical()
                             .Spacing(6)
-                            .Children(Enumerable.Range(1, 15).Select(i => new Label().Text($"Line {i} - The quick brown fox jumps over the lazy dog.")).ToArray())
+                            .Children(Enumerable.Range(1, 15).Select(i => new TextBlock().Text($"Line {i} - The quick brown fox jumps over the lazy dog.")).ToArray())
                     )
             )
         );

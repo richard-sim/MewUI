@@ -16,12 +16,12 @@ partial class GalleryView
                     .Rows("Auto,Auto,Auto")
                     .Spacing(8)
                     .Children(
-                        new CheckBox().Text("CheckBox"),
-                        new CheckBox().Text("Disabled").Disable(),
-                        new CheckBox().Text("Checked").IsChecked(true),
-                        new CheckBox().Text("Disabled (Checked)").IsChecked(true).Disable(),
-                        new CheckBox().Text("Three-state").IsThreeState(true).IsChecked(null),
-                        new CheckBox().Text("Disabled (Indeterminate)").IsThreeState(true).IsChecked(null).Disable()
+                        new CheckBox().Content("CheckBox"),
+                        new CheckBox().Content("Disabled").Disable(),
+                        new CheckBox().Content("Checked").IsChecked(true),
+                        new CheckBox().Content("Disabled (Checked)").IsChecked(true).Disable(),
+                        new CheckBox().Content("Three-state").IsThreeState(true).IsChecked(null),
+                        new CheckBox().Content("Disabled (Indeterminate)").IsThreeState(true).IsChecked(null).Disable()
                     )
             ),
 
@@ -32,10 +32,10 @@ partial class GalleryView
                     .Rows("Auto,Auto")
                     .Spacing(8)
                     .Children(
-                        new RadioButton().Text("A").GroupName("g"),
-                        new RadioButton().Text("C (Disabled)").GroupName("g2").Disable(),
-                        new RadioButton().Text("B").GroupName("g").IsChecked(true),
-                        new RadioButton().Text("Disabled (Checked)").GroupName("g2").IsChecked(true).Disable()
+                        new RadioButton().Content("A").GroupName("g"),
+                        new RadioButton().Content("C (Disabled)").GroupName("g2").Disable(),
+                        new RadioButton().Content("B").GroupName("g").IsChecked(true),
+                        new RadioButton().Content("Disabled (Checked)").GroupName("g2").IsChecked(true).Disable()
                     )
             ),
 
@@ -71,21 +71,22 @@ partial class GalleryView
                         new TabControl()
                             .Height(120)
                             .TabItems(
-                                new TabItem().Header("Home").Content(new Label().Text("Home tab content")),
-                                new TabItem().Header("Settings").Content(new Label().Text("Settings tab content")),
-                                new TabItem().Header("About").Content(new Label().Text("About tab content"))
+                                new TabItem().Header("_Home").Content(new TextBlock().Text("Home tab content")),
+                                new TabItem().Header("Se_ttings").Content(new TextBlock().Text("Settings tab content")),
+                                new TabItem().Header("A_bout").Content(new TextBlock().Text("About tab content"))
                             ),
 
                         new TabControl()
                             .Height(120)
                             .Disable()
                             .TabItems(
-                                new TabItem().Header("Home").Content(new Label().Text("Home tab content")),
-                                new TabItem().Header("Settings").Content(new Label().Text("Settings tab content")),
-                                new TabItem().Header("About").Content(new Label().Text("About tab content"))
+                                new TabItem().Header("Home").Content(new TextBlock().Text("Home tab content")),
+                                new TabItem().Header("Settings").Content(new TextBlock().Text("Settings tab content")),
+                                new TabItem().Header("About").Content(new TextBlock().Text("About tab content"))
                             )
                     )
-            )
+            ) 
         );
     }
 }
+

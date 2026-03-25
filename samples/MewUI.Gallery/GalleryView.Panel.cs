@@ -128,7 +128,7 @@ partial class GalleryView
                                     )
                             ),
 
-                        new Label()
+                        new TextBlock()
                             .BindText(canvasInfo)
                             .FontSize(11)
                     ),
@@ -150,14 +150,14 @@ partial class GalleryView
                             .WithTheme((t, b) => b.Background(t.Palette.ButtonFace))
                             .CornerRadius(8)
                             .Padding(8)
-                            .Child(new Label().Text("First").Center())
+                            .Child(new TextBlock().Text("First").Center())
                     )
                     .Second(
                         new Border()
                             .WithTheme((t, b) => b.Background(t.Palette.ButtonFace))
                             .CornerRadius(8)
                             .Padding(8)
-                            .Child(new Label().Text("Second").Center())
+                            .Child(new TextBlock().Text("Second").Center())
                     )
             ),
 
@@ -176,14 +176,14 @@ partial class GalleryView
                             .WithTheme((t, b) => b.Background(t.Palette.ButtonFace))
                             .CornerRadius(8)
                             .Padding(8)
-                            .Child(new Label().Text("Top").Center())
+                            .Child(new TextBlock().Text("Top").Center())
                     )
                     .Second(
                         new Border()
                             .WithTheme((t, b) => b.Background(t.Palette.ButtonFace))
                             .CornerRadius(8)
                             .Padding(8)
-                            .Child(new Label().Text("Bottom").Center())
+                            .Child(new TextBlock().Text("Bottom").Center())
                     )
             )
         );

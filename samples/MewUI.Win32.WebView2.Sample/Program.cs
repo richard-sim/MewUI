@@ -84,16 +84,16 @@ try
                                             .Text("Popup Mode:"),
 
                                         new RadioButton()
-                                            .Text("Popup")
+                                            .Content("Popup")
                                             .CenterVertical()
                                             .BindIsChecked(newWindowMode, x => x == 0, x => (x, 0)),
 
                                         new RadioButton()
-                                            .Text("New Tab")
+                                            .Content("New Tab")
                                             .CenterVertical()
                                             .BindIsChecked(newWindowMode, x => x == 1, x => (x, 1)),
                                         new RadioButton()
-                                            .Text("New Tab(Deferral)")
+                                            .Content("New Tab(Deferral)")
                                             .CenterVertical()
                                             .BindIsChecked(newWindowMode, x => x == 2, x => (x, 2)))
                             ),

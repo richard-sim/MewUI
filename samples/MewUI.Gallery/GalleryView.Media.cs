@@ -24,7 +24,7 @@ partial class GalleryView
                             .Height(120)
                             .StretchMode(Stretch.Uniform)
                             .Center(),
-                        new Label()
+                        new TextBlock()
                             .Text("april.jpg")
                             .FontSize(11)
                             .Center()
@@ -48,7 +48,7 @@ partial class GalleryView
                             .Height(120)
                             .StretchMode(Stretch.Uniform)
                             .Center(),
-                        new Label()
+                        new TextBlock()
                             .BindText(imagePeekText)
                             .FontFamily("Consolas")
                             .Center()
@@ -79,7 +79,7 @@ partial class GalleryView
                                     .ImageScaleQuality(ImageScaleQuality.HighQuality)
                             ),
 
-                        new Label()
+                        new TextBlock()
                             .Text("Left: full image (Uniform). Right: ViewBox (center 50%) + UniformToFill.")
                             .FontSize(11)
                     )

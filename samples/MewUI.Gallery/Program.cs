@@ -17,8 +17,8 @@ using (var rs = typeof(Program).Assembly.GetManifestResourceStream("Aprillz.MewU
 }
 
 Window window = null!;
-Label backendText = null!;
-Label themeText = null!;
+TextBlock backendText = null!;
+TextBlock themeText = null!;
 var fpsText = new ObservableValue<string>("FPS: -");
 var cullText = new ObservableValue<string>("Cull: -");
 var fpsStopwatch = new Stopwatch();
@@ -112,13 +112,13 @@ FrameworkElement TopBar() => new Border()
                             .Vertical()
                             .Spacing(2)
                             .Children(
-                                new Label()
+                                new TextBlock()
                                     .Text("Aprillz.MewUI Gallery")
                                     .WithTheme((t, c) => c.Foreground(t.Palette.Accent))
                                     .FontSize(18)
                                     .SemiBold(),
 
-                                new Label()
+                                new TextBlock()
                                     .Ref(out backendText)
                             )
                     )
@@ -134,7 +134,7 @@ FrameworkElement TopBar() => new Border()
                             .Children(
                                 ThemeModePicker(),
 
-                                new Label()
+                                new TextBlock()
                                     .Ref(out themeText)
                                     .CenterVertical(),
 
@@ -146,16 +146,16 @@ FrameworkElement TopBar() => new Border()
                             .Spacing(8)
                             .Children(
                                 new CheckBox()
-                                    .Text("Max FPS")
+                                    .Content("Max FPS")
                                     .BindIsChecked(maxFpsEnabled)
                                     .OnCheckedChanged(_ => EnsureMaxFpsLoop())
                                     .CenterVertical(),
 
-                                new Label()
+                                new TextBlock()
                                     .BindText(fpsText)
                                     .CenterVertical(),
 
-                                new Label()
+                                new TextBlock()
                                     .BindText(cullText)
                                     .CenterVertical()
                             )
@@ -168,18 +168,18 @@ FrameworkElement ThemeModePicker() => new StackPanel()
     .Spacing(8)
     .Children(
         new RadioButton()
-            .Text("System")
+            .Content("System")
             .CenterVertical()
             .IsChecked()
             .OnChecked(() => Application.Current.SetTheme(ThemeVariant.System)),
 
         new RadioButton()
-            .Text("Light")
+            .Content("Light")
             .CenterVertical()
             .OnChecked(() => Application.Current.SetTheme(ThemeVariant.Light)),
 
         new RadioButton()
-            .Text("Dark")
+            .Content("Dark")
             .CenterVertical()
             .OnChecked(() => Application.Current.SetTheme(ThemeVariant.Dark))
     );

@@ -36,7 +36,7 @@ partial class GalleryView
                 .Height(220)
                 .Spacing(8)
                 .Children(
-                    new Label()
+                    new TextBlock()
                         .FontSize(11)
                         .DockTop()
                         .Text("Window-level drag and drop. Drop files anywhere on the gallery window."),

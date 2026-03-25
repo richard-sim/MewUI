@@ -31,7 +31,7 @@ partial class GalleryView
                         .Spacing(8)
                         .AutoIndexing()
                         .Children(
-                            new Label()
+                            new TextBlock()
                                 .Text("Int")
                                 .CenterVertical(),
 
@@ -44,11 +44,11 @@ partial class GalleryView
                                 .BindValue(intBinding)
                                 .CenterVertical(),
 
-                            new Label()
+                            new TextBlock()
                                 .BindText(intBinding, value => $"Value: {value}")
                                 .CenterVertical(),
 
-                            new Label()
+                            new TextBlock()
                                 .Text("Double")
                                 .CenterVertical(),
 
@@ -61,7 +61,7 @@ partial class GalleryView
                                 .BindValue(doubleBinding)
                                 .CenterVertical(),
 
-                            new Label()
+                            new TextBlock()
                                 .BindText(doubleBinding, value => $"Value: {value:0.##}")
                                 .CenterVertical()
                         )
@@ -80,7 +80,7 @@ partial class GalleryView
                         .Vertical()
                         .Spacing(8)
                         .Children(
-                            new Label()
+                            new TextBlock()
                                 .Text("Hover to show a tooltip. Right-click to open a context menu.")
                                 .TextWrapping(TextWrapping.Wrap)
                                 .Width(290)
@@ -91,8 +91,8 @@ partial class GalleryView
                                 .ToolTip("ToolTip text")
                                 .ContextMenu(
                                     new ContextMenu()
-                                        .Item("Copy", "Ctrl+C")
-                                        .Item("Paste", "Ctrl+V")
+                                        .Item("Copy", new KeyGesture(Key.C, ModifierKeys.Primary))
+                                        .Item("Paste", new KeyGesture(Key.V, ModifierKeys.Primary))
                                         .Separator()
                                         .SubMenu("Transform", new ContextMenu()
                                             .Item("Uppercase")
@@ -104,9 +104,9 @@ partial class GalleryView
                                                 .Item("Sort"))
                                         )
                                         .SubMenu("View", new ContextMenu()
-                                            .Item("Zoom In", "Ctrl++")
-                                            .Item("Zoom Out", "Ctrl+-")
-                                            .Item("Reset Zoom", "Ctrl+0")
+                                            .Item("Zoom In", new KeyGesture(Key.Add, ModifierKeys.Primary))
+                                            .Item("Zoom Out", new KeyGesture(Key.Subtract, ModifierKeys.Primary))
+                                            .Item("Reset Zoom", new KeyGesture(Key.D0, ModifierKeys.Primary))
                                         )
                                         .Separator()
                                         .Item("Disabled", isEnabled: false)

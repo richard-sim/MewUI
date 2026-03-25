@@ -232,7 +232,7 @@ partial class GalleryView
             .CornerRadius(6)
             .Padding(12, 8)
             .Child(
-                new Label()
+                new TextBlock()
                     .Text(text)
                     .Foreground(Color.White)
                     .Bold()

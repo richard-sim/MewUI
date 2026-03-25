@@ -25,7 +25,7 @@ partial class GalleryView
                 .Height(240)
                 .Spacing(6)
                 .Children(
-                    new Label()
+                    new TextBlock()
                         .DockBottom()
                         .BindText(gridHitText)
                         .FontSize(11),
@@ -62,7 +62,7 @@ partial class GalleryView
                                 .Header("Status")
                                 .Width(100)
                                 .Template(
-                                    build: _ => new Label().Padding(8, 0).CenterVertical(),
+                                    build: _ => new TextBlock().Margin(8, 0).CenterVertical(),
                                     bind: (view, row) => view
                                         .Text(row.Status)
                                         .WithTheme((t, c) => c.Foreground(GetColor(t, row.Status)))
@@ -204,7 +204,7 @@ partial class GalleryView
                     .Header("Status")
                     .Width(110)
                     .Template(
-                        build: _ => new Label().Padding(8, 0).CenterVertical(),
+                        build: _ => new TextBlock().Margin(8, 0).CenterVertical(),
                         bind: (view, row) => view.BindText(row.StatusText)
                     )
             );
@@ -228,10 +228,10 @@ partial class GalleryView
                                 .BindText(query),
 
                             new CheckBox()
-                                .Text("Errors only")
+                                .Content("Errors only")
                                 .BindIsChecked(onlyErrors),
 
-                            new Label().Text("Min amount").CenterVertical().FontSize(11),
+                            new TextBlock().Text("Min amount").CenterVertical().FontSize(11),
                             new NumericUpDown()
                                 .Width(90)
                                 .Minimum(0)
@@ -246,7 +246,7 @@ partial class GalleryView
                                 .BindSelectedIndex(sortKey),
 
                             new CheckBox()
-                                .Text("Desc")
+                                .Content("Desc")
                                 .BindIsChecked(sortDesc)
                         ),
 
@@ -255,8 +255,8 @@ partial class GalleryView
                         .Vertical()
                         .Spacing(2)
                         .Children(
-                            new Label().BindText(summaryText).FontSize(11),
-                            new Label().BindText(selectedText).FontSize(11)
+                            new TextBlock().BindText(summaryText).FontSize(11),
+                            new TextBlock().BindText(selectedText).FontSize(11)
                         ),
 
                     grid
@@ -283,7 +283,7 @@ partial class GalleryView
                 .Height(240)
                 .Spacing(8)
                 .Children(
-                    new Label()
+                    new TextBlock()
                         .DockTop()
                         .Text("Shows delegate-based complex cell templates (nested layout + multiple bound controls)")
                         .TextWrapping(TextWrapping.Wrap),
@@ -313,30 +313,30 @@ partial class GalleryView
                             .Spacing(2)
                             .Padding(6, 2)
                             .Children(
-                                new Label()
+                                new TextBlock()
                                     .Register(ctx, "Name")
                                     .Bold(),
                                 new StackPanel()
                                     .Horizontal()
                                     .Spacing(8)
                                     .Children(
-                                        new Label()
+                                        new TextBlock()
                                             .Register(ctx, "Role")
                                             .FontSize(11),
-                                        new Label()
+                                        new TextBlock()
                                             .Register(ctx, "Online")
                                             .FontSize(11),
-                                        new Label()
+                                        new TextBlock()
                                             .Register(ctx, "Score")
                                             .FontSize(11)
                                     )
                             ),
                         bind: (_, item, _, ctx) =>
                         {
-                            ctx.Get<Label>("Name").BindText(item.Name);
-                            ctx.Get<Label>("Role").BindText(item.RoleIndex, role => role switch { 1 => "Admin", 2 => "Guest", _ => "User" });
-                            ctx.Get<Label>("Online").BindText(item.IsOnline, v => v ? "Online" : "Offline");
-                            ctx.Get<Label>("Score").BindText(item.Score, v => $"Score: {v:0.#}");
+                            ctx.Get<TextBlock>("Name").BindText(item.Name);
+                            ctx.Get<TextBlock>("Role").BindText(item.RoleIndex, role => role switch { 1 => "Admin", 2 => "Guest", _ => "User" });
+                            ctx.Get<TextBlock>("Online").BindText(item.IsOnline, v => v ? "Online" : "Offline");
+                            ctx.Get<TextBlock>("Score").BindText(item.Score, v => $"Score: {v:0.#}");
                         }),
 
                 new GridViewColumn<TemplateComplexPersonRow>()

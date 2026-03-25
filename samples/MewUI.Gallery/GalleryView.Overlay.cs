@@ -46,7 +46,7 @@ partial class GalleryView
                     .Vertical()
                     .Spacing(8)
                     .Children(
-                        new Label()
+                        new TextBlock()
                             .Text("Port of WpfConfetti by caefale")
                             .WithTheme((t, c) => c.Foreground(t.Palette.DisabledText))
                             .FontSize(11),
@@ -86,7 +86,7 @@ partial class GalleryView
 
     private async void ShowBusyDemo(bool cancellable)
     {
-        using var busy = window.ShowBusyIndicator("Initializing...", cancellable);
+        using var busy = window.CreateBusyIndicator("Initializing...", cancellable);
 
         try
         {

@@ -152,7 +152,7 @@ partial class GalleryView
             .Children(
                 icon.Width(60).Height(60).Center(),
 
-                new Label().Text(title).Center()
+                new TextBlock().Text(title).Center()
             );
 
     private static PathGeometry BuildTriangle()
