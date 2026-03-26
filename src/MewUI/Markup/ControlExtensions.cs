@@ -2858,13 +2858,13 @@ public static class ControlExtensions
     /// <param name="window">Target window.</param>
     /// <param name="title">Window title.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window Title(this Window window, string title)
+    public static TWindow Title<TWindow>(this TWindow window, string title) where TWindow : Window
     {
         window.Title = title;
         return window;
     }
 
-    public static Window Icon(this Window window, IconSource? icon)
+    public static TWindow Icon<TWindow>(this TWindow window, IconSource? icon) where TWindow : Window
     {
         ArgumentNullException.ThrowIfNull(window);
         window.Icon = icon;
@@ -2877,12 +2877,12 @@ public static class ControlExtensions
     /// <param name="window">Target window.</param>
     /// <param name="build">Build callback.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window OnBuild(this Window window, Action<Window> build)
+    public static TWindow OnBuild<TWindow>(this TWindow window, Action<TWindow> build) where TWindow : Window
     {
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(build);
 
-        window.SetBuildCallback(build);
+        window.SetBuildCallback(x => build((TWindow)x));
 
         build(window);
 
@@ -2895,7 +2895,7 @@ public static class ControlExtensions
     /// <param name="window">Target window.</param>
     /// <param name="handler">Event handler.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window OnLoaded(this Window window, Action handler)
+    public static TWindow OnLoaded<TWindow>(this TWindow window, Action handler) where TWindow : Window
     {
         window.Loaded += handler;
         return window;
@@ -2907,7 +2907,7 @@ public static class ControlExtensions
     /// <param name="window">Target window.</param>
     /// <param name="handler">Event handler.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window OnClosing(this Window window, Action<ClosingEventArgs> handler)
+    public static TWindow OnClosing<TWindow>(this TWindow window, Action<ClosingEventArgs> handler) where TWindow : Window
     {
         window.Closing += handler;
         return window;
@@ -2920,7 +2920,7 @@ public static class ControlExtensions
     /// <param name="window">Target window.</param>
     /// <param name="handler">Event handler.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window OnClosed(this Window window, Action handler)
+    public static TWindow OnClosed<TWindow>(this TWindow window, Action handler) where TWindow : Window
     {
         window.Closed += handler;
         return window;
@@ -2932,7 +2932,7 @@ public static class ControlExtensions
     /// <param name="window">Target window.</param>
     /// <param name="handler">Event handler.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window OnActivated(this Window window, Action handler)
+    public static TWindow OnActivated<TWindow>(this TWindow window, Action handler) where TWindow : Window
     {
         window.Activated += handler;
         return window;
@@ -2944,7 +2944,7 @@ public static class ControlExtensions
     /// <param name="window">Target window.</param>
     /// <param name="handler">Event handler.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window OnDeactivated(this Window window, Action handler)
+    public static TWindow OnDeactivated<TWindow>(this TWindow window, Action handler) where TWindow : Window
     {
         window.Deactivated += handler;
         return window;
@@ -2956,7 +2956,7 @@ public static class ControlExtensions
     /// <param name="window">Target window.</param>
     /// <param name="handler">Event handler.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window OnSizeChanged(this Window window, Action<Size> handler)
+    public static TWindow OnSizeChanged<TWindow>(this TWindow window, Action<Size> handler) where TWindow : Window
     {
         window.ClientSizeChanged += handler;
         return window;
@@ -2968,7 +2968,7 @@ public static class ControlExtensions
     /// <param name="window">Target window.</param>
     /// <param name="handler">Event handler.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window OnDpiChanged(this Window window, Action<uint, uint> handler)
+    public static TWindow OnDpiChanged<TWindow>(this TWindow window, Action<uint, uint> handler) where TWindow : Window
     {
         window.DpiChanged += handler;
         return window;
@@ -2980,7 +2980,7 @@ public static class ControlExtensions
     /// <param name="window">Target window.</param>
     /// <param name="handler">Event handler.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window OnThemeChanged(this Window window, Action<Theme, Theme> handler)
+    public static TWindow OnThemeChanged<TWindow>(this TWindow window, Action<Theme, Theme> handler) where TWindow : Window
     {
         window.ThemeChanged += handler;
         return window;
@@ -2992,7 +2992,7 @@ public static class ControlExtensions
     /// <param name="window">Target window.</param>
     /// <param name="handler">Event handler.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window OnFirstFrameRendered(this Window window, Action handler)
+    public static TWindow OnFirstFrameRendered<TWindow>(this TWindow window, Action handler) where TWindow : Window
     {
         window.FirstFrameRendered += handler;
         return window;
@@ -3004,7 +3004,7 @@ public static class ControlExtensions
     /// <param name="window">Target window.</param>
     /// <param name="handler">Event handler.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window OnFrameRendered(this Window window, Action handler)
+    public static TWindow OnFrameRendered<TWindow>(this TWindow window, Action handler) where TWindow : Window
     {
         window.FrameRendered += handler;
         return window;
@@ -3016,7 +3016,7 @@ public static class ControlExtensions
     /// <param name="window">Target window.</param>
     /// <param name="handler">Event handler.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window OnPreviewKeyDown(this Window window, Action<KeyEventArgs> handler)
+    public static TWindow OnPreviewKeyDown<TWindow>(this TWindow window, Action<KeyEventArgs> handler) where TWindow : Window
     {
         window.PreviewKeyDown += handler;
         return window;
@@ -3028,7 +3028,7 @@ public static class ControlExtensions
     /// <param name="window">Target window.</param>
     /// <param name="handler">Event handler.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window OnPreviewKeyUp(this Window window, Action<KeyEventArgs> handler)
+    public static TWindow OnPreviewKeyUp<TWindow>(this TWindow window, Action<KeyEventArgs> handler) where TWindow : Window
     {
         window.PreviewKeyUp += handler;
         return window;
@@ -3040,25 +3040,25 @@ public static class ControlExtensions
     /// <param name="window">Target window.</param>
     /// <param name="handler">Event handler.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window OnPreviewTextInput(this Window window, Action<TextInputEventArgs> handler)
+    public static TWindow OnPreviewTextInput<TWindow>(this TWindow window, Action<TextInputEventArgs> handler) where TWindow : Window
     {
         window.PreviewTextInput += handler;
         return window;
     }
 
-    public static Window OnPreviewTextCompositionStart(this Window window, Action<TextCompositionEventArgs> handler)
+    public static TWindow OnPreviewTextCompositionStart<TWindow>(this TWindow window, Action<TextCompositionEventArgs> handler) where TWindow : Window
     {
         window.PreviewTextCompositionStart += handler;
         return window;
     }
 
-    public static Window OnPreviewTextCompositionUpdate(this Window window, Action<TextCompositionEventArgs> handler)
+    public static TWindow OnPreviewTextCompositionUpdate<TWindow>(this TWindow window, Action<TextCompositionEventArgs> handler) where TWindow : Window
     {
         window.PreviewTextCompositionUpdate += handler;
         return window;
     }
 
-    public static Window OnPreviewTextCompositionEnd(this Window window, Action<TextCompositionEventArgs> handler)
+    public static TWindow OnPreviewTextCompositionEnd<TWindow>(this TWindow window, Action<TextCompositionEventArgs> handler) where TWindow : Window
     {
         window.PreviewTextCompositionEnd += handler;
         return window;
