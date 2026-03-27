@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace Aprillz.MewUI.Styling;
+namespace Aprillz.MewUI;
 
 /// <summary>
 /// Conditionally applies <see cref="SetterBase"/> values when the control's

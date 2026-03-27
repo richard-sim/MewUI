@@ -1,4 +1,4 @@
-namespace Aprillz.MewUI.Styling;
+namespace Aprillz.MewUI;
 
 /// <summary>
 /// Defines default and state-conditional property values for a control type.

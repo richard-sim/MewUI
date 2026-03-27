@@ -1,4 +1,4 @@
-namespace Aprillz.MewUI.Styling;
+namespace Aprillz.MewUI;
 
 /// <summary>
 /// Declares that a property should animate when its style-resolved value changes.

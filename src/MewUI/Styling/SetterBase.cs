@@ -1,4 +1,4 @@
-namespace Aprillz.MewUI.Styling;
+namespace Aprillz.MewUI;
 
 /// <summary>
 /// Base class for property value setters used in <see cref="Style"/> definitions.
