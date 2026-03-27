@@ -3197,4 +3197,135 @@ public static class ControlExtensions
     public static TabControl ShowHorizontalScroll(this TabControl tabControl) => tabControl.HorizontalScroll(ScrollMode.Visible);
 
     #endregion
+
+    #region Calendar
+
+    /// <summary>
+    /// Sets the selected date.
+    /// </summary>
+    public static Calendar SelectedDate(this Calendar calendar, DateTime? date)
+    {
+        calendar.SelectedDate = date;
+        return calendar;
+    }
+
+    /// <summary>
+    /// Sets the display date (visible month/year).
+    /// </summary>
+    public static Calendar DisplayDate(this Calendar calendar, DateTime date)
+    {
+        calendar.DisplayDate = date;
+        return calendar;
+    }
+
+    /// <summary>
+    /// Sets the display mode.
+    /// </summary>
+    public static Calendar DisplayMode(this Calendar calendar, CalendarMode mode)
+    {
+        calendar.DisplayMode = mode;
+        return calendar;
+    }
+
+    /// <summary>
+    /// Sets the first day of the week.
+    /// </summary>
+    public static Calendar FirstDayOfWeek(this Calendar calendar, DayOfWeek day)
+    {
+        calendar.FirstDayOfWeek = day;
+        return calendar;
+    }
+
+    /// <summary>
+    /// Sets whether today is highlighted.
+    /// </summary>
+    public static Calendar IsTodayHighlighted(this Calendar calendar, bool value)
+    {
+        calendar.IsTodayHighlighted = value;
+        return calendar;
+    }
+
+    /// <summary>
+    /// Adds a selected date changed event handler.
+    /// </summary>
+    public static Calendar OnSelectedDateChanged(this Calendar calendar, Action<DateTime?> handler)
+    {
+        calendar.SelectedDateChanged += handler;
+        return calendar;
+    }
+
+    /// <summary>
+    /// Binds the selected date to an observable value.
+    /// </summary>
+    public static Calendar BindSelectedDate(this Calendar calendar, ObservableValue<DateTime?> source)
+    {
+        ArgumentNullException.ThrowIfNull(calendar);
+        ArgumentNullException.ThrowIfNull(source);
+
+        calendar.SetBinding(Calendar.SelectedDateProperty, source);
+        return calendar;
+    }
+
+    #endregion
+
+    #region DatePicker
+
+    /// <summary>
+    /// Sets the selected date.
+    /// </summary>
+    public static DatePicker SelectedDate(this DatePicker datePicker, DateTime? date)
+    {
+        datePicker.SelectedDate = date;
+        return datePicker;
+    }
+
+    /// <summary>
+    /// Sets the placeholder text.
+    /// </summary>
+    public static DatePicker Placeholder(this DatePicker datePicker, string placeholder)
+    {
+        datePicker.Placeholder = placeholder;
+        return datePicker;
+    }
+
+    /// <summary>
+    /// Sets the date format string.
+    /// </summary>
+    public static DatePicker DateFormat(this DatePicker datePicker, string format)
+    {
+        datePicker.DateFormat = format;
+        return datePicker;
+    }
+
+    /// <summary>
+    /// Sets the first day of the week.
+    /// </summary>
+    public static DatePicker FirstDayOfWeek(this DatePicker datePicker, DayOfWeek day)
+    {
+        datePicker.FirstDayOfWeek = day;
+        return datePicker;
+    }
+
+    /// <summary>
+    /// Adds a selected date changed event handler.
+    /// </summary>
+    public static DatePicker OnSelectedDateChanged(this DatePicker datePicker, Action<DateTime?> handler)
+    {
+        datePicker.SelectedDateChanged += handler;
+        return datePicker;
+    }
+
+    /// <summary>
+    /// Binds the selected date to an observable value.
+    /// </summary>
+    public static DatePicker BindSelectedDate(this DatePicker datePicker, ObservableValue<DateTime?> source)
+    {
+        ArgumentNullException.ThrowIfNull(datePicker);
+        ArgumentNullException.ThrowIfNull(source);
+
+        datePicker.SetBinding(DatePicker.SelectedDateProperty, source);
+        return datePicker;
+    }
+
+    #endregion
 }
