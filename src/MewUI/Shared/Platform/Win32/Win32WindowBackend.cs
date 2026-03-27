@@ -13,7 +13,6 @@ using Aprillz.MewUI.Resources;
 
 namespace Aprillz.MewUI.Platform.Win32;
 
-[SupportedOSPlatform("windows")]
 internal sealed class Win32WindowBackend : IWindowBackend
 {
     private static readonly EnvDebugLog.Logger ImeLogger = new("MEWUI_IME_DEBUG", "[Win32][IME]");
@@ -1640,6 +1639,8 @@ internal sealed class Win32WindowBackend : IWindowBackend
         nint himc = Imm32.ImmGetContext(Handle);
         if (himc == 0) return;
 
+        const int COMPOSITION_OFFSET_Y_DIP = 2;
+
         try
         {
             double dpiScale = GetDpiForWindow(Handle) / 96.0;
@@ -1667,7 +1668,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
             var startRect = client.GetCharRectInWindow(client.CompositionStartIndex);
             int startPx = (int)(startRect.X * dpiScale);
             int startPy = (int)(startRect.Y * dpiScale);
-            int startLineH = (int)(startRect.Height * dpiScale);
+            int startLineH = (int)((startRect.Height + COMPOSITION_OFFSET_Y_DIP) * dpiScale);
 
             var candForm = new Imm32.CANDIDATEFORM
             {
@@ -2012,22 +2013,22 @@ internal sealed class Win32WindowBackend : IWindowBackend
                 if (prev != 0) _savedImeContext = prev;
                 break;
             case ImeMode.AlphaNumeric:
+            {
+                // Restore context first if disabled
+                if (_savedImeContext != 0)
                 {
-                    // Restore context first if disabled
-                    if (_savedImeContext != 0)
-                    {
-                        Imm32.ImmAssociateContext(Handle, _savedImeContext);
-                        _savedImeContext = 0;
-                    }
-                    nint himc = Imm32.ImmGetContext(Handle);
-                    if (himc != 0)
-                    {
-                        Imm32.ImmGetConversionStatus(himc, out _savedConversion, out _savedSentence);
-                        Imm32.ImmSetConversionStatus(himc, Imm32.IME_CMODE_ALPHANUMERIC, _savedSentence);
-                        Imm32.ImmReleaseContext(Handle, himc);
-                    }
+                    Imm32.ImmAssociateContext(Handle, _savedImeContext);
+                    _savedImeContext = 0;
                 }
-                break;
+                nint himc = Imm32.ImmGetContext(Handle);
+                if (himc != 0)
+                {
+                    Imm32.ImmGetConversionStatus(himc, out _savedConversion, out _savedSentence);
+                    Imm32.ImmSetConversionStatus(himc, Imm32.IME_CMODE_ALPHANUMERIC, _savedSentence);
+                    Imm32.ImmReleaseContext(Handle, himc);
+                }
+            }
+            break;
             default: // Auto
                 if (_savedImeContext != 0)
                 {
@@ -2049,6 +2050,16 @@ internal sealed class Win32WindowBackend : IWindowBackend
                     }
                 }
                 break;
+        }
+    }
+
+    public void CancelImeComposition()
+    {
+        var hImc = Imm32.ImmGetContext(Handle);
+        if (hImc != 0)
+        {
+            Imm32.ImmNotifyIME(hImc, Imm32.NI_COMPOSITIONSTR, Imm32.CPS_CANCEL, 0);
+            Imm32.ImmReleaseContext(Handle, hImc);
         }
     }
 

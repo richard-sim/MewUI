@@ -243,6 +243,8 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
         }
     }
 
+    bool ITextCompositionClient.IsComposing => _isTextComposing;
+
     int ITextCompositionClient.CompositionStartIndex => _compositionStart;
 
     protected internal bool IsComposing => _isTextComposing;

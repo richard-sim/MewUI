@@ -1955,6 +1955,7 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     internal void OnFocusChanged(UIElement? newFocusedElement)
         => _popupManager.RequestClosePopups(PopupCloseRequest.FocusChanged(newFocusedElement));
 
+    internal void CancelImeComposition() => _backend?.CancelImeComposition();
     protected override UIElement? OnHitTest(Point point)
     {
         var overlayHit = OverlayLayer.HitTest(point);

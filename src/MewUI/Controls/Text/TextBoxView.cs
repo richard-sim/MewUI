@@ -107,7 +107,7 @@ internal sealed class TextBoxView
             int ce = Math.Min(compositionStart + compositionLength, endCol);
             if (cs < ce)
             {
-                double ulY = lineTop + lineHeight - 2;
+                double ulY = lineTop + lineHeight;
                 int attrOffset = cs - compositionStart;
                 DrawSegmentedCompositionUnderline(
                     context, ulY, textColor,
@@ -123,8 +123,8 @@ internal sealed class TextBoxView
             {
                 double caretX = contentBounds.X - horizontalOffset + GetAbsoluteX(caret, context, font);
                 context.DrawLine(
-                    new Point(caretX, lineTop + 2),
-                    new Point(caretX, lineTop + lineHeight - 2),
+                    new Point(caretX, lineTop),
+                    new Point(caretX, lineTop + lineHeight),
                     theme.Palette.WindowText, 1, pixelSnap: true);
             }
         }

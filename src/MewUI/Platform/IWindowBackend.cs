@@ -169,4 +169,9 @@ public interface IWindowBackend : IDisposable
     /// Sets the IME mode for the window.
     /// </summary>
     void SetImeMode(Input.ImeMode mode);
+
+    /// <summary>
+    /// Cancels the current IME composition without committing.
+    /// </summary>
+    void CancelImeComposition();
 }

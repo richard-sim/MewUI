@@ -44,6 +44,13 @@ internal static partial class Imm32
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool ImmGetConversionStatus(nint hIMC, out uint fdwConversion, out uint fdwSentence);
 
+    public const int NI_COMPOSITIONSTR = 0x0015;
+    public const int CPS_CANCEL = 0x0004;
+
+    [LibraryImport("imm32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool ImmNotifyIME(nint hIMC, int dwAction, int dwIndex, int dwValue);
+
     public const uint IME_CMODE_ALPHANUMERIC = 0x0000;
 
     public const int CFS_POINT = 0x0002;

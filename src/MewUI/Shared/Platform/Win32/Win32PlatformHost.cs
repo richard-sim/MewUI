@@ -10,7 +10,6 @@ using Microsoft.Win32;
 
 namespace Aprillz.MewUI.Platform.Win32;
 
-[SupportedOSPlatform("windows")]
 public sealed class Win32PlatformHost : IPlatformHost
 {
     internal const string WindowClassName = "AprillzMewUIWindow";

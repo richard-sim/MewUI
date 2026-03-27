@@ -504,7 +504,7 @@ public sealed class MultiLineTextBox : TextBase
                     int ce = Math.Min(compEnd - start, endCol);
                     if (cs < ce && cs >= 0)
                     {
-                        double ulY = y + lineHeight - 2;
+                        double ulY = y + lineHeight;
                         int attrOffset = (cs + start) - compStart;
                         double baseX = contentBounds.X - HorizontalOffset;
                         TextBoxView.DrawSegmentedCompositionUnderline(
@@ -584,7 +584,7 @@ public sealed class MultiLineTextBox : TextBase
                     if (cs < ce)
                     {
                         lineMeasure ??= _textView.EnsureLineMeasureCache(lineIndex, lineStart, lineEnd, measure.Context, measure.Font);
-                        double ulY = yWrap + lineHeight - 2;
+                        double ulY = yWrap + lineHeight;
                         int attrOffset = (cs + lineStart) - compStart;
                         double segPrefixW = MultiLineTextView.GetPrefixWidthCached(lineMeasure, segStart, measure.Context, measure.Font);
                         TextBoxView.DrawSegmentedCompositionUnderline(
