@@ -19,6 +19,18 @@ public static class BindingExtensions
     }
 
     /// <summary>
+    /// Binds a <see cref="MewProperty{T}"/> to another <see cref="MewObject"/>'s <see cref="MewProperty{T}"/>
+    /// and returns the element for fluent chaining.
+    /// </summary>
+    public static TElement Bind<TElement, T>(this TElement element,
+        MewProperty<T> property, MewObject source, MewProperty<T> sourceProperty)
+        where TElement : MewObject
+    {
+        element.SetBinding(property, source, sourceProperty);
+        return element;
+    }
+
+    /// <summary>
     /// Binds a <see cref="MewProperty{TProp}"/> to an <see cref="ObservableValue{TSource}"/>
     /// with type conversion and returns the element for fluent chaining.
     /// </summary>
@@ -31,6 +43,22 @@ public static class BindingExtensions
         where TElement : MewObject
     {
         element.SetBinding(property, source, convert, convertBack, mode);
+        return element;
+    }
+
+    /// <summary>
+    /// Binds a <see cref="MewProperty{TProp}"/> to another <see cref="MewObject"/>'s <see cref="MewProperty{TSource}"/>
+    /// with type conversion and returns the element for fluent chaining.
+    /// </summary>
+    public static TElement Bind<TElement, TProp, TSource>(this TElement element,
+        MewProperty<TProp> property,
+        MewObject source, MewProperty<TSource> sourceProperty,
+        Func<TSource, TProp> convert,
+        Func<TProp, TSource>? convertBack = null,
+        BindingMode? mode = null)
+        where TElement : MewObject
+    {
+        element.SetBinding(property, source, sourceProperty, convert, convertBack, mode);
         return element;
     }
 }

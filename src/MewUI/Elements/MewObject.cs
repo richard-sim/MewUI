@@ -133,7 +133,7 @@ public abstract class MewObject : IPropertyOwner
             resolvedMode = BindingMode.OneWay;
         }
 
-        var binding = new ConvertingMewPropertyBinding<TProp, TSource>(
+        var binding = new MewPropertyBinding<TProp, TSource>(
             this, property, source, convert, convertBack, resolvedMode);
         StorePropertyBinding(property.Id, binding);
     }
@@ -191,6 +191,36 @@ public abstract class MewObject : IPropertyOwner
         DisposeExistingBinding(property.Id);
 
         var binding = new MewObjectPropertyBinding<T>(this, property, source, sourceProperty);
+        StorePropertyBinding(property.Id, binding);
+    }
+
+    /// <summary>
+    /// Binds a <see cref="MewProperty{TProp}"/> on this object to a <see cref="MewProperty{TSource}"/> on a source object
+    /// with type conversion. Replaces any existing binding for the same property.
+    /// </summary>
+    public void SetBinding<TProp, TSource>(
+        MewProperty<TProp> property,
+        MewObject source,
+        MewProperty<TSource> sourceProperty,
+        Func<TSource, TProp> convert,
+        Func<TProp, TSource>? convertBack = null,
+        BindingMode? mode = null)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(sourceProperty);
+        ArgumentNullException.ThrowIfNull(convert);
+
+        DisposeExistingBinding(property.Id);
+
+        var resolvedMode = mode ?? (property.BindsTwoWayByDefault ? BindingMode.TwoWay : BindingMode.OneWay);
+        if (resolvedMode == BindingMode.TwoWay && convertBack == null)
+        {
+            resolvedMode = BindingMode.OneWay;
+        }
+
+        var binding = new MewObjectPropertyBinding<TProp, TSource>(
+            this, property, source, sourceProperty, convert, convertBack, resolvedMode);
         StorePropertyBinding(property.Id, binding);
     }
 

@@ -6,7 +6,7 @@ namespace Aprillz.MewUI;
 /// Bridges a <see cref="MewProperty{TProp}"/> to an <see cref="ObservableValue{TSource}"/>
 /// when the types differ, applying convert/convertBack functions.
 /// </summary>
-internal sealed class ConvertingMewPropertyBinding<TProp, TSource> : IDisposable
+internal sealed class MewPropertyBinding<TProp, TSource> : IDisposable
 {
     private readonly MewObject _owner;
     private readonly MewProperty<TProp> _property;
@@ -16,7 +16,7 @@ internal sealed class ConvertingMewPropertyBinding<TProp, TSource> : IDisposable
     private readonly BindingMode _mode;
     private bool _updating;
 
-    public ConvertingMewPropertyBinding(
+    public MewPropertyBinding(
         MewObject owner,
         MewProperty<TProp> property,
         ObservableValue<TSource> source,
