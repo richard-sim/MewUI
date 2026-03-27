@@ -50,6 +50,19 @@ partial class GalleryView
             ),
 
             Card(
+                "Built-in Styles",
+                new StackPanel()
+                    .Vertical()
+                    .Spacing(8)
+                    .Children(
+                        new Button().Content("Flat Button").Apply(b => b.StyleName = BuiltInStyles.FlatButton),
+                        new Button().Content("Flat Disabled").Apply(b => b.StyleName = BuiltInStyles.FlatButton).Disable(),
+                        new Button().Content("Accent Button").Apply(b => b.StyleName = BuiltInStyles.AccentButton),
+                        new Button().Content("Accent Disabled").Apply(b => b.StyleName = BuiltInStyles.AccentButton).Disable()
+                    )
+            ),
+
+            Card(
                 "Progress",
                 new StackPanel()
                     .Vertical()

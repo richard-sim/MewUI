@@ -24,6 +24,18 @@ partial class GalleryView
                 ),
 
                 Card(
+                    "PasswordBox",
+                    new StackPanel()
+                        .Vertical()
+                        .Spacing(8)
+                        .Children(
+                            new PasswordBox().Placeholder("Password"),
+                            new PasswordBox { PasswordChar = '*' }.Placeholder("Custom mask"),
+                            new PasswordBox().Password("Disabled").Disable()
+                        )
+                ),
+
+                Card(
                     "NumericUpDown (int/double)",
                     new Grid()
                         .Columns("Auto,Auto,Auto")
