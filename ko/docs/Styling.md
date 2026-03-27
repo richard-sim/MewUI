@@ -11,7 +11,7 @@ MewUI 스타일링 시스템의 설계 원칙:
 - **코드 기반**: 스타일은 C# 객체와 타입드 setter — XML이나 CSS 아님
 - **AOT 친화**: 리플렉션 없음 — 제네릭 인터페이스와 static 람다
 - **선언적**: 상태 기반 시각 효과는 `StateTrigger`로 정의, 이벤트 핸들러 불필요
-- **조합 가능**: `BasedOn`으로 스타일 상속, `StyleScope`로 컨테이너 범위 적용
+- **조합 가능**: `BasedOn`으로 스타일 상속, `StyleSheet`로 컨테이너 범위 적용
 
 ### 값 해결 우선순위
 
@@ -32,11 +32,16 @@ Style base setter
 ### 스타일 해결 우선순위
 
 ```
-StyleName → StyleSheet 조회  (최고 우선순위)
-  ↓ 찾지 못한 경우
-StyleScope → 타입 매칭 규칙
-  ↓ 찾지 못한 경우
-Theme.GetStyle(type)          (최저 우선순위)
+StyleName 지정 시:
+  자신부터 부모 체인의 StyleSheet에서 이름 조회
+    → Application.StyleSheet 조회
+      → 못 찾으면 아래로 fallback
+
+StyleName 미지정 또는 이름 못 찾은 경우:
+  부모 체인의 StyleSheet에서 타입 기반 조회
+    → 못 찾으면 아래로 fallback
+
+DefaultStyles (Theme 기본 스타일)       (최저 우선순위)
 ```
 
 ---
@@ -158,9 +163,12 @@ var myButton = new Style(typeof(Button))
 
 ## 3. StyleSheet
 
-`StyleSheet`는 이름으로 스타일을 등록하는 레지스트리입니다. 모든 `FrameworkElement`(일반적으로 `Window`)에 연결할 수 있습니다. `StyleName`이 설정된 컨트롤은 부모 체인에서 가장 가까운 `StyleSheet`에서 스타일을 조회합니다.
+`StyleSheet`는 이름 기반 스타일과 타입 기반 스타일 규칙을 모두 지원하는 스타일 레지스트리입니다. 모든 `FrameworkElement`(일반적으로 `Window`)에 연결할 수 있습니다.
 
-### 3.1 정의 및 적용
+1. **이름 기반 스타일**: `StyleName`이 설정된 컨트롤은 부모 체인에서 가장 가까운 `StyleSheet`에서 이름으로 조회합니다.
+2. **타입 기반 규칙**: 명시적 `StyleName` 없이 타입으로 자동 매칭합니다.
+
+### 3.1 이름 기반 스타일
 
 ```csharp
 // Window에 정의
@@ -173,60 +181,41 @@ var btn = new Button { StyleName = "accent-button" };
 btn.Content("Save");
 ```
 
-### 3.2 조회
+`StyleName`이 설정되면 자기 자신부터 부모 체인을 올라가며 각 `FrameworkElement`의 `StyleSheet`에서 해당 이름을 조회합니다. 부모 체인에서 찾지 못하면 `Application.StyleSheet`를 마지막으로 조회합니다. 그래도 없으면 타입 기반 규칙 → Theme 기본 스타일(`DefaultStyles`) 순서로 fallback합니다.
 
-`StyleName`이 설정되면 MewUI가 부모 체인을 올라가며 `StyleSheet`를 가진 가장 가까운 `FrameworkElement`를 찾아 이름을 조회합니다. 찾지 못하면 StyleScope, Theme 기본 스타일 순서로 fallback합니다.
-
----
-
-## 4. StyleScope
-
-`StyleScope`는 컨테이너 내의 모든 자손 컨트롤에 타입 매칭 스타일을 적용합니다. 개별 `StyleName` 설정 없이 그룹 스타일링에 유용합니다.
-
-### 4.1 기본 사용법
+### 3.2 타입 기반 규칙
 
 ```csharp
 var toolbar = new StackPanel().Horizontal().Spacing(4);
-toolbar.StyleScope = new StyleScope();
-toolbar.StyleScope.Add<Button>(flatButtonStyle);
+toolbar.StyleSheet = new StyleSheet();
+toolbar.StyleSheet.Define<Button>(flatButtonStyle);
 
 // toolbar 내의 모든 Button에 flatButtonStyle 자동 적용
 toolbar.Add(new Button().Content("Cut"));
 toolbar.Add(new Button().Content("Copy"));
 toolbar.Add(new Button().Content("Paste"));
-toolbar.Add(new CheckBox().Content("Bold")); // 영향 없음 — Button만 스코프 대상
+toolbar.Add(new CheckBox().Content("Bold")); // 영향 없음 — Button만 매칭 대상
 ```
 
-### 4.2 타입 매칭
+타입 매칭은 정확한 타입을 먼저, 그 다음 부모 타입을 매칭합니다. `Define<Button>(style)`은 `Button`과 그 하위 클래스에 적용됩니다.
 
-`StyleScope`는 정확한 타입을 먼저, 그 다음 부모 타입을 매칭합니다. `Add<Button>(style)`은 `Button`과 그 하위 클래스에 적용됩니다.
+### 3.3 중첩 StyleSheet
 
-### 4.3 중첩 스코프
-
-내부 스코프가 같은 타입에 대해 외부 스코프를 override합니다. 다른 타입은 독립적으로 버블링됩니다.
+내부 StyleSheet가 같은 타입에 대해 외부를 override합니다. 다른 타입은 독립적으로 버블링됩니다.
 
 ```csharp
 // 외부: 모든 Button을 flat으로
-outerPanel.StyleScope = new StyleScope();
-outerPanel.StyleScope.Add<Button>(flatButtonStyle);
+outerPanel.StyleSheet = new StyleSheet();
+outerPanel.StyleSheet.Define<Button>(flatButtonStyle);
 
 // 내부: 여기서는 Button을 accent로
-innerPanel.StyleScope = new StyleScope();
-innerPanel.StyleScope.Add<Button>(accentButtonStyle);
+innerPanel.StyleSheet = new StyleSheet();
+innerPanel.StyleSheet.Define<Button>(accentButtonStyle);
 
 // 결과:
 // outerPanel > Button → flat
 // innerPanel > Button → accent
-// outerPanel > CheckBox → 영향 없음 (스코프 규칙 없음)
-```
-
-### 4.4 이름 참조
-
-`StyleScope`에서 스타일 객체 대신 `StyleSheet`의 이름을 참조할 수 있습니다:
-
-```csharp
-toolbar.StyleScope = new StyleScope();
-toolbar.StyleScope.Add<Button>("flat-button"); // 가장 가까운 StyleSheet에서 조회
+// outerPanel > CheckBox → 영향 없음 (타입 규칙 없음)
 ```
 
 ---
@@ -343,10 +332,10 @@ var accentButton = new Style(typeof(Button))
 window.StyleSheet = new StyleSheet();
 window.StyleSheet.Define("accent", accentButton);
 
-// StyleScope로 적용 (컨테이너 범위)
+// StyleSheet 타입 규칙으로 적용 (컨테이너 범위)
 var toolbar = new StackPanel().Horizontal().Spacing(4);
-toolbar.StyleScope = new StyleScope();
-toolbar.StyleScope.Add<Button>(flatButton);
+toolbar.StyleSheet = new StyleSheet();
+toolbar.StyleSheet.Define<Button>(flatButton);
 toolbar.Add(new Button().Content("Cut"));
 toolbar.Add(new Button().Content("Copy"));
 

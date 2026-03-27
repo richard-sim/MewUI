@@ -11,7 +11,7 @@ MewUI's styling system is built around the following principles:
 - **Code-first**: styles are C# objects with typed setters, not XML or CSS
 - **AOT-friendly**: no reflection — generic interfaces, typed delegates, and static lambdas
 - **Declarative**: state-based visuals are defined via `StateTrigger`, not imperative event handlers
-- **Composable**: styles extend other styles via `BasedOn`; containers propagate styles via `StyleScope`
+- **Composable**: styles extend other styles via `BasedOn`; containers propagate styles via `StyleSheet`
 
 ### Value resolution order
 
@@ -32,11 +32,16 @@ Default value
 ### Style resolution order
 
 ```
-StyleName → StyleSheet lookup  (highest priority)
-  ↓  if not found
-StyleScope → type-matched rule
-  ↓  if not found
-Theme.GetStyle(type)           (lowest priority)
+When StyleName is set:
+  Walk parent chain (from self) looking up name in each StyleSheet
+    → then Application.StyleSheet
+      → if not found, fall through below
+
+When StyleName is unset or name not found:
+  Walk parent chain looking up type-based rule in each StyleSheet
+    → if not found, fall through below
+
+DefaultStyles (theme default style)    (lowest priority)
 ```
 
 ---
@@ -158,9 +163,12 @@ var myButton = new Style(typeof(Button))
 
 ## 3. StyleSheet
 
-`StyleSheet` is a named registry of styles. Attach it to any `FrameworkElement` (typically a `Window`). Controls with `StyleName` set resolve their style from the nearest `StyleSheet` up the element tree.
+`StyleSheet` is a style registry supporting both named styles and type-based rules. Attach it to any `FrameworkElement` (typically a `Window`). It serves two purposes:
 
-### 3.1 Defining and applying
+1. **Named styles**: Controls with `StyleName` resolve their style from the nearest `StyleSheet` up the element tree.
+2. **Type-based rules**: All descendant controls of a given type receive the style automatically, without setting `StyleName` on each one.
+
+### 3.1 Named styles
 
 ```csharp
 // Define on a window
@@ -173,60 +181,50 @@ var btn = new Button { StyleName = "accent-button" };
 btn.Content("Save");
 ```
 
-### 3.2 Resolution
+When `StyleName` is set, MewUI walks from the control itself up the parent chain, looking up the name in each `FrameworkElement`'s `StyleSheet`. If no parent `StyleSheet` contains the name, `Application.StyleSheet` is checked last. If still not found, resolution falls through to type-based rules, then Theme defaults (`DefaultStyles`).
 
-When `StyleName` is set, MewUI walks the parent chain to find the nearest `FrameworkElement` with a `StyleSheet`, then looks up the name. If not found, falls through to StyleScope and Theme defaults.
-
----
-
-## 4. StyleScope
-
-`StyleScope` applies type-matched styles to all descendant controls within a container. Useful for styling a group of controls without setting `StyleName` on each one.
-
-### 4.1 Basic usage
+### 3.2 Type-based rules
 
 ```csharp
 var toolbar = new StackPanel().Horizontal().Spacing(4);
-toolbar.StyleScope = new StyleScope();
-toolbar.StyleScope.Add<Button>(flatButtonStyle);
+toolbar.StyleSheet = new StyleSheet();
+toolbar.StyleSheet.Define<Button>(flatButtonStyle);
 
 // All Buttons inside toolbar get flatButtonStyle automatically
 toolbar.Add(new Button().Content("Cut"));
 toolbar.Add(new Button().Content("Copy"));
 toolbar.Add(new Button().Content("Paste"));
-toolbar.Add(new CheckBox().Content("Bold")); // unaffected — only Button is scoped
+toolbar.Add(new CheckBox().Content("Bold")); // unaffected — only Button is matched
 ```
 
-### 4.2 Type matching
+Type matching checks exact type first, then base types. `Define<Button>(style)` applies to `Button` and its subclasses.
 
-`StyleScope` matches by exact type first, then base types. `Add<Button>(style)` applies to `Button` and its subclasses.
+### 3.3 Nested StyleSheets
 
-### 4.3 Nested scopes
-
-Inner scopes override outer scopes for the same type. Different types bubble independently.
+Inner StyleSheets override outer ones for the same type. Different types bubble independently.
 
 ```csharp
 // Outer: all Buttons are flat
-outerPanel.StyleScope = new StyleScope();
-outerPanel.StyleScope.Add<Button>(flatButtonStyle);
+outerPanel.StyleSheet = new StyleSheet();
+outerPanel.StyleSheet.Define<Button>(flatButtonStyle);
 
 // Inner: Buttons here are accent instead
-innerPanel.StyleScope = new StyleScope();
-innerPanel.StyleScope.Add<Button>(accentButtonStyle);
+innerPanel.StyleSheet = new StyleSheet();
+innerPanel.StyleSheet.Define<Button>(accentButtonStyle);
 
 // Result:
 // outerPanel > Button → flat
 // innerPanel > Button → accent
-// outerPanel > CheckBox → unaffected (no scope rule)
+// outerPanel > CheckBox → unaffected (no type rule)
 ```
 
-### 4.4 Named style references
+### 3.4 Named style references in type rules
 
-`StyleScope` can reference named styles from `StyleSheet` instead of direct style objects:
+Type rules can reference named styles instead of direct style objects:
 
 ```csharp
-toolbar.StyleScope = new StyleScope();
-toolbar.StyleScope.Add<Button>("flat-button"); // resolved from nearest StyleSheet
+toolbar.StyleSheet = new StyleSheet();
+toolbar.StyleSheet.Define<Button>("flat-button"); // resolved from nearest StyleSheet
 ```
 
 ---
@@ -343,10 +341,10 @@ var accentButton = new Style(typeof(Button))
 window.StyleSheet = new StyleSheet();
 window.StyleSheet.Define("accent", accentButton);
 
-// Apply via StyleScope (container-level)
+// Apply via StyleSheet type rule (container-level)
 var toolbar = new StackPanel().Horizontal().Spacing(4);
-toolbar.StyleScope = new StyleScope();
-toolbar.StyleScope.Add<Button>(flatButton);
+toolbar.StyleSheet = new StyleSheet();
+toolbar.StyleSheet.Define<Button>(flatButton);
 toolbar.Add(new Button().Content("Cut"));
 toolbar.Add(new Button().Content("Copy"));
 
