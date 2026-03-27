@@ -1019,13 +1019,28 @@ public static class ControlExtensions
     /// <summary>
     /// Sets the text.
     /// </summary>
-    /// <param name="textBox">Target text box.</param>
-    /// <param name="text">Text content.</param>
-    /// <returns>The text box for chaining.</returns>
     public static TextBox Text(this TextBox textBox, string text)
     {
         textBox.Text = text;
         return textBox;
+    }
+
+    /// <summary>
+    /// Sets the text.
+    /// </summary>
+    public static MultiLineTextBox Text(this MultiLineTextBox textBox, string text)
+    {
+        textBox.Text = text;
+        return textBox;
+    }
+
+    /// <summary>
+    /// Sets the password.
+    /// </summary>
+    public static PasswordBox Password(this PasswordBox passwordBox, string password)
+    {
+        passwordBox.Password = password;
+        return passwordBox;
     }
 
     /// <summary>
@@ -1034,7 +1049,7 @@ public static class ControlExtensions
     /// <param name="textBox">Target text box.</param>
     /// <param name="placeholder">Placeholder text.</param>
     /// <returns>The text box for chaining.</returns>
-    public static TextBox Placeholder(this TextBox textBox, string placeholder)
+    public static T Placeholder<T>(this T textBox, string placeholder) where T : TextBase
     {
         textBox.Placeholder = placeholder;
         return textBox;
@@ -1046,7 +1061,7 @@ public static class ControlExtensions
     /// <param name="textBox">Target text box.</param>
     /// <param name="isReadOnly">Read-only state.</param>
     /// <returns>The text box for chaining.</returns>
-    public static TextBox IsReadOnly(this TextBox textBox, bool isReadOnly = true)
+    public static T IsReadOnly<T>(this T textBox, bool isReadOnly = true) where T : TextBase
     {
         textBox.IsReadOnly = isReadOnly;
         return textBox;
@@ -1058,7 +1073,7 @@ public static class ControlExtensions
     /// <param name="textBox">Target text box.</param>
     /// <param name="acceptTab">Accept tab flag.</param>
     /// <returns>The text box for chaining.</returns>
-    public static TextBox AcceptTab(this TextBox textBox, bool acceptTab = true)
+    public static T AcceptTab<T>(this T textBox, bool acceptTab = true) where T : TextBase
     {
         textBox.AcceptTab = acceptTab;
         return textBox;
@@ -1070,7 +1085,7 @@ public static class ControlExtensions
     /// <param name="textBox">Target text box.</param>
     /// <param name="handler">Event handler.</param>
     /// <returns>The text box for chaining.</returns>
-    public static TextBox OnTextChanged(this TextBox textBox, Action<string> handler)
+    public static T OnTextChanged<T>(this T textBox, Action<string> handler) where T : TextBase
     {
         textBox.TextChanged += handler;
         return textBox;
@@ -1086,9 +1101,30 @@ public static class ControlExtensions
     {
         ArgumentNullException.ThrowIfNull(textBox);
         ArgumentNullException.ThrowIfNull(source);
-
-        textBox.SetBinding(TextBase.TextProperty, source);
+        textBox.SetBinding(TextBox.TextProperty, source);
         return textBox;
+    }
+
+    /// <summary>
+    /// Binds the text to an observable value.
+    /// </summary>
+    public static MultiLineTextBox BindText(this MultiLineTextBox textBox, ObservableValue<string> source)
+    {
+        ArgumentNullException.ThrowIfNull(textBox);
+        ArgumentNullException.ThrowIfNull(source);
+        textBox.SetBinding(MultiLineTextBox.TextProperty, source);
+        return textBox;
+    }
+
+    /// <summary>
+    /// Binds the password to an observable value.
+    /// </summary>
+    public static PasswordBox BindPassword(this PasswordBox passwordBox, ObservableValue<string> source)
+    {
+        ArgumentNullException.ThrowIfNull(passwordBox);
+        ArgumentNullException.ThrowIfNull(source);
+        passwordBox.SetBinding(PasswordBox.PasswordProperty, source);
+        return passwordBox;
     }
 
     #endregion
@@ -2189,54 +2225,6 @@ public static class ControlExtensions
     #region MultiLineTextBox
 
     /// <summary>
-    /// Sets the text.
-    /// </summary>
-    /// <param name="textBox">Target text box.</param>
-    /// <param name="text">Text content.</param>
-    /// <returns>The text box for chaining.</returns>
-    public static MultiLineTextBox Text(this MultiLineTextBox textBox, string text)
-    {
-        textBox.Text = text;
-        return textBox;
-    }
-
-    /// <summary>
-    /// Sets the placeholder text.
-    /// </summary>
-    /// <param name="textBox">Target text box.</param>
-    /// <param name="placeholder">Placeholder text.</param>
-    /// <returns>The text box for chaining.</returns>
-    public static MultiLineTextBox Placeholder(this MultiLineTextBox textBox, string placeholder)
-    {
-        textBox.Placeholder = placeholder;
-        return textBox;
-    }
-
-    /// <summary>
-    /// Sets the read-only state.
-    /// </summary>
-    /// <param name="textBox">Target text box.</param>
-    /// <param name="isReadOnly">Read-only state.</param>
-    /// <returns>The text box for chaining.</returns>
-    public static MultiLineTextBox IsReadOnly(this MultiLineTextBox textBox, bool isReadOnly = true)
-    {
-        textBox.IsReadOnly = isReadOnly;
-        return textBox;
-    }
-
-    /// <summary>
-    /// Sets whether the text box accepts tab characters.
-    /// </summary>
-    /// <param name="textBox">Target text box.</param>
-    /// <param name="acceptTab">Accept tab flag.</param>
-    /// <returns>The text box for chaining.</returns>
-    public static MultiLineTextBox AcceptTab(this MultiLineTextBox textBox, bool acceptTab = true)
-    {
-        textBox.AcceptTab = acceptTab;
-        return textBox;
-    }
-
-    /// <summary>
     /// Sets the text wrapping mode.
     /// </summary>
     /// <param name="textBox">Target text box.</param>
@@ -2257,33 +2245,6 @@ public static class ControlExtensions
     public static MultiLineTextBox OnWrapChanged(this MultiLineTextBox textBox, Action<bool> handler)
     {
         textBox.WrapChanged += handler;
-        return textBox;
-    }
-
-    /// <summary>
-    /// Adds a text changed event handler.
-    /// </summary>
-    /// <param name="textBox">Target text box.</param>
-    /// <param name="handler">Event handler.</param>
-    /// <returns>The text box for chaining.</returns>
-    public static MultiLineTextBox OnTextChanged(this MultiLineTextBox textBox, Action<string> handler)
-    {
-        textBox.TextChanged += handler;
-        return textBox;
-    }
-
-    /// <summary>
-    /// Binds the text to an observable value.
-    /// </summary>
-    /// <param name="textBox">Target text box.</param>
-    /// <param name="source">Observable source.</param>
-    /// <returns>The text box for chaining.</returns>
-    public static MultiLineTextBox BindText(this MultiLineTextBox textBox, ObservableValue<string> source)
-    {
-        ArgumentNullException.ThrowIfNull(textBox);
-        ArgumentNullException.ThrowIfNull(source);
-
-        textBox.SetBinding(TextBase.TextProperty, source);
         return textBox;
     }
 
