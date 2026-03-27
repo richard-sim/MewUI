@@ -155,6 +155,42 @@ public static class ElementExtensions
     }
 
     /// <summary>
+    /// Sets the window opacity (0.0 – 1.0).
+    /// </summary>
+    public static T Opacity<T>(this T window, double opacity) where T : Window
+    {
+        window.Opacity = opacity;
+        return window;
+    }
+
+    /// <summary>
+    /// Sets the window as topmost.
+    /// </summary>
+    public static T Topmost<T>(this T window, bool topmost = true) where T : Window
+    {
+        window.Topmost = topmost;
+        return window;
+    }
+
+    /// <summary>
+    /// Sets the window state to minimized.
+    /// </summary>
+    public static T Minimized<T>(this T window) where T : Window
+    {
+        window.WindowState = WindowState.Minimized;
+        return window;
+    }
+
+    /// <summary>
+    /// Sets the window state to maximized.
+    /// </summary>
+    public static T Maximized<T>(this T window) where T : Window
+    {
+        window.WindowState = WindowState.Maximized;
+        return window;
+    }
+
+    /// <summary>
     /// Not supported on <see cref="Window"/>. Use <see cref="Resizable"/> or assign <see cref="Window.WindowSize"/> directly.
     /// </summary>
     [Obsolete("Use .Resizable(w, h, minWidth: ...) or assign WindowSize directly.", error: true)]
