@@ -121,6 +121,12 @@ internal sealed class PropertyValueStore
         if (source < entry.Source && entry.Source != ValueSource.Default)
             return;
 
+        // Apply coerce callback
+        if (property.CoerceCallback != null && _ownerRef.TryGetTarget(out var coerceOwner))
+        {
+            value = property.CoerceCallback(coerceOwner, value);
+        }
+
         // No change — skip to avoid infinite invalidation loops
         if (entry.Source == source && entry.Value is not AnimatedEntry && Equals(entry.Value, value))
             return;

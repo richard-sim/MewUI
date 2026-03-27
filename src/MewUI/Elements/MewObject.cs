@@ -80,6 +80,17 @@ public abstract class MewObject : IPropertyOwner
     protected void SetValue<T>(MewProperty<T> property, T value) => PropertyStore.SetLocal(property, value);
 
     /// <summary>
+    /// Re-evaluates the coerce callback for a property. Call when external state
+    /// that affects coercion has changed (e.g. WindowSize.IsResizable changed → re-coerce CanMaximize).
+    /// </summary>
+    protected void CoerceValue<T>(MewProperty<T> property)
+    {
+        if (property.CoerceCallback == null) return;
+        var current = GetValue(property);
+        PropertyStore.SetValue(property, current!, PropertyStore.GetSource(property.Id));
+    }
+
+    /// <summary>
     /// Binds a <see cref="MewProperty{T}"/> to an <see cref="ObservableValue{T}"/>.
     /// Replaces any existing binding for the same property.
     /// </summary>

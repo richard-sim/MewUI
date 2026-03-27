@@ -37,6 +37,12 @@ public abstract class MewProperty
     /// </summary>
     internal Action<IPropertyOwner, object?, object?>? ChangedWithValuesCallback { get; set; }
 
+    /// <summary>
+    /// Optional coerce callback that adjusts the proposed value before it is stored.
+    /// Receives the owner instance and proposed value (boxed), returns the coerced value.
+    /// </summary>
+    internal Func<IPropertyOwner, object, object>? CoerceCallback { get; set; }
+
     /// <summary>Whether value changes should trigger InvalidateVisual.</summary>
     public bool AffectsRender => (Options & MewPropertyOptions.AffectsRender) != 0;
 
@@ -165,7 +171,8 @@ public sealed class MewProperty<T> : MewProperty
         string name,
         T defaultValue,
         MewPropertyOptions options = MewPropertyOptions.None,
-        Action<TOwner, T, T>? changed = null)
+        Action<TOwner, T, T>? changed = null,
+        Func<TOwner, T, T>? coerce = null)
     {
         var property = new MewProperty<T>(name, defaultValue, options);
 
@@ -177,6 +184,13 @@ public sealed class MewProperty<T> : MewProperty
                     oldBoxed is T o ? o : defaultValue,
                     newBoxed is T n ? n : defaultValue);
         }
+
+        if (coerce is not null)
+        {
+            property.CoerceCallback = (owner, value) =>
+                coerce((TOwner)(object)owner, value is T v ? v : defaultValue)!;
+        }
+
         return property;
     }
 }
