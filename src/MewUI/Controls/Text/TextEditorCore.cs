@@ -112,6 +112,109 @@ internal sealed class TextEditorCore
         CaretPosition = _getLength();
     }
 
+    /// <summary>
+    /// Selects the word at the given character position.
+    /// The caret is placed at the end of the word.
+    /// </summary>
+    public void SelectWordAt(int position)
+    {
+        int length = _getLength();
+        if (length == 0) return;
+
+        position = Math.Clamp(position, 0, length);
+
+        // Determine the character class at the position
+        int start = position;
+        int end = position;
+
+        if (position < length)
+        {
+            char ch = _getChar(position);
+            if (char.IsLetterOrDigit(ch) || ch == '_')
+            {
+                // Word character: expand to word boundaries
+                while (start > 0 && IsWordChar(_getChar(start - 1))) start--;
+                while (end < length && IsWordChar(_getChar(end))) end++;
+            }
+            else if (char.IsWhiteSpace(ch))
+            {
+                // Whitespace: select contiguous whitespace, but don't cross line boundaries
+                while (start > 0 && char.IsWhiteSpace(_getChar(start - 1)) && _getChar(start - 1) != '\n') start--;
+                while (end < length && char.IsWhiteSpace(_getChar(end)) && _getChar(end) != '\n') end++;
+            }
+            else
+            {
+                // Punctuation/symbol: select contiguous punctuation
+                while (start > 0 && IsPunctuation(_getChar(start - 1))) start--;
+                while (end < length && IsPunctuation(_getChar(end))) end++;
+            }
+        }
+        else if (position > 0)
+        {
+            // At end of text: select the last word
+            char ch = _getChar(position - 1);
+            if (IsWordChar(ch))
+            {
+                while (start > 0 && IsWordChar(_getChar(start - 1))) start--;
+            }
+        }
+
+        _selectionStart = start;
+        _selectionLength = end - start;
+        CaretPosition = end;
+    }
+
+    /// <summary>
+    /// Extends the selection by word from the double-click anchor.
+    /// Used during drag after double-click to select word-by-word.
+    /// </summary>
+    public void ExtendSelectionByWord(int currentPosition)
+    {
+        int length = _getLength();
+        if (length == 0) return;
+
+        currentPosition = Math.Clamp(currentPosition, 0, length);
+
+        // Determine word boundaries at the current drag position
+        int wordStart = currentPosition;
+        int wordEnd = currentPosition;
+
+        if (currentPosition < length)
+        {
+            char ch = _getChar(currentPosition);
+            if (IsWordChar(ch))
+            {
+                while (wordStart > 0 && IsWordChar(_getChar(wordStart - 1))) wordStart--;
+                while (wordEnd < length && IsWordChar(_getChar(wordEnd))) wordEnd++;
+            }
+            else if (char.IsWhiteSpace(ch) && ch != '\n')
+            {
+                while (wordStart > 0 && char.IsWhiteSpace(_getChar(wordStart - 1)) && _getChar(wordStart - 1) != '\n') wordStart--;
+                while (wordEnd < length && char.IsWhiteSpace(_getChar(wordEnd)) && _getChar(wordEnd) != '\n') wordEnd++;
+            }
+            else
+            {
+                while (wordStart > 0 && IsPunctuation(_getChar(wordStart - 1))) wordStart--;
+                while (wordEnd < length && IsPunctuation(_getChar(wordEnd))) wordEnd++;
+            }
+        }
+
+        // Anchor is the original word selection start
+        int anchorStart = _selectionStart;
+        int anchorEnd = _selectionStart + _selectionLength;
+
+        // Expand selection to cover both the anchor word and the current word
+        int selStart = Math.Min(anchorStart, wordStart);
+        int selEnd = Math.Max(anchorEnd, wordEnd);
+
+        _selectionStart = selStart;
+        _selectionLength = selEnd - selStart;
+        CaretPosition = currentPosition < anchorStart ? selStart : selEnd;
+    }
+
+    private static bool IsWordChar(char c) => char.IsLetterOrDigit(c) || c == '_';
+    private static bool IsPunctuation(char c) => !char.IsLetterOrDigit(c) && !char.IsWhiteSpace(c) && c != '_';
+
     public void MoveCaretHorizontal(int direction, bool extendSelection, bool word)
     {
 

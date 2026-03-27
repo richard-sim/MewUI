@@ -478,6 +478,22 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
 
     protected abstract void SetCaretFromPoint(Point point, Rect contentBounds);
 
+    protected override void OnMouseDoubleClick(MouseEventArgs e)
+    {
+        base.OnMouseDoubleClick(e);
+
+        if (e.Handled || e.Button != MouseButton.Left || !IsEffectivelyEnabled)
+            return;
+
+        var contentBounds = GetInteractionContentBounds();
+        SetCaretFromPoint(e.Position, contentBounds);
+        _editor.SelectWordAt(CaretPosition);
+
+        EnsureCaretVisibleCore(contentBounds);
+        InvalidateVisual();
+        e.Handled = true;
+    }
+
     /// <summary>
     /// Returns the rectangle at the given character index in window coordinates (DIPs).
     /// </summary>
@@ -974,6 +990,14 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
         }
 
         Focus();
+
+        // Skip caret/selection setup on 2nd click of a double-click —
+        // OnMouseDoubleClick will handle word selection instead.
+        if (e.ClickCount >= 2)
+        {
+            e.Handled = true;
+            return;
+        }
 
         var contentBounds = GetInteractionContentBounds();
 
