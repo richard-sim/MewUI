@@ -37,6 +37,13 @@ public sealed class FocusManager
         }
 
         var oldElement = FocusedElement;
+
+        // Cancel IME composition on the losing element before changing focus.
+        if (oldElement is ITextCompositionClient { IsComposing: true })
+        {
+            _window.CancelImeComposition();
+        }
+
         FocusedElement = element;
 
         UpdateFocusWithin(oldElement, element);

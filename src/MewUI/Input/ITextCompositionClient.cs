@@ -13,6 +13,11 @@ public interface ITextCompositionClient
     void HandleTextCompositionEnd(TextCompositionEventArgs e);
 
     /// <summary>
+    /// Gets whether an IME composition is currently in progress.
+    /// </summary>
+    bool IsComposing { get; }
+
+    /// <summary>
     /// Gets the character index where the current composition started.
     /// </summary>
     int CompositionStartIndex { get; }
