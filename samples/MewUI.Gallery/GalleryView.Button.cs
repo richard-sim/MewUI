@@ -13,13 +13,23 @@ partial class GalleryView
                     .Spacing(8)
                     .Children(
                         new Button().Content("Default"),
-                        new Button()
-                            .Content("Accent")
-                            .WithTheme((t, c) => c.Background(t.Palette.Accent).Foreground(t.Palette.AccentText)),
                         new Button().Content("Disabled").Disable(),
                         new Button()
                             .Content("Double Click")
                             .OnDoubleClick(() => NativeMessageBox.Show("Double Click"))
+                    )
+            ),
+
+            Card(
+                "Built-in Styles",
+                new StackPanel()
+                    .Vertical()
+                    .Spacing(8)
+                    .Children(
+                        new Button().Content("Flat Button").Apply(b => b.StyleName = BuiltInStyles.FlatButton),
+                        new Button().Content("Flat Disabled").Apply(b => b.StyleName = BuiltInStyles.FlatButton).Disable(),
+                        new Button().Content("Accent Button").Apply(b => b.StyleName = BuiltInStyles.AccentButton),
+                        new Button().Content("Accent Disabled").Apply(b => b.StyleName = BuiltInStyles.AccentButton).Disable()
                     )
             ),
 
@@ -46,19 +56,6 @@ partial class GalleryView
                         new ToggleSwitch().IsChecked(false),
                         new ToggleSwitch().IsChecked(true).Disable(),
                         new ToggleSwitch().IsChecked(false).Disable()
-                    )
-            ),
-
-            Card(
-                "Built-in Styles",
-                new StackPanel()
-                    .Vertical()
-                    .Spacing(8)
-                    .Children(
-                        new Button().Content("Flat Button").Apply(b => b.StyleName = BuiltInStyles.FlatButton),
-                        new Button().Content("Flat Disabled").Apply(b => b.StyleName = BuiltInStyles.FlatButton).Disable(),
-                        new Button().Content("Accent Button").Apply(b => b.StyleName = BuiltInStyles.AccentButton),
-                        new Button().Content("Accent Disabled").Apply(b => b.StyleName = BuiltInStyles.AccentButton).Disable()
                     )
             ),
 
