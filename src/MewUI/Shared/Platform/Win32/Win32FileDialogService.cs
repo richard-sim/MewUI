@@ -4,7 +4,6 @@ using System.Runtime.Versioning;
 
 namespace Aprillz.MewUI.Platform.Win32;
 
-[SupportedOSPlatform("windows")]
 internal sealed partial class Win32FileDialogService : IFileDialogService
 {
     public string[]? OpenFile(OpenFileDialogOptions options)

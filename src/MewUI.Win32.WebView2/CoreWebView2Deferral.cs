@@ -3,7 +3,6 @@ namespace Aprillz.MewUI.Controls;
 /// <summary>
 /// Represents a deferral that allows asynchronous completion of an event.
 /// </summary>
-[SupportedOSPlatform("windows")]
 public sealed class CoreWebView2Deferral : IDisposable
 {
     private ComObject<ICoreWebView2Deferral>? _deferral;
