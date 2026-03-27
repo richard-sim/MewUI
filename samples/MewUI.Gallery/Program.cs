@@ -37,10 +37,10 @@ Application
     .BuildMainWindow(() =>
     new Window()
         .Resizable(1356, 720)
+        .StartCenterScreen()
         .OnBuild(x => x
             .Ref(out window)
             .Icon(icon)
-            .StartCenterScreen()
             .Title("Aprillz.MewUI Controls Gallery")
             .Content(
                 new DockPanel()

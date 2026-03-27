@@ -174,6 +174,20 @@ partial class GalleryView
             MenusCard(),
 
             Card(
+                "Hot-reload",
+                new StackPanel()
+                    .Vertical()
+                    .Spacing(8)
+                    .Children(
+                        new TextBlock()
+                            .FontSize(11)
+                            .TextWrapping(TextWrapping.Wrap)
+                            .Text("Modify the code and save to see hot-reload in action.\nThis card will update with the current time."),
+                        new TextBlock()                    
+                            .Text($"Loaded: {DateTime.Now}"))
+            ),
+
+            Card(
                 "Custom Chrome Window",
                 new StackPanel()
                     .Vertical()
