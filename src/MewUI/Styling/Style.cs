@@ -1,3 +1,5 @@
+using Aprillz.MewUI.Controls;
+
 namespace Aprillz.MewUI;
 
 /// <summary>
@@ -8,7 +10,6 @@ public sealed class Style
 {
     /// <summary>
     /// Gets the default theme style for the specified control type.
-    /// Equivalent to <c>DefaultStyles.GetStyle(type)</c>.
     /// </summary>
     public static Style? ForType(Type controlType)
         => DefaultStyles.GetStyle(controlType);
