@@ -46,6 +46,14 @@ internal interface IItemsPresenter : IScrollContent, IVisualTreeHost
     bool TryGetItemIndexAtY(double yContent, out int index);
 
     /// <summary>
+    /// Tries to get the item index at the given content coordinates.
+    /// Default implementation delegates to <see cref="TryGetItemIndexAtY"/> (ignoring X).
+    /// Override for multi-column layouts (e.g. wrap grid).
+    /// </summary>
+    bool TryGetItemIndexAt(double xContent, double yContent, out int index)
+        => TryGetItemIndexAtY(yContent, out index);
+
+    /// <summary>
     /// Tries to get the item's vertical range in content coordinates (DIPs).
     /// Used for variable-height virtualization where index-based scrolling cannot assume a fixed item height.
     /// </summary>

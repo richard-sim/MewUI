@@ -100,6 +100,7 @@ public sealed class ItemsControl : VirtualizedItemsBase
     /// <summary>
     /// Selects the virtualization strategy for this control.
     /// </summary>
+    [Obsolete("Use SetPresenter() or fluent extension methods (FixedHeightPresenter, WrapPresenter, etc.) instead.")]
     public ItemsPresenterMode PresenterMode
     {
         get => _presenterMode;
@@ -107,11 +108,14 @@ public sealed class ItemsControl : VirtualizedItemsBase
         {
             if (Set(ref _presenterMode, value))
             {
-                ConfigureScrollModes(value);
-                ReplacePresenter(value, preserveScrollOffsets: true);
-                _hoverIndex = -1;
-                InvalidateMeasure();
-                InvalidateVisual();
+                IItemsPresenter p = value switch
+                {
+                    ItemsPresenterMode.Variable => new VariableHeightItemsPresenter(),
+                    ItemsPresenterMode.Stack => new StackItemsPresenter(),
+                    ItemsPresenterMode.Wrap => new WrapItemsPresenter(),
+                    _ => new FixedHeightItemsPresenter(),
+                };
+                SetPresenter(p);
             }
         }
     }
@@ -122,12 +126,11 @@ public sealed class ItemsControl : VirtualizedItemsBase
 
         ItemPadding = Theme.Metrics.ItemPadding;
 
-        ConfigureScrollModes(PresenterMode);
         _scrollViewer.SetBinding(PaddingProperty, this, PaddingProperty);
         _scrollViewer.ScrollChanged += OnScrollViewerChanged;
 
         _itemTemplate = CreateDefaultItemTemplate();
-        _presenter = CreatePresenter(PresenterMode);
+        _presenter = CreateDefaultPresenter();
         _scrollViewer.Content = (UIElement)_presenter;
     }
 
@@ -421,12 +424,13 @@ public sealed class ItemsControl : VirtualizedItemsBase
             return false;
         }
 
-        // Map presenter-local Y to content-space Y and ask the presenter to resolve index.
+        // Map presenter-local position to content-space and ask the presenter to resolve index.
         // Keep rounding consistent with presenters (they align offsets to device pixels).
         double alignedLocalY = LayoutRounding.RoundToPixel(local.Y, dpiScale);
         double alignedOffsetY = LayoutRounding.RoundToPixel(_scrollViewer.VerticalOffset, dpiScale);
         double yContent = alignedLocalY + alignedOffsetY;
-        return _presenter.TryGetItemIndexAtY(yContent, out index);
+        double xContent = local.X;
+        return _presenter.TryGetItemIndexAt(xContent, yContent, out index);
     }
 
     private double ResolveItemHeight()
@@ -448,25 +452,7 @@ public sealed class ItemsControl : VirtualizedItemsBase
         }
     }
 
-    private IItemsPresenter CreatePresenter(ItemsPresenterMode mode)
-    {
-        IItemsPresenter presenter = mode switch
-        {
-            ItemsPresenterMode.Variable => new VariableHeightItemsPresenter(),
-            ItemsPresenterMode.Stack => new StackItemsPresenter(),
-            _ => new FixedHeightItemsPresenter(),
-        };
-
-        presenter.ItemsSource = _itemsSource;
-        presenter.ItemTemplate = _itemTemplate;
-        presenter.BeforeItemRender = OnBeforeItemRender;
-        presenter.ItemHeightHint = ResolveItemHeight();
-        presenter.OffsetCorrectionRequested += OnPresenterOffsetCorrectionRequested;
-
-        return presenter;
-    }
-
-    private void ReplacePresenter(ItemsPresenterMode mode, bool preserveScrollOffsets)
+    internal void SetPresenter(IItemsPresenter presenter)
     {
         double oldX = _scrollViewer.HorizontalOffset;
         double oldY = _scrollViewer.VerticalOffset;
@@ -477,25 +463,38 @@ public sealed class ItemsControl : VirtualizedItemsBase
             d.Dispose();
         }
 
-        _presenter = CreatePresenter(mode);
-        _scrollViewer.Content = (UIElement)_presenter;
+        presenter.ItemsSource = _itemsSource;
+        presenter.ItemTemplate = _itemTemplate;
+        presenter.BeforeItemRender = OnBeforeItemRender;
+        presenter.ItemHeightHint = ResolveItemHeight();
+        presenter.OffsetCorrectionRequested += OnPresenterOffsetCorrectionRequested;
 
-        if (preserveScrollOffsets)
-        {
-            _scrollViewer.SetScrollOffsets(oldX, oldY);
-        }
+        _presenter = presenter;
+        _scrollViewer.Content = (UIElement)_presenter;
+        _scrollViewer.HorizontalScroll = ScrollMode.Disabled;
+        _scrollViewer.VerticalScroll = presenter is StackItemsPresenter
+            ? ScrollMode.Disabled
+            : ScrollMode.Auto;
+        _scrollViewer.SetScrollOffsets(oldX, oldY);
+
+        _hoverIndex = -1;
+        InvalidateMeasure();
+        InvalidateVisual();
+    }
+
+    private IItemsPresenter CreateDefaultPresenter()
+    {
+        var presenter = new FixedHeightItemsPresenter();
+        presenter.ItemsSource = _itemsSource;
+        presenter.ItemTemplate = _itemTemplate;
+        presenter.BeforeItemRender = OnBeforeItemRender;
+        presenter.ItemHeightHint = ResolveItemHeight();
+        presenter.OffsetCorrectionRequested += OnPresenterOffsetCorrectionRequested;
+        return presenter;
     }
 
     private void OnPresenterOffsetCorrectionRequested(Point offset)
     {
         _scrollViewer.SetScrollOffsets(_scrollViewer.HorizontalOffset, offset.Y);
-    }
-
-    private void ConfigureScrollModes(ItemsPresenterMode mode)
-    {
-        _scrollViewer.HorizontalScroll = ScrollMode.Disabled;
-        _scrollViewer.VerticalScroll = mode == ItemsPresenterMode.Stack
-            ? ScrollMode.Disabled
-            : ScrollMode.Auto;
     }
 }

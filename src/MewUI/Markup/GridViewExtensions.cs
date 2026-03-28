@@ -360,7 +360,7 @@ public static class GridViewExtensions
 
         return Template(
             column,
-            build: _ => new TextBlock().Margin(8, 0).CenterVertical(),
+            build: _ => new TextBlock().CenterVertical(),
             bind: (TextBlock tb, TItem item) => tb.Text = textSelector(item) ?? string.Empty);
     }
 }

@@ -174,6 +174,7 @@ public partial class ListBox : VirtualizedItemsBase, IVirtualizedTabNavigationHo
     /// <summary>
     /// Selects the virtualization strategy for this control.
     /// </summary>
+    [Obsolete("Use SetPresenter() or fluent extension methods (FixedHeightPresenter, WrapPresenter, etc.) instead.")]
     public ItemsPresenterMode PresenterMode
     {
         get => _presenterMode;
@@ -181,10 +182,14 @@ public partial class ListBox : VirtualizedItemsBase, IVirtualizedTabNavigationHo
         {
             if (Set(ref _presenterMode, value))
             {
-                ReplacePresenter(value, preserveScrollOffsets: true);
-                _hoverIndex = -1;
-                InvalidateMeasure();
-                InvalidateVisual();
+                IItemsPresenter p = value switch
+                {
+                    ItemsPresenterMode.Variable => new VariableHeightItemsPresenter(),
+                    ItemsPresenterMode.Stack => new StackItemsPresenter(),
+                    ItemsPresenterMode.Wrap => new WrapItemsPresenter(),
+                    _ => new FixedHeightItemsPresenter(),
+                };
+                SetPresenter(p);
             }
         }
     }
@@ -227,7 +232,7 @@ public partial class ListBox : VirtualizedItemsBase, IVirtualizedTabNavigationHo
         _itemsSource.Changed += OnItemsChanged;
 
         _itemTemplate = CreateDefaultItemTemplate();
-        _presenter = CreatePresenter(PresenterMode);
+        _presenter = CreateDefaultPresenter();
         _tabFocusHelper = new PendingTabFocusHelper(
             getWindow: () => FindVisualRoot() as Window,
             getContainer: idx =>
@@ -242,25 +247,7 @@ public partial class ListBox : VirtualizedItemsBase, IVirtualizedTabNavigationHo
         _scrollViewer.ScrollChanged += OnScrollViewerChanged;
     }
 
-    private IItemsPresenter CreatePresenter(ItemsPresenterMode mode)
-    {
-        IItemsPresenter presenter = mode == ItemsPresenterMode.Variable
-            ? new VariableHeightItemsPresenter()
-            : new FixedHeightItemsPresenter();
-
-        presenter.ItemsSource = _itemsSource;
-        presenter.ItemTemplate = _itemTemplate;
-        presenter.BeforeItemRender = OnBeforeItemRender;
-        presenter.ItemPadding = ItemPadding;
-        presenter.ItemHeightHint = ResolveItemHeight();
-        presenter.ExtentWidth = double.NaN;
-        presenter.ItemRadius = 0;
-        presenter.RebindExisting = true;
-        presenter.OffsetCorrectionRequested += OnPresenterOffsetCorrectionRequested;
-        return presenter;
-    }
-
-    private void ReplacePresenter(ItemsPresenterMode mode, bool preserveScrollOffsets)
+    internal void SetPresenter(IItemsPresenter presenter)
     {
         double oldX = _scrollViewer.HorizontalOffset;
         double oldY = _scrollViewer.VerticalOffset;
@@ -271,14 +258,36 @@ public partial class ListBox : VirtualizedItemsBase, IVirtualizedTabNavigationHo
             d.Dispose();
         }
 
-        _presenter = CreatePresenter(mode);
-        _scrollViewer.Content = (UIElement)_presenter;
-        _rebindVisibleOnNextRender = true;
+        presenter.ItemsSource = _itemsSource;
+        presenter.ItemTemplate = _itemTemplate;
+        presenter.BeforeItemRender = OnBeforeItemRender;
+        presenter.ItemPadding = ItemPadding;
+        presenter.ItemHeightHint = ResolveItemHeight();
+        presenter.OffsetCorrectionRequested += OnPresenterOffsetCorrectionRequested;
 
-        if (preserveScrollOffsets)
-        {
-            _scrollViewer.SetScrollOffsets(oldX, oldY);
-        }
+        _presenter = presenter;
+        _scrollViewer.Content = (UIElement)_presenter;
+        _scrollViewer.VerticalScroll = presenter is StackItemsPresenter
+            ? ScrollMode.Disabled
+            : ScrollMode.Auto;
+        _scrollViewer.SetScrollOffsets(oldX, oldY);
+
+        _rebindVisibleOnNextRender = true;
+        _hoverIndex = -1;
+        InvalidateMeasure();
+        InvalidateVisual();
+    }
+
+    private IItemsPresenter CreateDefaultPresenter()
+    {
+        var presenter = new FixedHeightItemsPresenter();
+        presenter.ItemsSource = _itemsSource;
+        presenter.ItemTemplate = _itemTemplate;
+        presenter.BeforeItemRender = OnBeforeItemRender;
+        presenter.ItemPadding = ItemPadding;
+        presenter.ItemHeightHint = ResolveItemHeight();
+        presenter.OffsetCorrectionRequested += OnPresenterOffsetCorrectionRequested;
+        return presenter;
     }
 
     private void OnPresenterOffsetCorrectionRequested(Point offset)
@@ -598,7 +607,8 @@ public partial class ListBox : VirtualizedItemsBase, IVirtualizedTabNavigationHo
         double alignedLocalY = LayoutRounding.RoundToPixel(local.Y, dpiScale);
         double alignedOffsetY = LayoutRounding.RoundToPixel(_scrollViewer.VerticalOffset, dpiScale);
         double yContent = alignedLocalY + alignedOffsetY;
-        return _presenter.TryGetItemIndexAtY(yContent, out index);
+        double xContent = local.X;
+        return _presenter.TryGetItemIndexAt(xContent, yContent, out index);
     }
 
     private void OnBeforeItemRender(IGraphicsContext context, int i, Rect itemRect)

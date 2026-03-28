@@ -110,9 +110,16 @@ public static class DefaultStyles
             Setter.Create(Control.BorderThicknessProperty, t => t.Metrics.ControlBorderThickness)));
 
         // Popups
-        Register(styles, CreateControlBasedStyle(typeof(ContextMenu),
-            Setter.Create(Control.CornerRadiusProperty, t => t.Metrics.ControlCornerRadius),
-            Setter.Create(Control.BorderThicknessProperty, t => t.Metrics.ControlBorderThickness)));
+        Register(styles, new Style(typeof(ContextMenu))
+        {
+            Setters =
+            [
+                Setter.Create(Control.BackgroundProperty, t => t.Palette.ControlBackground),
+                Setter.Create(Control.BorderBrushProperty, t => t.Palette.ControlBorder.Lerp(t.Palette.Accent, 0.5)),
+                Setter.Create(Control.CornerRadiusProperty, t => t.Metrics.ControlCornerRadius),
+                Setter.Create(Control.BorderThicknessProperty, t => t.Metrics.ControlBorderThickness),
+            ],
+        });
 
         Register(styles, CreateControlBasedStyle(typeof(ToolTip),
             Setter.Create(Control.PaddingProperty, new Thickness(8, 4, 8, 4)),

@@ -14,10 +14,18 @@ public static class BuiltInStyles
     /// <summary>StyleName key for an accent-colored button.</summary>
     public const string AccentButton = "accent-button";
 
+    /// <summary>StyleName key for a ComboBox dropdown list popup.</summary>
+    public const string ComboBoxPopup = "combobox-popup";
+
+    /// <summary>StyleName key for a DatePicker calendar popup.</summary>
+    public const string DatePickerPopup = "datepicker-popup";
+
     internal static void Register(StyleSheet sheet)
     {
         sheet.Define(FlatButton, CreateFlatButtonStyle());
         sheet.Define(AccentButton, CreateAccentButtonStyle());
+        sheet.Define(ComboBoxPopup, CreateComboBoxPopupStyle());
+        sheet.Define(DatePickerPopup, CreateDatePickerPopupStyle());
     }
 
     private static Style CreateFlatButtonStyle()
@@ -63,6 +71,30 @@ public static class BuiltInStyles
                         Setter.Create(Control.ForegroundProperty, t => t.Palette.DisabledText),
                     ],
                 },
+            ],
+        };
+    }
+
+    private static Style CreateComboBoxPopupStyle()
+    {
+        return new Style(typeof(ListBox))
+        {
+            BasedOn = Style.ForType<ListBox>(),
+            Setters =
+            [
+                Setter.Create(Control.BorderBrushProperty, t => t.Palette.ControlBorder.Lerp(t.Palette.Accent, 0.5)),
+            ],
+        };
+    }
+
+    private static Style CreateDatePickerPopupStyle()
+    {
+        return new Style(typeof(Calendar))
+        {
+            BasedOn = Style.ForType<Calendar>(),
+            Setters =
+            [
+                Setter.Create(Control.BorderBrushProperty, t => t.Palette.ControlBorder.Lerp(t.Palette.Accent, 0.5)),
             ],
         };
     }

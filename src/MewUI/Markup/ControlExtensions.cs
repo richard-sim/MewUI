@@ -1668,6 +1668,7 @@ public static class ControlExtensions
     /// <param name="listBox">Target list box.</param>
     /// <param name="mode">Presenter mode.</param>
     /// <returns>The list box for chaining.</returns>
+    [Obsolete("Use FixedHeightPresenter(), VariableHeightPresenter(), StackPresenter(), or WrapPresenter() instead.")]
     public static ListBox PresenterMode(this ListBox listBox, ItemsPresenterMode mode)
     {
         ArgumentNullException.ThrowIfNull(listBox);
@@ -1678,20 +1679,61 @@ public static class ControlExtensions
     /// <summary>
     /// Uses fixed-size row virtualization.
     /// </summary>
+    [Obsolete("Use FixedHeightPresenter() instead.")]
     public static ListBox FixedPresenter(this ListBox listBox)
-        => listBox.PresenterMode(ItemsPresenterMode.Fixed);
+        => listBox.FixedHeightPresenter();
 
     /// <summary>
     /// Uses variable-height virtualization (items are measured individually).
     /// </summary>
+    [Obsolete("Use VariableHeightPresenter() instead.")]
     public static ListBox VariablePresenter(this ListBox listBox)
-        => listBox.PresenterMode(ItemsPresenterMode.Variable);
+        => listBox.VariableHeightPresenter();
+
+    /// <summary>
+    /// Uses fixed-height row virtualization with theme default item height.
+    /// </summary>
+    public static ListBox FixedHeightPresenter(this ListBox listBox)
+    {
+        listBox.SetPresenter(new FixedHeightItemsPresenter());
+        return listBox;
+    }
+
+    /// <summary>
+    /// Uses fixed-height row virtualization with explicit item height.
+    /// </summary>
+    public static ListBox FixedHeightPresenter(this ListBox listBox, double itemHeight)
+    {
+        listBox.SetPresenter(new FixedHeightItemsPresenter { ItemHeight = itemHeight });
+        return listBox;
+    }
+
+    /// <summary>
+    /// Uses variable-height virtualization (items are measured individually).
+    /// </summary>
+    public static ListBox VariableHeightPresenter(this ListBox listBox)
+    {
+        listBox.SetPresenter(new VariableHeightItemsPresenter());
+        return listBox;
+    }
 
     /// <summary>
     /// Uses non-virtualizing stack layout (all items realized).
     /// </summary>
     public static ListBox StackPresenter(this ListBox listBox)
-        => listBox.PresenterMode(ItemsPresenterMode.Stack);
+    {
+        listBox.SetPresenter(new StackItemsPresenter());
+        return listBox;
+    }
+
+    /// <summary>
+    /// Uses wrap-grid virtualization with fixed item size.
+    /// </summary>
+    public static ListBox WrapPresenter(this ListBox listBox, double itemWidth, double itemHeight)
+    {
+        listBox.SetPresenter(new WrapItemsPresenter { ItemWidth = itemWidth, ItemHeight = itemHeight });
+        return listBox;
+    }
 
     /// <summary>
     /// Sets the selected index.
@@ -1833,6 +1875,7 @@ public static class ControlExtensions
     /// <param name="itemsControl">Target items control.</param>
     /// <param name="mode">Presenter mode.</param>
     /// <returns>The items control for chaining.</returns>
+    [Obsolete("Use FixedHeightPresenter(), VariableHeightPresenter(), StackPresenter(), or WrapPresenter() instead.")]
     public static ItemsControl PresenterMode(this ItemsControl itemsControl, ItemsPresenterMode mode)
     {
         ArgumentNullException.ThrowIfNull(itemsControl);
@@ -1843,26 +1886,61 @@ public static class ControlExtensions
     /// <summary>
     /// Uses fixed-size row virtualization.
     /// </summary>
-    /// <param name="itemsControl">Target items control.</param>
-    /// <returns>The items control for chaining.</returns>
+    [Obsolete("Use FixedHeightPresenter() instead.")]
     public static ItemsControl FixedPresenter(this ItemsControl itemsControl)
-        => itemsControl.PresenterMode(ItemsPresenterMode.Fixed);
+        => itemsControl.FixedHeightPresenter();
 
     /// <summary>
     /// Uses variable-height virtualization (items are measured individually).
     /// </summary>
-    /// <param name="itemsControl">Target items control.</param>
-    /// <returns>The items control for chaining.</returns>
+    [Obsolete("Use VariableHeightPresenter() instead.")]
     public static ItemsControl VariablePresenter(this ItemsControl itemsControl)
-        => itemsControl.PresenterMode(ItemsPresenterMode.Variable);
+        => itemsControl.VariableHeightPresenter();
+
+    /// <summary>
+    /// Uses fixed-height row virtualization with theme default item height.
+    /// </summary>
+    public static ItemsControl FixedHeightPresenter(this ItemsControl itemsControl)
+    {
+        itemsControl.SetPresenter(new FixedHeightItemsPresenter());
+        return itemsControl;
+    }
+
+    /// <summary>
+    /// Uses fixed-height row virtualization with explicit item height.
+    /// </summary>
+    public static ItemsControl FixedHeightPresenter(this ItemsControl itemsControl, double itemHeight)
+    {
+        itemsControl.SetPresenter(new FixedHeightItemsPresenter { ItemHeight = itemHeight });
+        return itemsControl;
+    }
+
+    /// <summary>
+    /// Uses variable-height virtualization (items are measured individually).
+    /// </summary>
+    public static ItemsControl VariableHeightPresenter(this ItemsControl itemsControl)
+    {
+        itemsControl.SetPresenter(new VariableHeightItemsPresenter());
+        return itemsControl;
+    }
 
     /// <summary>
     /// Uses non-virtualizing stack layout (all items realized).
     /// </summary>
-    /// <param name="itemsControl">Target items control.</param>
-    /// <returns>The items control for chaining.</returns>
     public static ItemsControl StackPresenter(this ItemsControl itemsControl)
-        => itemsControl.PresenterMode(ItemsPresenterMode.Stack);
+    {
+        itemsControl.SetPresenter(new StackItemsPresenter());
+        return itemsControl;
+    }
+
+    /// <summary>
+    /// Uses wrap-grid virtualization with fixed item size.
+    /// </summary>
+    public static ItemsControl WrapPresenter(this ItemsControl itemsControl, double itemWidth, double itemHeight)
+    {
+        itemsControl.SetPresenter(new WrapItemsPresenter { ItemWidth = itemWidth, ItemHeight = itemHeight });
+        return itemsControl;
+    }
 
     #endregion
 

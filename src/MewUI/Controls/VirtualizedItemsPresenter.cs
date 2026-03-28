@@ -143,12 +143,8 @@ internal sealed class VirtualizedItemsPresenter
 
         for (int i = first; i < lastExclusive; i++)
         {
-            if (!_realized.TryGetValue(i, out var element))
-            {
-                continue;
-            }
+            if (!_realized.TryGetValue(i, out var element)) continue;
 
-            // Use pixel-int math for Y to avoid accumulating floating error at fractional DPI (e.g. 150%).
             int yPx = baseYPx + (i - first) * itemHeightPx;
             double y = yPx / dpiScale;
             var itemRect = new Rect(contentBounds.X, y, contentBounds.Width, itemHeightDip);
@@ -253,7 +249,7 @@ internal sealed class VirtualizedItemsPresenter
         FlushRecycledByIndexToPool();
     }
 
-    private FrameworkElement GetOrCreate(int index, bool rebindExisting)
+    internal FrameworkElement GetOrCreate(int index, bool rebindExisting)
     {
         if (_realized.TryGetValue(index, out var existing))
         {
@@ -295,7 +291,7 @@ internal sealed class VirtualizedItemsPresenter
         return element;
     }
 
-    private void Recycle(int index)
+    internal void Recycle(int index)
     {
         if (!_realized.Remove(index, out var element))
         {
@@ -334,7 +330,7 @@ internal sealed class VirtualizedItemsPresenter
         }
     }
 
-    private void FlushRecycledByIndexToPool()
+    internal void FlushRecycledByIndexToPool()
     {
         if (_recycledByIndex.Count == 0)
         {

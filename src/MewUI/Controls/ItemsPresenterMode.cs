@@ -3,6 +3,7 @@ namespace Aprillz.MewUI.Controls;
 /// <summary>
 /// Selects the virtualization strategy used by an items control.
 /// </summary>
+[Obsolete("Use the extension methods FixedHeightPresenter, VariableHeightPresenter, StackPresenter, or WrapPresenter instead.")]
 public enum ItemsPresenterMode
 {
     /// <summary>
@@ -20,4 +21,10 @@ public enum ItemsPresenterMode
     /// Each item is measured individually. Suitable for short lists where all items should be visible.
     /// </summary>
     Stack = 2,
+
+    /// <summary>
+    /// Items are arranged in a wrapping grid with fixed item width and height.
+    /// Virtualizes by row — only visible rows are realized.
+    /// </summary>
+    Wrap = 3,
 }
