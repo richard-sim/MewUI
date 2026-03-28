@@ -73,7 +73,7 @@ partial class GalleryView
                             .Ref(out calendar),
 
                         new TextBlock()
-                            .Bind(TextBlock.TextProperty, calendar, Calendar.SelectedDateProperty, x => $"Selected: ({x:yyyy-MM-dd})")
+                            .Bind(TextBlock.TextProperty, calendar, Calendar.SelectedDateProperty, x => $"Selected: {x:yyyy-MM-dd}")
                     )
             ),
 
@@ -83,9 +83,9 @@ partial class GalleryView
                     .Vertical()
                     .Spacing(8)
                     .Children(
-                        new DatePicker { Placeholder = "Select a date..." },
+                        new DatePicker().Placeholder("Select a date..."),
                         new DatePicker { SelectedDate = DateTime.Today },
-                        new DatePicker { Placeholder = "Disabled" }.Disable()
+                        new DatePicker().Placeholder("Disabled").Disable()
                     ),
                 minWidth: 250
             ),

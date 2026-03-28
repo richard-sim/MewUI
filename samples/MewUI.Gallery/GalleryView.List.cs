@@ -57,8 +57,97 @@ partial class GalleryView
                 TreeViewCard()
             ),
 
+            Card(
+                "ListBox (WrapPresenter)",
+                ListBoxWrapPresenterCard()
+            ),
+
+            Card(
+                "ItemsControl (WrapPresenter)",
+                ItemsControlWrapPresenterCard()
+            ),
+
             ChatVariableHeightCard()
         );
+
+        FrameworkElement ListBoxWrapPresenterCard()
+        {
+            var colors = new[]
+            {
+                Color.FromRgb(230, 100, 100), Color.FromRgb(100, 180, 230),
+                Color.FromRgb(100, 200, 130), Color.FromRgb(220, 180, 80),
+                Color.FromRgb(180, 120, 220), Color.FromRgb(240, 140, 100),
+                Color.FromRgb(130, 200, 200), Color.FromRgb(200, 140, 170),
+            };
+            var wrapItems = Enumerable.Range(0, 48000).Select(i => $"Tile {i + 1}").ToArray();
+
+            var selectedText = new TextBlock { Text = "Selected: (none)" };
+
+            var listBox = new ListBox()
+                .ItemPadding(new(2))
+                .Height(240)
+                .Width(402)
+                .WrapPresenter(80, 80)
+                .Items(wrapItems)
+                .ItemTemplate(new DelegateTemplate<string>(
+                    build: ctx => new Border()
+                        .Register(ctx, "Bg")
+                        .CornerRadius(6)
+                        .Child(new TextBlock()
+                            .Register(ctx, "Label")
+                            .Center()
+                            .FontSize(11)),
+                    bind: (view, item, index, ctx) =>
+                    {
+                        ctx.Get<Border>("Bg").Background(colors[index % colors.Length].WithAlpha(180));
+                        ctx.Get<TextBlock>("Label").Text(item ?? "");
+                    }))
+                .OnSelectionChanged(obj =>
+                {
+                    selectedText.Text = obj is string s ? $"Selected: {s}" : "Selected: (none)";
+                });
+
+            return new StackPanel()
+                .Vertical()
+                .Spacing(6)
+                .Children(
+                    listBox,
+                    selectedText);
+        }
+
+        FrameworkElement ItemsControlWrapPresenterCard()
+        {
+            var colors = new[]
+            {
+                Color.FromRgb(230, 100, 100), Color.FromRgb(100, 180, 230),
+                Color.FromRgb(100, 200, 130), Color.FromRgb(220, 180, 80),
+                Color.FromRgb(180, 120, 220), Color.FromRgb(240, 140, 100),
+                Color.FromRgb(130, 200, 200), Color.FromRgb(200, 140, 170),
+            };
+            var wrapItems = Enumerable.Range(0, 48000).Select(i => $"Tile {i + 1}").ToArray();
+
+            var itemsControl = new ItemsControl()
+                .ItemPadding(new(2))
+                .Height(240)
+                .Width(402)
+                .WrapPresenter(80, 80)
+                .ItemsSource(ItemsView.Create(wrapItems))
+                .ItemTemplate(new DelegateTemplate<string>(
+                    build: ctx => new Border()
+                        .Register(ctx, "Bg")
+                        .CornerRadius(6)
+                        .Child(new TextBlock()
+                            .Register(ctx, "Label")
+                            .Center()
+                            .FontSize(11)),
+                    bind: (view, item, index, ctx) =>
+                    {
+                        ctx.Get<Border>("Bg").Background(colors[index % colors.Length].WithAlpha(120));
+                        ctx.Get<TextBlock>("Label").Text(item ?? "");
+                    }));
+
+            return itemsControl;
+        }
 
         FrameworkElement ListBoxClassItemsCard()
         {
@@ -390,7 +479,7 @@ partial class GalleryView
                     new ItemsControl()
                         .Ref(out list)
                         .HorizontalAlignment(HorizontalAlignment.Stretch)
-                        .PresenterMode(ItemsPresenterMode.Variable)
+                        .VariableHeightPresenter()
                         .WithTheme((t, _) => list
                             .BorderBrush(t.Palette.ControlBorder)
                             .BorderThickness(t.Metrics.ControlBorderThickness))
