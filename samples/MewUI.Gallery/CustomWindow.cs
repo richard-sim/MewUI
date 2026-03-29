@@ -6,6 +6,12 @@ namespace Aprillz.MewUI.Gallery;
 /// A custom chrome window built on a transparent Window with Border-based rendering.
 /// Demonstrates DragMove, IsActive/WindowState binding, CanMinimize/CanMaximize, and themed chrome.
 /// </summary>
+/// <remarks>
+/// Provides rounded borders on Windows 10 and earlier where the OS does not support rounded corners natively.
+/// However, this approach uses AllowsTransparency with per-frame alpha compositing, which has higher
+/// CPU/GPU overhead on Win32. Prefer <see cref="NativeCustomWindow"/> for better performance on Windows 11+
+/// and macOS where the OS provides native frame support (rounded corners, shadow, DWM border color).
+/// </remarks>
 public class CustomWindow : Window
 {
     private const double TitleBarHeight = 28;
@@ -171,6 +177,23 @@ public class CustomWindow : Window
             }
         };
 
+        titleBar.MouseDoubleClick += e =>
+        {
+            if (e.Button == MouseButton.Left && CanMaximize)
+            {
+                if (WindowState == WindowState.Maximized)
+                {
+                    Restore();
+                }
+                else
+                {
+                    Maximize();
+                }
+                e.Handled = true;
+            }
+
+        };
+
         // Content area
         _contentArea = new Border { Padding = new Thickness(16) };
 
@@ -207,6 +230,14 @@ public class CustomWindow : Window
 
         // WindowState → glyph + corner radius
         ClientSizeChanged += _ => OnWindowStateVisualUpdate();
+
+        // Resize grip: detect mouse in shadow area (outside chrome border)
+    }
+
+
+    private void TitleBar_MouseDoubleClick(MouseEventArgs obj)
+    {
+        throw new NotImplementedException();
     }
 
     /// <summary>Left area of the title bar (e.g. MenuBar).</summary>
