@@ -94,10 +94,12 @@ public sealed class Win32PlatformHost : IPlatformHost
             // Windows app theme (Light/Dark) is commonly exposed via registry.
             // 1 = light, 0 = dark
             // HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize\AppsUseLightTheme (DWORD)
+#pragma warning disable CA1416 // Validate platform compatibility
             object? v = Registry.GetValue(
                 @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
                 "AppsUseLightTheme",
                 null);
+#pragma warning restore CA1416 // Validate platform compatibility
 
             if (v is int i)
             {
