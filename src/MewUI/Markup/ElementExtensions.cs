@@ -46,9 +46,9 @@ public static class ElementExtensions
     /// <param name="maxWidth">Maximum width constraint.</param>
     /// <param name="maxHeight">Maximum height constraint.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window Resizable(this Window window, double width, double height,
+    public static TWindow Resizable<TWindow>(this TWindow window, double width, double height,
         double minWidth = 0, double minHeight = 0,
-        double maxWidth = double.PositiveInfinity, double maxHeight = double.PositiveInfinity)
+        double maxWidth = double.PositiveInfinity, double maxHeight = double.PositiveInfinity) where TWindow : Window
     {
         window.WindowSize = WindowSize.Resizable(width, height, minWidth, minHeight, maxWidth, maxHeight);
         return window;
@@ -61,7 +61,7 @@ public static class ElementExtensions
     /// <param name="width">Width value.</param>
     /// <param name="height">Height value.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window Fixed(this Window window, double width, double height)
+    public static TWindow Fixed<TWindow>(this TWindow window, double width, double height) where TWindow : Window
     {
         window.WindowSize = WindowSize.Fixed(width, height);
         return window;
@@ -74,7 +74,7 @@ public static class ElementExtensions
     /// <param name="fixedHeight">Fixed height.</param>
     /// <param name="maxWidth">Maximum width.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window FitContentWidth(this Window window, double fixedHeight, double maxWidth = 1000)
+    public static TWindow FitContentWidth<TWindow>(this TWindow window, double fixedHeight, double maxWidth = 1000) where TWindow : Window
     {
         window.WindowSize = WindowSize.FitContentWidth(maxWidth, fixedHeight);
         return window;
@@ -87,7 +87,7 @@ public static class ElementExtensions
     /// <param name="fixedWidth">Fixed width.</param>
     /// <param name="maxHeight">Maximum height.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window FitContentHeight(this Window window, double fixedWidth, double maxHeight = 1000)
+    public static TWindow FitContentHeight<TWindow>(this TWindow window, double fixedWidth, double maxHeight = 1000) where TWindow : Window
     {
         window.WindowSize = WindowSize.FitContentHeight(fixedWidth, maxHeight);
         return window;
@@ -100,7 +100,7 @@ public static class ElementExtensions
     /// <param name="maxWidth">Maximum width.</param>
     /// <param name="maxHeight">Maximum height.</param>
     /// <returns>The window for chaining.</returns>
-    public static Window FitContentSize(this Window window, double maxWidth = 1000, double maxHeight = 1000)
+    public static TWindow FitContentSize<TWindow>(this TWindow window, double maxWidth = 1000, double maxHeight = 1000) where TWindow : Window
     {
         window.WindowSize = WindowSize.FitContentSize(maxWidth, maxHeight);
         return window;
@@ -112,7 +112,7 @@ public static class ElementExtensions
     /// <remarks>
     /// Do not call inside <c>OnBuild</c> — setting startup position after the window is shown throws an exception.
     /// </remarks>
-    public static Window StartCenterScreen(this Window window)
+    public static TWindow StartCenterScreen<TWindow>(this TWindow window) where TWindow : Window
     {
         window.StartupLocation = WindowStartupLocation.CenterScreen;
         return window;
