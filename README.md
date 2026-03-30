@@ -31,8 +31,11 @@
 ---
 
 ## 🚀 Try It Out
+**No clone. No download. No project setup.**  
+You can **run MewUI immediately** with a single command on **Windows**, **Linux** or **macOS**.  (.NET 10 SDK required)
+> [!TIP]
+> This is the **quickest way to try MewUI** without going through the usual repository and project setup steps.
 
-You can run it immediately by entering the following command in the Windows command line or a Linux terminal. (.NET 10 SDK required)
 > [!WARNING]
 > This command downloads and executes code directly from GitHub.
 ```bash
