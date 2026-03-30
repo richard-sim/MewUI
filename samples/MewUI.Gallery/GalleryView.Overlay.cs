@@ -6,7 +6,7 @@ partial class GalleryView
 {
     private FrameworkElement OverlayPage()
     {
-        ConfettiOverlay confetti = new(this);
+        ConfettiOverlay confetti = new();
         window.OverlayLayer.Add(confetti);
 
         return CardGrid(
