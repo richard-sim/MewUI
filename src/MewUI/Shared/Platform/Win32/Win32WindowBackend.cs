@@ -1915,20 +1915,6 @@ internal sealed class Win32WindowBackend : IWindowBackend
             int startPy = (int)(startRect.Y * dpiScale);
             int startLineH = (int)((startRect.Height + COMPOSITION_OFFSET_Y_DIP) * dpiScale);
 
-            var candForm = new Imm32.CANDIDATEFORM
-            {
-                dwIndex = 0,
-                dwStyle = Imm32.CFS_EXCLUDE,
-                ptCurrentPos = new Imm32.POINT { x = startPx, y = startPy },
-                rcArea = new Imm32.RECT
-                {
-                    left = startPx,
-                    top = startPy,
-                    right = startPx,
-                    bottom = startPy + startLineH,
-                },
-            };
-            Imm32.ImmSetCandidateWindow(himc, ref candForm);
 
             // Set composition font so third-party IMEs (e.g. Sogou) can determine
             // candidate window size and position correctly.
@@ -1943,6 +1929,14 @@ internal sealed class Win32WindowBackend : IWindowBackend
                 logFont.SetFaceName(ctl.FontFamily ?? "");
                 Imm32.ImmSetCompositionFont(himc, ref logFont);
             }
+
+            var candForm = new Imm32.CANDIDATEFORM
+            {
+                dwIndex = 0,
+                dwStyle = Imm32.CFS_CANDIDATEPOS,
+                ptCurrentPos = new Imm32.POINT { x = startPx, y = startPy },
+            };
+            Imm32.ImmSetCandidateWindow(himc, ref candForm);
         }
         finally
         {
