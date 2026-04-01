@@ -1630,6 +1630,14 @@ public partial class Window : ContentControl, ILayoutRoundingHost
             _backend.SetExtendClientAreaToTitleBar(ExtendClientAreaTitleBarHeight);
         if (!double.IsNaN(WindowSize.Width) && !double.IsNaN(WindowSize.Height))
             _backend.SetClientSize(WindowSize.Width, WindowSize.Height);
+        if (Topmost) 
+            _backend.SetTopmost(true);
+        if (!ShowInTaskbar) 
+            _backend.SetShowInTaskbar(false);
+        if (!CanMinimize) 
+            _backend.SetCanMinimize(false);
+        if (!CanMaximize) 
+            _backend.SetCanMaximize(false);
     }
 
 

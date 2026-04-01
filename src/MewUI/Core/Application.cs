@@ -62,36 +62,62 @@ public sealed class Application
     /// </summary>
     public event Action<Theme, Theme>? ThemeChanged;
 
-    internal ThemeVariant ThemeMode => _themeManager.Mode;
+
+    /// <summary>
+    /// Raised when the theme mode changes.
+    /// </summary>
+    public event Action? ThemeModeChanged;
+
+    public ThemeVariant ThemeMode => _themeManager.Mode;
 
     public void SetTheme(ThemeVariant mode)
     {
+        var lastMode = _themeManager.Mode;
+
         var change = _themeManager.SetTheme(mode);
         if (change.Changed)
         {
-            ApplyThemeChange(change.OldTheme, change.NewTheme);
+            ApplyThemeChange(change.OldTheme, change.NewTheme); 
+        }
+
+        if (lastMode != mode)
+        {
+            ThemeModeChanged?.Invoke();
         }
     }
 
     public void SetThemeMode(ThemeVariant mode)
     {
+        var lastMode = _themeManager.Mode;
+
         var change = _themeManager.SetTheme(mode);
         if (change.Changed)
+        {
             ApplyThemeChange(change.OldTheme, change.NewTheme);
+        }
+
+        if (lastMode != mode)
+        {
+            ThemeModeChanged?.Invoke();
+        }
     }
 
     public void SetAccent(Accent accent, Color? accentText = null)
     {
         var change = _themeManager.SetAccent(accent, accentText);
         if (change.Changed)
+        {
             ApplyThemeChange(change.OldTheme, change.NewTheme);
+        }
     }
 
     public void SetAccent(Color accent, Color? accentText = null)
     {
         var change = _themeManager.SetAccent(accent, accentText);
         if (change.Changed)
+        {
             ApplyThemeChange(change.OldTheme, change.NewTheme);
+        }
     }
 
     /// <summary>
@@ -274,7 +300,9 @@ public sealed class Application
     {
         var change = _themeManager.ApplySystemThemeChanged();
         if (change.Changed)
+        {
             ApplyThemeChange(change.OldTheme, change.NewTheme);
+        }
     }
 
     private void ApplyThemeChange(Theme oldTheme, Theme newTheme)

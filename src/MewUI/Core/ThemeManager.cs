@@ -195,7 +195,20 @@ public sealed class ThemeManager
     /// <summary>
     /// Gets the current theme mode (System/Light/Dark).
     /// </summary>
-    public ThemeVariant Mode { get; private set; }
+    public ThemeVariant Mode
+    {
+        get;
+        private set
+        {
+            if (field != value)
+            {
+                field = value;
+                ThemeModeChanged?.Invoke();
+            }
+        }
+    }
+
+    public event Action? ThemeModeChanged;
 
     /// <summary>
     /// Gets the current effective theme. This value is cached and recalculated only when inputs change.

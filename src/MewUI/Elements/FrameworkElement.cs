@@ -12,6 +12,8 @@ public abstract class FrameworkElement : UIElement, IDisposable
     private bool _hasArrangedSize;
     private StyleSheet? _styleSheet;
 
+    protected static MewProperty<Theme> ThemeProperty = MewProperty<Theme>.Register<FrameworkElement>(nameof(Theme), null!, MewPropertyOptions.AffectsRender);
+
     /// <summary>
     /// Gets or sets a <see cref="StyleSheet"/> that provides named styles
     /// and type-based style rules for descendant controls.
@@ -198,14 +200,18 @@ public abstract class FrameworkElement : UIElement, IDisposable
         {
             if (Application.IsRunning)
             {
-                return field ??= Application.Current.Theme;
+                if (GetValue(ThemeProperty) is null)
+                {
+                    SetValue(ThemeProperty, Application.Current.Theme);
+                }
+                return GetValue(ThemeProperty);
             }
             else
             {
                 return ThemeManager.GetDefaultTheme(ThemeManager.ResolveVariantForStartup(ThemeManager.Default));
             }
         }
-        set;
+        set => SetValue(ThemeProperty, value);
     }
 
 
