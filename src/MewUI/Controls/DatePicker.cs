@@ -77,6 +77,7 @@ public sealed class DatePicker : DropDownBase
         }
 
         _calendar.SelectedDateChanged += OnCalendarSelectedDateChanged;
+        _calendar.DateActivated += OnCalendarDateActivated;
         return _calendar;
     }
 
@@ -112,11 +113,18 @@ public sealed class DatePicker : DropDownBase
 
     private void OnCalendarSelectedDateChanged(DateTime? date)
     {
-        if (date.HasValue && _calendar?.DisplayMode == CalendarMode.Month)
+        // Sync value during navigation (keyboard arrows) without closing popup.
+        if (date.HasValue)
         {
             SelectedDate = date;
-            IsDropDownOpen = false;
         }
+    }
+
+    private void OnCalendarDateActivated(DateTime date)
+    {
+        // Commit action (mouse click or Enter key) — close popup.
+        SelectedDate = date;
+        IsDropDownOpen = false;
     }
 
     protected override Size MeasureHeader(Size availableSize)
@@ -141,15 +149,15 @@ public sealed class DatePicker : DropDownBase
             innerHeaderRect.Height).Deflate(Padding);
 
         var state = CurrentVisualState;
-        string text;
-        Color textColor;
+        string? text = null;
+        Color textColor = default;
 
         if (SelectedDate.HasValue)
         {
             text = SelectedDate.Value.ToString(DateFormat);
             textColor = state.IsEnabled ? Foreground : Theme.Palette.DisabledText;
         }
-        else
+        else if (!string.IsNullOrEmpty(Placeholder) && !state.IsFocused)
         {
             text = Placeholder;
             textColor = Theme.Palette.PlaceholderText;

@@ -17,11 +17,11 @@ public sealed class Calendar : Control, IVisualTreeHost
     private const int YearDecadeRows = 3;
     private const int YearDecadeCells = YearDecadeCols * YearDecadeRows;
 
-    private const double HeaderHeight = 24;
+    private const double HeaderHeight = 28;
     private const double DayOfWeekHeaderHeight = 18;
     private const double CellHeight = 24;
     private const double CellSpacing = 0;
-    private const double NavButtonWidth = 24;
+    private const double NavButtonWidth = 32;
     private const double CellCornerRadius = 4;
     private const double TodayStrokeThickness = 1;
 
@@ -36,7 +36,7 @@ public sealed class Calendar : Control, IVisualTreeHost
 
     // Small font for cell text
     private const double CellFontSize = 11;
-    private const double DowFontSize = CellFontSize * 0.85;
+    private static readonly double DowFontSize = Math.Round(CellFontSize * 0.85);
     private IFont? _cellFont;
     private IFont? _dowFont;
     private uint _cellFontDpi;
@@ -92,10 +92,10 @@ public sealed class Calendar : Control, IVisualTreeHost
             Content = new TextBlock
             {
                 FontWeight = FontWeight.SemiBold,
-                HorizontalAlignment= HorizontalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalTextAlignment = TextAlignment.Center,
             },
-            MinHeight = HeaderHeight, 
+            MinHeight = HeaderHeight,
         };
         _headerButton.StyleName = BuiltInStyles.FlatButton;
         _headerButton.Click += OnHeaderClick;
@@ -139,8 +139,11 @@ public sealed class Calendar : Control, IVisualTreeHost
 
     public override bool Focusable => true;
 
-    /// <summary>Raised when <see cref="SelectedDate"/> changes.</summary>
+    /// <summary>Raised when <see cref="SelectedDate"/> changes (keyboard navigation or click).</summary>
     public event Action<DateTime?>? SelectedDateChanged;
+
+    /// <summary>Raised when a date is activated by mouse click or Enter key (commit action).</summary>
+    public event Action<DateTime>? DateActivated;
 
     /// <summary>Raised when <see cref="DisplayMode"/> changes.</summary>
     public event Action<CalendarMode>? DisplayModeChanged;
@@ -355,7 +358,7 @@ public sealed class Calendar : Control, IVisualTreeHost
             {
                 context.FillRoundedRectangle(cellRect, snappedRadius, snappedRadius, palette.Accent);
             }
-            else if (isHot && isCurrentMonth)
+            else if (isHot)
             {
                 context.FillRoundedRectangle(cellRect, snappedRadius, snappedRadius, palette.AccentHoverOverlay);
             }
@@ -587,6 +590,7 @@ public sealed class Calendar : Control, IVisualTreeHost
                 // Navigate to the selected date's month if different
                 if (date.Month != DisplayDate.Month || date.Year != DisplayDate.Year)
                     DisplayDate = new DateTime(date.Year, date.Month, 1);
+                DateActivated?.Invoke(date.Date);
                 break;
             }
             case CalendarMode.Year:
@@ -670,6 +674,12 @@ public sealed class Calendar : Control, IVisualTreeHost
                 break;
             case Key.End:
                 SelectedDate = new DateTime(current.Year, current.Month, DateTime.DaysInMonth(current.Year, current.Month));
+                e.Handled = true;
+                break;
+            case Key.Enter:
+            case Key.Space:
+                if (SelectedDate.HasValue)
+                    DateActivated?.Invoke(SelectedDate.Value);
                 e.Handled = true;
                 break;
         }
