@@ -23,10 +23,6 @@
     <Compile Include="..\MewUI\Shared\Native\Win32\Com\**\*.cs" LinkBase="Native\Com"/>
     <Compile Include="..\MewUI\Shared\Native\Win32\Structs\*.cs" LinkBase="Native\Structs" />
     <Compile Include="..\MewUI\Shared\Native\Win32\Constants\*.cs" LinkBase="Native\Constants" />
-    <Compile Include="..\MewUI\Shared\Platform\Win32\Resources\FontResource.cs" LinkBase="Resources" />
-    <Compile Include="..\MewUI\Shared\Platform\Win32\Resources\FontResources.cs" LinkBase="Resources" />
-    <Compile Include="..\MewUI\Shared\Platform\Win32\Resources\FontRegistry.cs" LinkBase="Resources" />
-    <Compile Include="..\MewUI\Shared\Platform\Win32\Resources\TrueTypeNameTable.cs" LinkBase="Resources" />
   </ItemGroup>
 
 </Project>

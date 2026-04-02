@@ -31,7 +31,7 @@ internal sealed unsafe class Direct2DMeasurementContext : MeasureGraphicsContext
         {
             var weight = (DWRITE_FONT_WEIGHT)(int)dwFont.Weight;
             var style = dwFont.IsItalic ? DWRITE_FONT_STYLE.ITALIC : DWRITE_FONT_STYLE.NORMAL;
-            int hr = DWriteVTable.CreateTextFormat((IDWriteFactory*)_dwriteFactory, dwFont.Family, weight, style, (float)dwFont.Size, out textFormat);
+            int hr = DWriteVTable.CreateTextFormat((IDWriteFactory*)_dwriteFactory, dwFont.Family, dwFont.PrivateFontCollection, weight, style, (float)dwFont.Size, out textFormat);
             if (hr < 0 || textFormat == 0)
             {
                 return Size.Empty;

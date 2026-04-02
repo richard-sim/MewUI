@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 
+using Aprillz.MewUI.Resources;
+
 namespace Aprillz.MewUI.Rendering.CoreText;
 
 internal sealed unsafe partial class CoreTextFont : FontBase
@@ -54,6 +56,8 @@ internal sealed unsafe partial class CoreTextFont : FontBase
         return Create(family, size, dpi: 96, weight, italic, underline, strikethrough);
     }
 
+    private static readonly HashSet<string> s_registeredPaths = new(StringComparer.OrdinalIgnoreCase);
+
     public static CoreTextFont Create(
         string family,
         double size,
@@ -63,6 +67,13 @@ internal sealed unsafe partial class CoreTextFont : FontBase
         bool underline,
         bool strikethrough)
     {
+        var resolved = FontRegistry.Resolve(family);
+        if (resolved != null)
+        {
+            EnsureRegisteredWithCoreText(resolved.Value.FilePath);
+            family = resolved.Value.FamilyName;
+        }
+
         // MewUI font size is in DIPs (1/96 inch). When rasterizing via CoreGraphics into a pixel bitmap,
         // treat CTFont "size" as pixel size so retina/backing scale produces the expected physical size.
         uint actualDpi = dpi == 0 ? 96u : dpi;
@@ -348,6 +359,29 @@ internal sealed unsafe partial class CoreTextFont : FontBase
         }
     }
 
+    private static void EnsureRegisteredWithCoreText(string filePath)
+    {
+        if (!s_registeredPaths.Add(filePath))
+            return;
+
+        nint cfPath = 0;
+        nint url = 0;
+        try
+        {
+            fixed (char* p = filePath)
+                cfPath = CoreFoundation.CFStringCreateWithCharacters(0, p, filePath.Length);
+
+            url = CoreFoundation.CFURLCreateWithFileSystemPath(0, cfPath, 0 /* kCFURLPOSIXPathStyle */, false);
+            if (url != 0)
+                CoreTextNative.CTFontManagerRegisterFontsForURL(url, 1 /* kCTFontManagerScopeProcess */, 0);
+        }
+        finally
+        {
+            if (url != 0) CoreFoundation.CFRelease(url);
+            if (cfPath != 0) CoreFoundation.CFRelease(cfPath);
+        }
+    }
+
     internal static unsafe partial class CoreFoundation
     {
         [LibraryImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")]
@@ -363,6 +397,11 @@ internal sealed unsafe partial class CoreTextFont : FontBase
         internal static partial nint CFDictionaryCreate(
             nint allocator, nint* keys, nint* values, nint numValues,
             nint keyCallBacks, nint valueCallBacks);
+
+        [LibraryImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")]
+        internal static partial nint CFURLCreateWithFileSystemPath(
+            nint allocator, nint filePath, int pathStyle,
+            [MarshalAs(UnmanagedType.Bool)] bool isDirectory);
     }
 
     private static unsafe partial class CoreText
@@ -390,5 +429,9 @@ internal sealed unsafe partial class CoreTextFont : FontBase
 
         [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
         internal static partial double CTFontGetCapHeight(nint font);
+
+        [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static partial bool CTFontManagerRegisterFontsForURL(nint fontURL, int scope, nint errors);
     }
 }

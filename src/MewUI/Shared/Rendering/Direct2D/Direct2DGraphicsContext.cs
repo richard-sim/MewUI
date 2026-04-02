@@ -766,8 +766,9 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
     {
         var weight = (DWRITE_FONT_WEIGHT)(int)font.Weight;
         var style = font.IsItalic ? DWRITE_FONT_STYLE.ITALIC : DWRITE_FONT_STYLE.NORMAL;
+        // Use private font collection if available (for fonts loaded via FontResources.Register)
         int hr = DWriteVTable.CreateTextFormat((IDWriteFactory*)_dwriteFactory, font.Family,
-            weight, style, (float)font.Size, out nint textFormat);
+            font.PrivateFontCollection, weight, style, (float)font.Size, out nint textFormat);
         if (hr < 0 || textFormat == 0) return 0;
 
         DWriteVTable.SetTextAlignment(textFormat, horizontalAlignment switch

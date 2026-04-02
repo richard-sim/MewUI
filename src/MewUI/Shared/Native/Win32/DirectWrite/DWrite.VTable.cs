@@ -35,6 +35,17 @@ internal static unsafe class DWriteVTable
         DWRITE_FONT_STYLE style,
         float size,
         out nint textFormat)
+        => CreateTextFormat(factory, family, 0, weight, style, size, out textFormat);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int CreateTextFormat(
+        IDWriteFactory* factory,
+        string family,
+        nint fontCollection,
+        DWRITE_FONT_WEIGHT weight,
+        DWRITE_FONT_STYLE style,
+        float size,
+        out nint textFormat)
     {
         nint format = 0;
         const string locale = "en-us";
@@ -42,7 +53,7 @@ internal static unsafe class DWriteVTable
         fixed (char* pLocale = locale)
         {
             var fn = (delegate* unmanaged[Stdcall]<IDWriteFactory*, char*, nint, DWRITE_FONT_WEIGHT, DWRITE_FONT_STYLE, DWRITE_FONT_STRETCH, float, char*, nint*, int>)factory->lpVtbl[CreateTextFormatIndex];
-            int hr = fn(factory, pFamily, 0, weight, style, DWRITE_FONT_STRETCH.NORMAL, size, pLocale, &format);
+            int hr = fn(factory, pFamily, fontCollection, weight, style, DWRITE_FONT_STRETCH.NORMAL, size, pLocale, &format);
             textFormat = format;
             return hr;
         }
@@ -147,6 +158,59 @@ internal static unsafe class DWriteVTable
         fixed (DWRITE_TEXT_METRICS* p = &metrics)
         {
             return fn(textLayout, p);
+        }
+    }
+
+    // --- IDWriteFactory: CreateFontFileReference (vtable index 7) ---
+
+    /// <summary>IDWriteFactory::CreateFontFileReference (vtable index 7).</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int CreateFontFileReference(IDWriteFactory* factory, string filePath, out nint fontFile)
+    {
+        fontFile = 0;
+        nint ff = 0;
+        fixed (char* pPath = filePath)
+        {
+            // IDWriteFactory::CreateFontFileReference(filePath, lastWriteTime, fontFile)
+            // lastWriteTime = null → use current file time
+            var fn = (delegate* unmanaged[Stdcall]<IDWriteFactory*, char*, void*, nint*, int>)factory->lpVtbl[7];
+            int hr = fn(factory, pPath, null, &ff);
+            fontFile = ff;
+            return hr;
+        }
+    }
+
+    // --- IDWriteFactory: CreateFontFace (vtable index 9) ---
+
+    /// <summary>IDWriteFactory::CreateFontFace (vtable index 9).</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int CreateFontFace(IDWriteFactory* factory, DWRITE_FONT_FACE_TYPE faceType,
+        nint fontFile, uint faceIndex, DWRITE_FONT_SIMULATIONS simulations, out nint fontFace)
+    {
+        fontFace = 0;
+        nint face = 0;
+        nint pFile = fontFile;
+        // IDWriteFactory::CreateFontFace(faceType, numberOfFiles, fontFiles[], faceIndex, simulations, fontFace)
+        var fn = (delegate* unmanaged[Stdcall]<IDWriteFactory*, DWRITE_FONT_FACE_TYPE, uint, nint*, uint, DWRITE_FONT_SIMULATIONS, nint*, int>)factory->lpVtbl[9];
+        int hr = fn(factory, faceType, 1, &pFile, faceIndex, simulations, &face);
+        fontFace = face;
+        return hr;
+    }
+
+    // --- IDWriteFontFace: GetMetrics (vtable index 7) ---
+
+    /// <summary>IDWriteFontFace::GetMetrics (vtable index 8). void return.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void GetFontFaceMetrics(nint fontFace, out DWRITE_FONT_METRICS metrics)
+    {
+        metrics = default;
+        var vtbl = *(nint**)fontFace;
+        // IDWriteFontFace: IUnknown(3) + GetType(3) + GetFiles(4) + GetIndex(5)
+        //                  + GetSimulations(6) + IsSymbolFont(7) + GetMetrics(8)
+        var fn = (delegate* unmanaged[Stdcall]<nint, DWRITE_FONT_METRICS*, void>)vtbl[8];
+        fixed (DWRITE_FONT_METRICS* p = &metrics)
+        {
+            fn(fontFace, p);
         }
     }
 

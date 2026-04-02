@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 
 using Aprillz.MewUI.Native.Fontconfig;
+using Aprillz.MewUI.Resources;
 
 using FC = Aprillz.MewUI.Native.Fontconfig.Fontconfig;
 
@@ -21,6 +22,13 @@ internal static class LinuxFontResolver
         if (LooksLikePath(family))
         {
             return family;
+        }
+
+        // Check FontRegistry (fonts registered via FontResources.Register).
+        var resolved = FontRegistry.Resolve(family);
+        if (resolved != null && File.Exists(resolved.Value.FilePath))
+        {
+            return resolved.Value.FilePath;
         }
 
         var envPath = Environment.GetEnvironmentVariable("MEWUI_FONT_PATH");

@@ -201,13 +201,58 @@ public sealed unsafe class Direct2DGraphicsFactory : IGraphicsFactory, IWindowRe
     public IFont CreateFont(string family, double size, FontWeight weight = FontWeight.Normal, bool italic = false, bool underline = false, bool strikethrough = false)
     {
         EnsureInitialized();
-        return new DirectWriteFont(ResolveWin32FontFamilyOrFile(family), size, weight, italic, underline, strikethrough, _dwriteFactory);
+        var (resolvedFamily, fontCollection) = ResolveWithCollection(family);
+        return new DirectWriteFont(resolvedFamily, size, weight, italic, underline, strikethrough, _dwriteFactory, fontCollection);
     }
 
     public IFont CreateFont(string family, double size, uint dpi, FontWeight weight = FontWeight.Normal, bool italic = false, bool underline = false, bool strikethrough = false)
     {
         EnsureInitialized();
-        return new DirectWriteFont(ResolveWin32FontFamilyOrFile(family), size, weight, italic, underline, strikethrough, _dwriteFactory);
+        var (resolvedFamily, fontCollection) = ResolveWithCollection(family);
+        return new DirectWriteFont(resolvedFamily, size, weight, italic, underline, strikethrough, _dwriteFactory, fontCollection);
+    }
+
+    // Cache: familyName → DWrite custom font collection (nint)
+    private readonly Dictionary<string, nint> _privateFontCollections = new(StringComparer.OrdinalIgnoreCase);
+
+    private (string family, nint fontCollection) ResolveWithCollection(string familyOrPath)
+    {
+        var resolved = FontRegistry.Resolve(familyOrPath);
+        if (resolved != null)
+        {
+            // Ensure GDI registration (for GDI backend compatibility)
+            if (OperatingSystem.IsWindows())
+                Win32Fonts.EnsurePrivateFontFamily(resolved.Value.FilePath);
+
+            // Get or create DWrite custom font collection for this private font
+            var fontCollection = GetOrCreatePrivateCollection(resolved.Value.FamilyName, resolved.Value.FilePath);
+            return (resolved.Value.FamilyName, fontCollection);
+        }
+
+        // Legacy file path
+        if (OperatingSystem.IsWindows() && FontResources.LooksLikeFontFilePath(familyOrPath))
+        {
+            var path = Path.GetFullPath(familyOrPath);
+            Win32Fonts.EnsurePrivateFontFamily(path);
+            var family = FontResources.TryGetParsedFamilyName(path, out var parsed) && !string.IsNullOrWhiteSpace(parsed)
+                ? parsed : "Segoe UI";
+            var fontCollection = GetOrCreatePrivateCollection(family, path);
+            return (family, fontCollection);
+        }
+
+        return (familyOrPath, 0); // System font, no custom collection
+    }
+
+    private nint GetOrCreatePrivateCollection(string familyName, string filePath)
+    {
+        if (_privateFontCollections.TryGetValue(familyName, out var cached))
+            return cached;
+
+        var factory = (IDWriteFactory*)_dwriteFactory;
+        var collection = DWritePrivateFontCollection.CreateCollection(factory, [filePath]);
+        if (collection != 0)
+            _privateFontCollections[familyName] = collection;
+        return collection;
     }
 
     private void RefreshSystemFontCollection()

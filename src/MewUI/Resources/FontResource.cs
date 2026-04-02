@@ -1,4 +1,4 @@
-namespace Aprillz.MewUI.Resources;
+namespace Aprillz.MewUI;
 
 /// <summary>
 /// Represents a font registered for use by the current process.

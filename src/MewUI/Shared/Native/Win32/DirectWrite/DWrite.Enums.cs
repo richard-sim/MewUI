@@ -71,6 +71,25 @@ internal enum DWRITE_TRIMMING_GRANULARITY : uint
     WORD = 2
 }
 
+internal enum DWRITE_FONT_FACE_TYPE : uint
+{
+    CFF = 0,
+    TRUETYPE = 1,
+    OPENTYPE_COLLECTION = 2, // TTC
+    TYPE1 = 3,
+    VECTOR = 4,
+    BITMAP = 5,
+    UNKNOWN = 6,
+    RAW_CFF = 7
+}
+
+internal enum DWRITE_FONT_SIMULATIONS : uint
+{
+    NONE = 0x0000,
+    BOLD = 0x0001,
+    OBLIQUE = 0x0002
+}
+
 internal struct DWRITE_TRIMMING
 {
     public DWRITE_TRIMMING_GRANULARITY granularity;

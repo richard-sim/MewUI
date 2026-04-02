@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 
-namespace Aprillz.MewUI.Resources;
+using Aprillz.MewUI.Resources;
+
+namespace Aprillz.MewUI;
 
 /// <summary>
 /// Provides font loading helpers for scenarios where fonts are supplied as streams (e.g. embedded resources).
