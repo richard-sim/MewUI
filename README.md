@@ -16,6 +16,10 @@
 
 **😺 MewUI** is a cross-platform and lightweight, code-first .NET GUI framework aimed at NativeAOT.
 
+> [!NOTE]
+> The official pronunciation of **MewUI** is **/mjuː aɪ/** (“myoo-eye”).
+
+
 ### 🧪 Experimental Prototype
   > [!IMPORTANT]  
   > This project is a **proof-of-concept prototype** for validating ideas and exploring design directions.  

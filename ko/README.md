@@ -14,6 +14,9 @@
 
 **😺 MewUI**는 **크로스플랫폼** **NativeAOT + Trim** 앱을 목표로 하는, 코드 기반(code-first) 경량 .NET GUI 라이브러리입니다.
 
+> [!NOTE]
+> MewUI의 공식 발음은 “뮤아이”입니다.
+
 ### 🧪 실험적 프로토타입
   > [!IMPORTANT]
   > ⚠️본 프로젝트는 **개념 검증(Proof-of-Concept)** 을 위한 실험적 프로토타입입니다.  
