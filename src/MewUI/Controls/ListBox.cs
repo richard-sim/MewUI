@@ -365,7 +365,6 @@ public partial class ListBox : VirtualizedItemsBase, IVirtualizedTabNavigationHo
         }
 
         double itemHeight = ResolveItemHeight();
-        double height = count * itemHeight;
 
         _presenter.ItemHeightHint = itemHeight;
         _presenter.ExtentWidth = maxWidth;
@@ -374,17 +373,11 @@ public partial class ListBox : VirtualizedItemsBase, IVirtualizedTabNavigationHo
             double.IsPositiveInfinity(availableSize.Width) ? double.PositiveInfinity : Math.Max(0, availableSize.Width - borderInset * 2),
             double.IsPositiveInfinity(availableSize.Height) ? double.PositiveInfinity : Math.Max(0, availableSize.Height - borderInset * 2)));
 
-        // Desired height is governed by availableSize (viewport). Extent is used by ScrollViewer.
-        if (double.IsPositiveInfinity(availableSize.Height))
-        {
-            height = Math.Min(height, itemHeight * 12);
-        }
-        else
-        {
-            // When a finite height is available, don't exceed it —
-            // the internal ScrollViewer handles overflow.
-            height = Math.Min(height, Math.Max(0, availableSize.Height - Padding.VerticalThickness - borderInset * 2));
-        }
+        // - FixedHeight/VariableHeight/Stack: count * itemHeight
+        // - Wrap: rows * itemHeight
+        double height = _presenter.DesiredContentHeight;
+        if (height <= 0)
+            height = count * itemHeight;
 
         return new Size(
             Math.Max(0, maxWidth + Padding.HorizontalThickness + borderInset * 2),
