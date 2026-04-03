@@ -805,6 +805,14 @@ public class Grid : Panel
     {
         if (mode == MeasureMode.Constrained && constraints != null)
         {
+            for (int i = start; i < start + span; i++)
+            {
+                if (IsAutoConstraintUnresolved(definitions[i]))
+                {
+                    return double.PositiveInfinity;
+                }
+            }
+
             return GetRangeSize(constraints, start, span, spacing);
         }
 
@@ -958,6 +966,20 @@ public class Grid : Panel
         {
             DistributeExtra(otherDefinitions, extra, useStarWeights: false);
         }
+    }
+
+    private static bool IsAutoConstraintUnresolved(GridDefinitionBase definition)
+    {
+        if (!definition.UserSize.IsAuto)
+        {
+            return false;
+        }
+
+        // Auto definitions start each measure pass at their min size. Until some child contributes
+        // more than that baseline, using the current MeasureSize as a hard constraint would collapse
+        // natural measurement to 0 (or MinWidth/MinHeight) under global DesiredSize clamping.
+        double baseline = ClampDefinitionSize(definition, definition.UserMinSize);
+        return definition.MeasureSize <= baseline + 0.01;
     }
 
     private static void DistributeExtra<T>(IReadOnlyList<T> definitions, double extra, bool useStarWeights)

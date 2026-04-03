@@ -317,8 +317,9 @@ public sealed class ScrollViewer : ContentControl
 
         // Allow 1 device-pixel tolerance to suppress scrollbars caused by sub-pixel
         // rounding differences between extent and viewport at non-integer DPI scales.
-        bool needV = _scroll.GetExtentPx(1) > _scroll.GetViewportPx(1) + 1;
-        bool needH = _scroll.GetExtentPx(0) > _scroll.GetViewportPx(0) + 1;
+        // Use long arithmetic to avoid int overflow when viewport is int.MaxValue (Infinity).
+        bool needV = (long)_scroll.GetExtentPx(1) > (long)_scroll.GetViewportPx(1) + 1;
+        bool needH = (long)_scroll.GetExtentPx(0) > (long)_scroll.GetViewportPx(0) + 1;
         _vBar.IsVisible = IsBarVisible(VerticalScroll, needV);
         _hBar.IsVisible = IsBarVisible(HorizontalScroll, needH);
 

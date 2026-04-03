@@ -142,7 +142,16 @@ public abstract class Element : MewObject
         }
 
         var measured = MeasureCore(availableSize);
-        DesiredSize = ApplyLayoutRounding(measured);
+
+        var clamped = new Size(
+            double.IsPositiveInfinity(availableSize.Width)
+                ? measured.Width
+                : Math.Min(measured.Width, availableSize.Width),
+            double.IsPositiveInfinity(availableSize.Height)
+                ? measured.Height
+                : Math.Min(measured.Height, availableSize.Height));
+
+        DesiredSize = ApplyLayoutRounding(clamped);
         IsMeasureDirty = false;
         _lastMeasureConstraint = availableSize;
         _hasMeasureConstraint = true;
@@ -245,11 +254,11 @@ public abstract class Element : MewObject
         }
         else
         {
-        var current = Parent;
-        while (current.Parent != null)
-        {
-            current = current.Parent;
-        }
+            var current = Parent;
+            while (current.Parent != null)
+            {
+                current = current.Parent;
+            }
             root = current is Window ? current : null;
         }
 

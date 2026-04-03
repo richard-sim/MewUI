@@ -86,6 +86,15 @@ public static class LayoutRounding
             return rect;
         }
 
+        // Infinity/NaN dimensions must pass through unsnapped —
+        // RoundToPixelInt maps Infinity to 0, which breaks constraint propagation
+        // (e.g. ScrollViewer viewport becomes 0 when availableSize is Infinity).
+        if (double.IsInfinity(rect.Width) || double.IsNaN(rect.Width) ||
+            double.IsInfinity(rect.Height) || double.IsNaN(rect.Height))
+        {
+            return rect;
+        }
+
         int leftPx = RoundToPixelInt(rect.X, dpiScale);
         int topPx = RoundToPixelInt(rect.Y, dpiScale);
         int rightPx = RoundToPixelInt(rect.X + rect.Width, dpiScale);

@@ -67,15 +67,23 @@ internal sealed class ScrollController
     /// </summary>
     public int GetMaxPx(int axis)
     {
-        int extent = GetExtentPx(axis);
-        int viewport = GetViewportPx(axis);
-        return Math.Max(0, extent - viewport);
+        long extent = GetExtentPx(axis);
+        long viewport = GetViewportPx(axis);
+        long max = extent - viewport;
+        return max <= 0 ? 0 : (int)Math.Min(max, int.MaxValue);
     }
 
     public void SetMetricsDip(int axis, double extentDip, double viewportDip)
     {
+        // Infinity viewport means unconstrained measurement (e.g. SplitPanel 1st pass).
+        // Skip metrics update entirely — the constrained pass will set the real values.
+        // Updating with Infinity would convert to int.MaxValue, causing overflow in
+        // extent-viewport arithmetic and resetting the scroll offset to 0.
+        if (double.IsInfinity(viewportDip))
+            return;
+
         int extentPx = double.IsInfinity(extentDip) ? int.MaxValue : DipToPx(extentDip);
-        int viewportPx = double.IsInfinity(viewportDip) ? int.MaxValue : DipToPx(viewportDip);
+        int viewportPx = DipToPx(viewportDip);
         SetMetricsPx(axis, extentPx, viewportPx);
     }
 
