@@ -1059,17 +1059,29 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     /// Closes the window.
     /// </summary>
     public void Close()
-        => RequestClose(fromBackend: false);
-
-    /// <summary>
-    /// Returns true if the close proceeded, false if cancelled.
-    /// </summary>
-    internal bool RequestClose(bool fromBackend)
     {
         if (_lifetimeState == WindowLifetimeState.Closed)
+            return;
+
+        if (_backend == null)
         {
-            return true;
+            if (!RequestClose())
+                return;
+            RaiseClosed();
+            return;
         }
+
+        _backend.Close();
+    }
+
+    /// <summary>
+    /// Raises the <see cref="Closing"/> event and returns true if close is allowed, false if cancelled.
+    /// Does not call <see cref="RaiseClosed"/> — the caller is responsible for proceeding with close.
+    /// </summary>
+    internal bool RequestClose()
+    {
+        if (_lifetimeState == WindowLifetimeState.Closed)
+            return true;
 
         if (Closing != null)
         {
@@ -1079,19 +1091,6 @@ public partial class Window : ContentControl, ILayoutRoundingHost
                 return false;
         }
 
-        if (_backend == null)
-        {
-            RaiseClosed();
-            return true;
-        }
-
-        if (fromBackend)
-        {
-            RaiseClosed();
-            return true;
-        }
-
-        _backend.Close();
         return true;
     }
 

@@ -130,29 +130,36 @@ internal sealed class MacOSMessageBoxService : IMessageBoxService
         switch (buttons)
         {
             case NativeMessageBoxButtons.Ok:
-                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString(MewUIStrings.OK.Value));
+                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, GetNSString(MewUIStrings.OK.Value));
                 break;
 
             case NativeMessageBoxButtons.OkCancel:
-                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString(MewUIStrings.OK.Value));
-                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString(MewUIStrings.Cancel.Value));
+                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, GetNSString(MewUIStrings.OK.Value));
+                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, GetNSString(MewUIStrings.Cancel.Value));
                 break;
 
             case NativeMessageBoxButtons.YesNo:
-                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString(MewUIStrings.Yes.Value));
-                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString(MewUIStrings.No.Value));
+                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, GetNSString(MewUIStrings.Yes.Value));
+                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, GetNSString(MewUIStrings.No.Value));
                 break;
 
             case NativeMessageBoxButtons.YesNoCancel:
-                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString(MewUIStrings.Yes.Value));
-                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString(MewUIStrings.No.Value));
-                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString(MewUIStrings.Cancel.Value));
+                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, GetNSString(MewUIStrings.Yes.Value));
+                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, GetNSString(MewUIStrings.No.Value));
+                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, GetNSString(MewUIStrings.Cancel.Value));
                 break;
 
             default:
-                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, ObjC.CreateNSString(MewUIStrings.OK.Value));
+                ObjC.MsgSend_nint_nint(alert, SelAddButtonWithTitle, GetNSString(MewUIStrings.OK.Value));
                 break;
         }
+    }
+
+    private static nint GetNSString(string value)
+    {
+        value = value.Replace("_", string.Empty);
+
+        return ObjC.CreateNSString(value);
     }
 
     private static bool? MapResult(NativeMessageBoxButtons buttons, int buttonIndex)

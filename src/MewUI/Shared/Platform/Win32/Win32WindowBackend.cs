@@ -587,8 +587,11 @@ internal sealed class Win32WindowBackend : IWindowBackend
                 return 0;
 
             case WindowMessages.WM_CLOSE:
-                if (Window.RequestClose(fromBackend: true))
+                if (Window.RequestClose())
+                {
+                    Window.RaiseClosed();
                     User32.DestroyWindow(Handle);
+                }
                 return 0;
 
             case WindowMessages.WM_CANCELMODE:
@@ -1209,6 +1212,11 @@ internal sealed class Win32WindowBackend : IWindowBackend
 
     private void HandleDestroy()
     {
+        // Best-effort Closed for out-of-band destroy (e.g. external DestroyWindow call).
+        // Normal close path already called RaiseClosed() before DestroyWindow,
+        // so the _lifetimeState guard inside RaiseClosed() prevents double invocation.
+        Window.RaiseClosed();
+
         _titleBarThemeSync.Dispose();
         DestroyIcons();
         User32.ReleaseCapture();

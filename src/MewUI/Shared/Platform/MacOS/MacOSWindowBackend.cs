@@ -208,15 +208,12 @@ internal sealed class MacOSWindowBackend : IWindowBackend
             ObjC.MsgSend_void_nint_nint(_nsWindow, ObjC.Sel("orderOut:"), 0);
     }
 
-    internal bool _closingFromCode;
-
     public void Close()
     {
         if (_nsWindow != 0)
         {
-            _closingFromCode = true;
             MacOSWindowInterop.CloseWindow(_nsWindow);
-            // windowShouldClose/windowWillClose will call RaiseClosedOnce
+            // windowShouldClose → RequestClose, windowWillClose → RaiseClosedOnce
         }
     }
 
@@ -1934,6 +1931,7 @@ internal static unsafe class MacOSWindowInterop
     private static nint SelInitWithContentRect;
     private static nint SelMakeKeyAndOrderFront;
     private static nint SelClose;
+    private static nint SelPerformClose;
     private static nint SelSetTitle;
     private static nint SelSetContentSize;
     private static nint SelSetContentView;
@@ -2072,6 +2070,7 @@ internal static unsafe class MacOSWindowInterop
         SelInitWithContentRect = ObjC.Sel("initWithContentRect:styleMask:backing:defer:");
         SelMakeKeyAndOrderFront = ObjC.Sel("makeKeyAndOrderFront:");
         SelClose = ObjC.Sel("close");
+        SelPerformClose = ObjC.Sel("performClose:");
         SelSetTitle = ObjC.Sel("setTitle:");
         SelSetContentSize = ObjC.Sel("setContentSize:");
         SelSetContentView = ObjC.Sel("setContentView:");
@@ -3529,16 +3528,11 @@ internal static unsafe class MacOSWindowInterop
 
             if (TryGetWindowCloseTarget(sender, out var backend))
             {
-                // Programmatic close already passed cancel check — allow unconditionally
-                if (backend._closingFromCode)
-                    return 1;
-
-                if (!backend.Window.RequestClose(fromBackend: true))
+                if (!backend.Window.RequestClose())
                     return 0; // cancelled
-
-                backend.RaiseClosedOnce();
             }
 
+            // RaiseClosed is handled by windowWillClose, not here.
             return 1;
         }
         catch
@@ -3907,7 +3901,14 @@ internal static unsafe class MacOSWindowInterop
     public static void CloseWindow(nint window)
     {
         EnsureInitialized();
-        ObjC.MsgSend_void(window, SelClose);
+        if (SelPerformClose != 0)
+        {
+            ObjC.MsgSend_void_nint_nint(window, SelPerformClose, 0);
+        }
+        else
+        {
+            ObjC.MsgSend_void(window, SelClose);
+        }
     }
 
     public static void SetTitle(nint window, string title)

@@ -254,6 +254,9 @@ internal sealed class X11WindowBackend : IWindowBackend
             return;
         }
 
+        if (!Window.RequestClose())
+            return;
+
         RaiseClosedOnce();
         Cleanup(handle, destroyWindow: true);
     }
@@ -658,14 +661,17 @@ internal sealed class X11WindowBackend : IWindowBackend
         const ulong CWEventMask = 1UL << 11;
         const ulong CWColormap = 1UL << 13;
 
+        long windowEventMask =
+            X11EventMask.ExposureMask | X11EventMask.StructureNotifyMask |
+            X11EventMask.KeyPressMask | X11EventMask.KeyReleaseMask |
+            X11EventMask.ButtonPressMask | X11EventMask.ButtonReleaseMask |
+            X11EventMask.PointerMotionMask | X11EventMask.FocusChangeMask |
+            X11EventMask.PropertyChangeMask;
+
         var attrs = new XSetWindowAttributes
         {
             colormap = NativeX11.XCreateColormap(Display, root, visualInfo.visual, AllocNone),
-            event_mask = (nint)(X11EventMask.ExposureMask | X11EventMask.StructureNotifyMask |
-                               X11EventMask.KeyPressMask | X11EventMask.KeyReleaseMask |
-                               X11EventMask.ButtonPressMask | X11EventMask.ButtonReleaseMask |
-                               X11EventMask.PointerMotionMask | X11EventMask.FocusChangeMask |
-                               X11EventMask.PropertyChangeMask),
+            event_mask = (nint)windowEventMask,
         };
 
         ulong valueMask = CWEventMask | CWColormap;
@@ -754,6 +760,13 @@ internal sealed class X11WindowBackend : IWindowBackend
         {
             DiagLog.Write($"[X11] XIM enabled: im=0x{_xim.ToInt64():X} ic=0x{_xic.ToInt64():X} preeditPosition={_imeUsesPreeditPosition}");
             ImeLogger.Write($"XIM enabled: im=0x{_xim.ToInt64():X} ic=0x{_xic.ToInt64():X} preeditPosition={_imeUsesPreeditPosition}");
+
+            if (X11Ime.TryGetFilterEvents(_xic, out var imeFilterEvents))
+            {
+                windowEventMask |= imeFilterEvents.ToInt64();
+                NativeX11.XSelectInput(Display, Handle, (nint)windowEventMask);
+                ImeLogger.Write($"XSelectInput updated with IME filter events: 0x{windowEventMask:X}");
+            }
         }
         else
         {
@@ -1332,6 +1345,11 @@ internal sealed class X11WindowBackend : IWindowBackend
         var key = MapKeysymToKey(ks);
         var args = new KeyEventArgs(key, platformKey: (int)ks, modifiers: GetModifiers(e.state), isRepeat: false);
 
+        if (_xic != 0 && key == Key.Space && args.Modifiers == ModifierKeys.Shift)
+        {
+            ImeLogger.Write($"Shift+Space event isDown={isDown} filtered={isFilteredByIme} keysym=0x{ks:X} state=0x{e.state:X} keycode={e.keycode} preeditPosition={_imeUsesPreeditPosition}");
+        }
+
         if (isDown)
         {
             // If XIM filtered this key press, don't route KeyDown/Tab navigation into the UI:
@@ -1425,13 +1443,6 @@ internal sealed class X11WindowBackend : IWindowBackend
                         // KeyDown-handled Enter/Tab should not also emit committed text input.
                         // (e.g. TextBox may insert '\n'/'\t' on KeyDown and then receive duplicate text from Xutf8LookupString.)
                         if (TextInputSuppression.ShouldSuppressCommittedText(args, s))
-                        {
-                            return;
-                        }
-
-                        // Many IMEs use Shift+Space to toggle input mode (e.g., Hangul/English).
-                        // When that happens, some setups still report a literal space; suppress it.
-                        if (_xic != 0 && isFilteredByIme && args.Key == Key.Space && args.Modifiers == ModifierKeys.Shift && s == " ")
                         {
                             return;
                         }
