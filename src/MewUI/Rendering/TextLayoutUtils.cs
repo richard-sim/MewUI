@@ -1,10 +1,8 @@
 namespace Aprillz.MewUI.Rendering;
 
-internal static class TextLayout
+internal static class TextLayoutUtils
 {
     public delegate double SpanMeasure(ReadOnlySpan<char> span);
-
-    internal readonly record struct LineSegment(int Start, int Length, double Width);
 
     public static void EnumerateLines(
         ReadOnlySpan<char> text,
@@ -210,3 +208,5 @@ internal static class TextLayout
         }
     }
 }
+
+internal readonly record struct LineSegment(int Start, int Length, double Width);

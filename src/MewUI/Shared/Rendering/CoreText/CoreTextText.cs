@@ -343,7 +343,7 @@ internal static unsafe partial class CoreTextText
     {
         var buffer = new LinesBuffer();
 
-        TextLayout.EnumerateLines(text, widthPx, wrapping, span => MeasureRunWidth(ctFont, span), line =>
+        TextLayoutUtils.EnumerateLines(text, widthPx, wrapping, span => MeasureRunWidth(ctFont, span), line =>
         {
             buffer.Add(new LineEntry(line.Start, line.Length, line.Width));
         });
@@ -362,7 +362,7 @@ internal static unsafe partial class CoreTextText
                 if (entry.Width > widthPx && entry.Length > 0)
                 {
                     var lineText = text.Slice(entry.Start, entry.Length);
-                    var trimmed = TextLayout.TrimLineWithEllipsis(lineText, entry.Start, widthPx, span => MeasureRunWidth(ctFont, span));
+                    var trimmed = TextLayoutUtils.TrimLineWithEllipsis(lineText, entry.Start, widthPx, span => MeasureRunWidth(ctFont, span));
                     buffer.Lines[i] = new LineEntry(trimmed.Start, trimmed.Length, trimmed.Width);
                 }
             }
@@ -395,7 +395,7 @@ internal static unsafe partial class CoreTextText
         var lineEndIndices = new int[lineCapacity];
         int lineCount = 0;
 
-        TextLayout.EnumerateLines(segment, maxWidthPx, wrapping, span => MeasureRunWidth(ctFont, span), line =>
+        TextLayoutUtils.EnumerateLines(segment, maxWidthPx, wrapping, span => MeasureRunWidth(ctFont, span), line =>
         {
             if (lineCount >= lineCapacity)
             {
@@ -431,7 +431,7 @@ internal static unsafe partial class CoreTextText
 
     private static void AppendWrapped(LinesBuffer output, nint ctFont, ReadOnlySpan<char> segment, int widthPx, TextWrapping wrapping)
     {
-        TextLayout.EnumerateLines(segment, widthPx, wrapping, span => MeasureRunWidth(ctFont, span), line =>
+        TextLayoutUtils.EnumerateLines(segment, widthPx, wrapping, span => MeasureRunWidth(ctFont, span), line =>
         {
             output.Add(new LineEntry(line.Start, line.Length, line.Width));
         });

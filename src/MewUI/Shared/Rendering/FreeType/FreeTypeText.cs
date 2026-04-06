@@ -28,7 +28,7 @@ internal static unsafe class FreeTypeText
         int maxLineWidth = 0;
         int lines = 0;
 
-        TextLayout.EnumerateLines(text, maxWidthPx, wrapping, span => MeasureRunWidthPx(span, face), line =>
+        TextLayoutUtils.EnumerateLines(text, maxWidthPx, wrapping, span => MeasureRunWidthPx(span, face), line =>
         {
             int width = (int)Math.Ceiling(line.Width);
             if (width > maxLineWidth)
@@ -75,17 +75,17 @@ internal static unsafe class FreeTypeText
 
         int lineHeightPx = Math.Max(1, (int)Math.Round(font.PixelHeight * 1.25));
 
-        var lines = new List<TextLayout.LineSegment>();
+        var lines = new List<LineSegment>();
         int maxLineWidth = 0;
         int effectiveWrapWidth = wrapping == TextWrapping.Wrap ? widthPx : 0;
-        TextLayout.EnumerateLines(text, effectiveWrapWidth, wrapping, span => MeasureRunWidthPx(span, face), line =>
+        TextLayoutUtils.EnumerateLines(text, effectiveWrapWidth, wrapping, span => MeasureRunWidthPx(span, face), line =>
         {
             int width = (int)Math.Ceiling(line.Width);
             if (width > maxLineWidth)
             {
                 maxLineWidth = width;
             }
-            lines.Add(new TextLayout.LineSegment(line.Start, line.Length, width));
+            lines.Add(new LineSegment(line.Start, line.Length, width));
         });
 
         // Post-pass: apply character-ellipsis trimming.
@@ -100,8 +100,8 @@ internal static unsafe class FreeTypeText
                     if (line.Width > widthPx && line.Length > 0)
                     {
                         var lineText = text.Slice(line.Start, line.Length);
-                        var trimmed = TextLayout.TrimLineWithEllipsis(lineText, line.Start, widthPx, span => MeasureRunWidthPx(span, face));
-                        lines[i] = new TextLayout.LineSegment(trimmed.Start, trimmed.Length, trimmed.Width);
+                        var trimmed = TextLayoutUtils.TrimLineWithEllipsis(lineText, line.Start, widthPx, span => MeasureRunWidthPx(span, face));
+                        lines[i] = new LineSegment(trimmed.Start, trimmed.Length, trimmed.Width);
                         trimmedFlags.Add(true);
                     }
                     else
@@ -156,7 +156,7 @@ internal static unsafe class FreeTypeText
                             }
                         }
 
-                        lines[lastIdx] = new TextLayout.LineSegment(lastLine.Start, trimLen, textW + ellipsisW);
+                        lines[lastIdx] = new LineSegment(lastLine.Start, trimLen, textW + ellipsisW);
                     }
 
                     for (int i = 0; i < lines.Count - 1; i++)
@@ -398,7 +398,7 @@ internal static unsafe class FreeTypeText
 
     private static void RenderLineFallback(
         ReadOnlySpan<char> text,
-        TextLayout.LineSegment line,
+        LineSegment line,
         FreeTypeFaceCache.FaceEntry face,
         FreeTypeFont font,
         int penX,
@@ -485,7 +485,7 @@ internal static unsafe class FreeTypeText
     {
         // Render "..." as three period glyphs.
         const string dots = "...";
-        var seg = new TextLayout.LineSegment(0, dots.Length, 0);
+        var seg = new LineSegment(0, dots.Length, 0);
         RenderLineFallback(dots, seg, face, font, penX, penY, buffer, widthPx, heightPx, color);
     }
 

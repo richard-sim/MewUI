@@ -56,8 +56,8 @@ internal static class GdiWrappedEllipsisHelper
         int maxVisibleLines = Math.Max(1, heightPx / lineHeight);
 
         // Build wrapped lines using TextLayout with GDI measurement.
-        var lines = new List<TextLayout.LineSegment>();
-        TextLayout.EnumerateLines(text, widthPx, TextWrapping.Wrap,
+        var lines = new List<LineSegment>();
+        TextLayoutUtils.EnumerateLines(text, widthPx, TextWrapping.Wrap,
             span =>
             {
                 if (span.IsEmpty) return 0;
