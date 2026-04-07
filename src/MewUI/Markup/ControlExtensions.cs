@@ -893,7 +893,7 @@ public static class ControlExtensions
     {
         if (accessKey)
         {
-            var at = new Controls.AccessText
+            var at = new AccessText
             {
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -1139,7 +1139,7 @@ public static class ControlExtensions
     {
         if (accessKey)
         {
-            var at = new Controls.AccessText();
+            var at = new AccessText();
             at.SetRawText(text);
             control.Content = at;
         }
@@ -1162,7 +1162,7 @@ public static class ControlExtensions
     {
         if (accessKey)
         {
-            var at = new Controls.AccessText();
+            var at = new AccessText();
             at.SetRawText(text);
             checkBox.Content = at;
         }
@@ -1431,7 +1431,7 @@ public static class ControlExtensions
     {
         if (accessKey)
         {
-            var at = new Controls.AccessText
+            var at = new AccessText
             {
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,

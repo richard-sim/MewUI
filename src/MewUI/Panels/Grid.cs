@@ -512,31 +512,31 @@ public class Grid : Panel
 
         foreach (var child in EnumerateVisibleChildren())
         {
-            bool hasRow = Grid.HasRow(child);
-            bool hasColumn = Grid.HasColumn(child);
+            bool hasRow = HasRow(child);
+            bool hasColumn = HasColumn(child);
             if (!hasRow || !hasColumn)
             {
                 continue;
             }
 
-            var placement = CreateClampedPlacement(child, rowCount, columnCount, Grid.GetRow(child), Grid.GetColumn(child));
+            var placement = CreateClampedPlacement(child, rowCount, columnCount, GetRow(child), GetColumn(child));
             placements.Add(placement);
             MarkOccupied(occupied, placement);
         }
 
         foreach (var child in EnumerateVisibleChildren())
         {
-            bool hasRow = Grid.HasRow(child);
-            bool hasColumn = Grid.HasColumn(child);
+            bool hasRow = HasRow(child);
+            bool hasColumn = HasColumn(child);
             if (hasRow && hasColumn)
             {
                 continue;
             }
 
-            int row = hasRow ? Grid.GetRow(child) : 0;
-            int column = hasColumn ? Grid.GetColumn(child) : 0;
-            int rowSpan = Math.Max(1, Grid.GetRowSpan(child));
-            int columnSpan = Math.Max(1, Grid.GetColumnSpan(child));
+            int row = hasRow ? GetRow(child) : 0;
+            int column = hasColumn ? GetColumn(child) : 0;
+            int rowSpan = Math.Max(1, GetRowSpan(child));
+            int columnSpan = Math.Max(1, GetColumnSpan(child));
 
             var placement = CreateClampedPlacement(child, rowCount, columnCount, row, column);
             placement = placement with
@@ -595,8 +595,8 @@ public class Grid : Panel
         row = Math.Clamp(row, 0, rowCount - 1);
         column = Math.Clamp(column, 0, columnCount - 1);
 
-        int rowSpan = Math.Clamp(Math.Max(1, Grid.GetRowSpan(child)), 1, rowCount - row);
-        int columnSpan = Math.Clamp(Math.Max(1, Grid.GetColumnSpan(child)), 1, columnCount - column);
+        int rowSpan = Math.Clamp(Math.Max(1, GetRowSpan(child)), 1, rowCount - row);
+        int columnSpan = Math.Clamp(Math.Max(1, GetColumnSpan(child)), 1, columnCount - column);
 
         return new Placement(child, row, column, rowSpan, columnSpan);
     }

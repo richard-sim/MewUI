@@ -168,11 +168,8 @@ internal sealed class MacOSMessageBoxService : IMessageBoxService
         return buttons switch
         {
             NativeMessageBoxButtons.Ok => true,
-
             NativeMessageBoxButtons.OkCancel => buttonIndex == 0 ? true : false,
-
             NativeMessageBoxButtons.YesNo => buttonIndex == 0 ? true : null,
-
             NativeMessageBoxButtons.YesNoCancel => buttonIndex switch
             {
                 0 => true,

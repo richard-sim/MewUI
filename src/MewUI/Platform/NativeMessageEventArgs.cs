@@ -2,7 +2,7 @@ namespace Aprillz.MewUI;
 
 /// <summary>
 /// Base class for native platform message/event arguments delivered through
-/// <see cref="Aprillz.MewUI.Window.NativeMessage"/>.
+/// <see cref="Window.NativeMessage"/>.
 /// </summary>
 public class NativeMessageEventArgs
 {

@@ -1,3 +1,5 @@
+using Aprillz.MewUI.Rendering;
+
 namespace Aprillz.MewUI.Controls;
 
 /// <summary>
@@ -92,7 +94,7 @@ internal sealed class AccessText : TextBlock
         _registeredWindow = null;
     }
 
-    protected override void OnRender(Rendering.IGraphicsContext context)
+    protected override void OnRender(IGraphicsContext context)
     {
         base.OnRender(context);
 

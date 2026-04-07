@@ -1315,7 +1315,7 @@ internal sealed class X11WindowBackend : IWindowBackend
     private void UpdateImeSpotLocation()
     {
         if (!_imeUsesPreeditPosition || _xic == 0) return;
-        if (Window.FocusManager.FocusedElement is not Input.ITextCompositionClient client) return;
+        if (Window.FocusManager.FocusedElement is not ITextCompositionClient client) return;
 
         try
         {
@@ -2297,7 +2297,7 @@ internal sealed class X11WindowBackend : IWindowBackend
         }
     }
 
-    public void SetImeMode(Input.ImeMode mode)
+    public void SetImeMode(ImeMode mode)
     {
         if (_xic == 0) return;
         if (mode == ImeMode.Disabled)

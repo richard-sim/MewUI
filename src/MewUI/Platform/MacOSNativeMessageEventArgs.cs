@@ -1,7 +1,7 @@
 namespace Aprillz.MewUI;
 
 /// <summary>
-/// Provides macOS NSEvent data for the <see cref="Aprillz.MewUI.Window.NativeMessage"/> event.
+/// Provides macOS NSEvent data for the <see cref="Window.NativeMessage"/> event.
 /// </summary>
 public sealed class MacOSNativeMessageEventArgs : NativeMessageEventArgs
 {

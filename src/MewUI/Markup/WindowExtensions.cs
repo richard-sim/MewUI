@@ -12,7 +12,7 @@ public static class WindowExtensions
     /// </summary>
     public static void ShowToast(this Window window, string text)
     {
-        var toast = window.OverlayLayer.GetOrCreateService<ToastService>(
+        var toast = window.OverlayLayer.GetOrCreateService(
             layer => new ToastService(layer));
         toast.Show(text);
     }
@@ -27,7 +27,7 @@ public static class WindowExtensions
     /// <param name="cancellable">If <c>true</c>, an Abort button is shown and <see cref="IBusyIndicator.CancellationToken"/> becomes usable.</param>
     public static IBusyIndicator CreateBusyIndicator(this Window window, string? message = null, bool cancellable = false)
     {
-        var service = window.OverlayLayer.GetOrCreateService<BusyIndicatorService>(
+        var service = window.OverlayLayer.GetOrCreateService(
             layer => new BusyIndicatorService(layer));
         return service.Create(message, cancellable);
     }

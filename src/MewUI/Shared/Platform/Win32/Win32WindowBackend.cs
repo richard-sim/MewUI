@@ -290,12 +290,12 @@ internal sealed class Win32WindowBackend : IWindowBackend
             // Win11+: extend by title bar height to preserve rounded corners.
             // Win7/Win10: extend by 1px to preserve DWM shadow without heavy Aero Glass effect.
             int extendPx = IsWindows11OrLater ? topPx : 1;
-            var margins = new Native.Dwmapi.MARGINS { cyTopHeight = extendPx };
+            var margins = new Dwmapi.MARGINS { cyTopHeight = extendPx };
             Native.Dwmapi.DwmExtendFrameIntoClientArea(Handle, ref margins);
         }
         else
         {
-            var margins = new Native.Dwmapi.MARGINS();
+            var margins = new Dwmapi.MARGINS();
             Native.Dwmapi.DwmExtendFrameIntoClientArea(Handle, ref margins);
         }
 
@@ -347,7 +347,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
         int screenX = (short)(lParam.ToInt64() & 0xFFFF);
         int screenY = (short)((lParam.ToInt64() >> 16) & 0xFFFF);
 
-        var pt = new Native.Structs.POINT(screenX, screenY);
+        var pt = new POINT(screenX, screenY);
         User32.ScreenToClient(Handle, ref pt);
 
         // Window client rect in pixels.
@@ -565,7 +565,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
                                   + User32.GetSystemMetrics(33 /* SM_CYSIZEFRAME */);
                         unsafe
                         {
-                            var rgrc = (Native.Structs.RECT*)lParam;
+                            var rgrc = (RECT*)lParam;
                             rgrc->left += frame;
                             rgrc->top += frame;
                             rgrc->right -= frame;
@@ -1928,7 +1928,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
             // candidate window size and position correctly.
             if (client is Controls.Control ctl)
             {
-                var logFont = new Native.Structs.LOGFONT
+                var logFont = new LOGFONT
                 {
                     lfHeight = -(int)(ctl.FontSize * dpiScale),
                     lfWeight = ctl.FontWeight == FontWeight.Bold ? 700 : 400,
@@ -2265,7 +2265,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
         User32.SetCursor(_currentCursor);
     }
 
-    public void SetImeMode(Input.ImeMode mode)
+    public void SetImeMode(ImeMode mode)
     {
         switch (mode)
         {

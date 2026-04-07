@@ -626,7 +626,7 @@ internal sealed class MacOSWindowBackend : IWindowBackend
         MacOSWindowInterop.SetCursor(cursorType);
     }
 
-    public void SetImeMode(Input.ImeMode mode)
+    public void SetImeMode(ImeMode mode)
     { }
 
     public void CancelImeComposition() { }
