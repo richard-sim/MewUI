@@ -39,6 +39,11 @@ public partial class TextBlock : FrameworkElement, IDisposable
     private TextMeasureCache _textMeasureCache;
     private double? _lastWrapMeasureWidth;
 
+    private TextFormat? _textFormat;
+    private TextLayout? _textLayout;
+    private bool _hasTextLayout;
+    private bool _isTextLayoutDirty = true;
+
     protected virtual void OnTextChanged() => InvalidateTextLayout();
     private void OnTextWrappingChanged() => InvalidateTextLayout();
     private void OnTextTrimmingChanged() => InvalidateTextLayout();
@@ -47,6 +52,12 @@ public partial class TextBlock : FrameworkElement, IDisposable
     {
         InvalidateTextMeasure();
         _lastWrapMeasureWidth = null;
+
+        TextFormat.Deatch(ref _textFormat);
+        TextLayout.Deatch(ref _textLayout);
+
+        _isTextLayoutDirty = true;
+        _hasTextLayout = false;
     }
 
     private uint _lastFontDpi;
@@ -199,6 +210,7 @@ public partial class TextBlock : FrameworkElement, IDisposable
     {
         if (string.IsNullOrEmpty(Text))
         {
+            _hasTextLayout = false;
             return Size.Empty;
         }
 
@@ -216,20 +228,28 @@ public partial class TextBlock : FrameworkElement, IDisposable
         {
             maxWidth = availableSize.Width;
             if (double.IsNaN(maxWidth) || maxWidth <= 0)
-            {
                 maxWidth = 0;
-            }
-
             if (double.IsPositiveInfinity(maxWidth))
-            {
                 maxWidth = 1_000_000;
-            }
-
             maxWidth = maxWidth > 0 ? maxWidth : 1_000_000;
             _lastWrapMeasureWidth = maxWidth;
         }
 
-        return _textMeasureCache.Measure(factory, GetDpi(), font, Text, wrapping, maxWidth);
+        // Compute TextLayout — layout phase
+        var constraintWidth = wrapping != TextWrapping.NoWrap ? maxWidth : double.PositiveInfinity;
+        var constraints = new TextLayoutConstraints(new Rect(0, 0, constraintWidth, 0));
+
+        using var ctx = factory.CreateMeasurementContext(GetDpi());
+
+        TextFormat.Deatch(ref _textFormat);
+        TextLayout.Deatch(ref _textLayout);
+
+        _textFormat = ctx.CreateTextFormat(font, TextAlignment, VerticalTextAlignment, wrapping, TextTrimming);
+        _textLayout = ctx.CreateTextLayout(Text, _textFormat, in constraints);
+        _hasTextLayout = true;
+        _isTextLayoutDirty = false;
+
+        return _textLayout.MeasuredSize;
     }
 
     protected override void ArrangeContent(Rect bounds)
@@ -256,20 +276,9 @@ public partial class TextBlock : FrameworkElement, IDisposable
 
     protected override void OnRender(IGraphicsContext context)
     {
-        if (string.IsNullOrEmpty(Text))
-        {
-            return;
-        }
-
-        var wrapping = TextWrapping;
-        if (wrapping == TextWrapping.NoWrap && HasExplicitLineBreaks)
-        {
-            wrapping = TextWrapping.Wrap;
-        }
-
-        var factory = GetGraphicsFactory();
-        var font = EnsureFont(factory);
-        context.DrawText(Text, Bounds, font, Foreground, TextAlignment, VerticalTextAlignment, wrapping, TextTrimming);
+        if (_textFormat == null || _textLayout == null) return;
+        _textLayout.EffectiveBounds = Bounds;
+        context.DrawTextLayout(Text, _textFormat, _textLayout, Foreground);
     }
 
     protected override void OnDpiChanged(uint oldDpi, uint newDpi)
@@ -283,6 +292,10 @@ public partial class TextBlock : FrameworkElement, IDisposable
     protected override void OnDispose()
     {
         base.OnDispose();
+
+        TextFormat.Deatch(ref _textFormat);
+        TextLayout.Deatch(ref _textLayout);
+
         _font?.Dispose();
         _font = null;
     }
