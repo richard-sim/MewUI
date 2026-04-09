@@ -22,11 +22,20 @@ public sealed class MacOSPlatformHost : IPlatformHost
 
     public string DefaultFontFamily => ".AppleSystemUIFont";
 
-    public IMessageBoxService MessageBox { get; } = new MacOSMessageBoxService();
+    public IMessageBoxService MessageBox
+    {
+        get;
+    } = new MacOSMessageBoxService();
 
-    public IFileDialogService FileDialog { get; } = new MacOSFileDialogService();
+    public IFileDialogService FileDialog
+    {
+        get;
+    } = new MacOSFileDialogService();
 
-    public IClipboardService Clipboard { get; } = new MacOSClipboardService();
+    public IClipboardService Clipboard
+    {
+        get;
+    } = new MacOSClipboardService();
 
     public IWindowBackend CreateWindowBackend(Window window)
     {
@@ -177,49 +186,82 @@ public sealed class MacOSPlatformHost : IPlatformHost
         // Basic manual event loop (NSApplication without calling [NSApp run]).
         while (_running)
         {
-            DrainEvents();
-
-            // Process posted dispatcher work.
-            _dispatcher.ProcessWorkItems();
-
-            CleanupClosedWindows();
-
-            // Update system theme only when notified (no polling).
-            if (Interlocked.Exchange(ref _themeUpdateRequested, 0) != 0)
+            try
             {
-                TryUpdateSystemTheme();
+                ProcessEventsAndDispatcher();
+            }
+            catch (Exception ex)
+            {
+                if (!HandleLoopException(app, ex))
+                {
+                    break;
+                }
             }
 
-            // Render requested windows.
             var scheduler = app.RenderLoopSettings;
             if (_lastContinuous && !scheduler.IsContinuous)
             {
-                // Ensure one final render when switching from Continuous to OnRequest.
                 foreach (var backend in _windows.Values)
                 {
                     backend.Invalidate(erase: true);
                 }
+
                 RequestRender();
-                RenderAllWindows();
+                try
+                {
+                    RenderAllWindows();
+                }
+                catch (Exception ex)
+                {
+                    if (!HandleLoopException(app, ex))
+                    {
+                        break;
+                    }
+                }
             }
             if (scheduler.IsContinuous)
             {
-                RenderAllWindows();
+                try
+                {
+                    RenderAllWindows();
+                }
+                catch (Exception ex)
+                {
+                    if (!HandleLoopException(app, ex))
+                    {
+                        break;
+                    }
+                }
 
-                // In MaxFPS mode, rendering can easily dominate the thread (GPU-bound). Poll once and drain again
-                // so input arriving during RenderAllWindows() is handled before the next frame starts.
                 if (scheduler.TargetFps <= 0)
                 {
-                    // Keep AppKit view/window geometry up-to-date during continuous rendering (including live resize).
-                    // If we skip updateWindows here, AppKit may keep showing a scaled backbuffer until mouse-up.
                     MacOSInterop.WaitForNextEvent(0, updateWindows: true);
-                    DrainEvents();
-                    _dispatcher.ProcessWorkItems();
+                    try
+                    {
+                        DrainEventsAndDispatcher();
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!HandleLoopException(app, ex))
+                        {
+                            break;
+                        }
+                    }
                 }
             }
             else
             {
-                RenderInvalidatedWindows();
+                try
+                {
+                    RenderInvalidatedWindows();
+                }
+                catch (Exception ex)
+                {
+                    if (!HandleLoopException(app, ex))
+                    {
+                        break;
+                    }
+                }
                 if (AnyWindowNeedsRender())
                 {
                     RequestRender();
@@ -234,18 +276,11 @@ public sealed class MacOSPlatformHost : IPlatformHost
 
             if (scheduler.IsContinuous && scheduler.TargetFps <= 0)
             {
-                // Max FPS: never block. We already polled & drained after rendering.
                 Thread.Yield();
                 _dispatcher.ClearWakeRequest();
                 continue;
             }
 
-            // Block waiting for either OS input or dispatcher work.
-            // Use an event-driven wait to keep CPU usage low when idle.
-            // timeoutMs meanings (see MacOSInterop.WaitForNextEvent):
-            //   0  => non-blocking poll
-            //  >0  => timed wait
-            //  <0  => wait indefinitely
             int timeoutMs;
             if (_dispatcher.HasPendingWork)
             {
@@ -269,15 +304,12 @@ public sealed class MacOSPlatformHost : IPlatformHost
                             frameWaitMs = (int)((frameTicks - elapsed) * 1000 / ticksPerSecond);
                         }
 
-                        // Also consider timers; whichever comes first should wake us.
                         int timerWaitMs = _dispatcher.GetPollTimeoutMs(maxMs: frameWaitMs <= 0 ? 1000 : frameWaitMs);
                         timeoutMs = frameWaitMs <= 0 ? timerWaitMs : (timerWaitMs < 0 ? frameWaitMs : Math.Min(frameWaitMs, timerWaitMs));
-
                         _lastFrameTicks = Stopwatch.GetTimestamp();
                     }
                     else
                     {
-                        // Max FPS: keep pumping without blocking (still yields to OS by polling).
                         timeoutMs = 0;
                     }
                 }
@@ -285,10 +317,7 @@ public sealed class MacOSPlatformHost : IPlatformHost
                 {
                     timeoutMs = _dispatcher.GetPollTimeoutMs(maxMs: 1000);
                 }
-
-                // No polling for System theme; handled via notifications only.
             }
-            // Avoid calling updateWindows while blocking; it can generate continuous AppKit activity.
             bool updateWindows = timeoutMs == 0;
             if (timeoutMs == 0)
             {
@@ -297,14 +326,22 @@ public sealed class MacOSPlatformHost : IPlatformHost
             else
             {
                 using var pool = new MacOSInterop.AutoReleasePool();
-                if (MacOSInterop.WaitForNextEventDequeue(timeoutMs, updateWindows: false, out var ev))
+                try
                 {
-                    ProcessSingleEvent(ev);
-                }
+                    if (MacOSInterop.WaitForNextEventDequeue(timeoutMs, updateWindows: false, out var ev))
+                    {
+                        ProcessSingleEvent(ev);
+                    }
 
-                // Drain any remaining queued events immediately to avoid input latency.
-                DrainEvents();
-                _dispatcher.ProcessWorkItems();
+                    DrainEventsAndDispatcher();
+                }
+                catch (Exception ex)
+                {
+                    if (!HandleLoopException(app, ex))
+                    {
+                        break;
+                    }
+                }
             }
             _dispatcher.ClearWakeRequest();
         }
@@ -373,6 +410,35 @@ public sealed class MacOSPlatformHost : IPlatformHost
         app.NotifySystemThemeChanged();
     }
 
+    private void ProcessEventsAndDispatcher()
+    {
+        DrainEvents();
+        _dispatcher.ProcessWorkItems();
+        CleanupClosedWindows();
+        if (Interlocked.Exchange(ref _themeUpdateRequested, 0) != 0)
+        {
+            TryUpdateSystemTheme();
+        }
+    }
+
+    private void DrainEventsAndDispatcher()
+    {
+        DrainEvents();
+        _dispatcher.ProcessWorkItems();
+    }
+
+    private bool HandleLoopException(Application app, Exception ex)
+    {
+        if (app.TryHandleDispatcherException(ex))
+        {
+            return true;
+        }
+
+        app.NotifyFatalDispatcherException(ex);
+        _running = false;
+        return false;
+    }
+
     public void Quit(Application app)
     {
         _running = false;
@@ -385,58 +451,74 @@ public sealed class MacOSPlatformHost : IPlatformHost
         using var pool = new MacOSInterop.AutoReleasePool();
         while (MacOSInterop.TryDequeueEvent(out var ev))
         {
-            if (ev == 0)
+            try
             {
-                continue;
-            }
-
-            int type = MacOSInterop.GetEventType(ev);
-            var nsWindow = MacOSInterop.GetEventWindow(ev);
-
-            var windowKey = nsWindow;
-            if (windowKey == 0)
-            {
-                var keyWindow = MacOSInterop.GetKeyWindow();
-                if (keyWindow != 0)
+                if (ev == 0)
                 {
-                    windowKey = keyWindow;
+                    continue;
                 }
-                else if (_lastInputWindow != 0)
+
+                int type = MacOSInterop.GetEventType(ev);
+                var nsWindow = MacOSInterop.GetEventWindow(ev);
+
+                var windowKey = nsWindow;
+                if (windowKey == 0)
                 {
-                    windowKey = _lastInputWindow;
+                    var keyWindow = MacOSInterop.GetKeyWindow();
+                    if (keyWindow != 0)
+                    {
+                        windowKey = keyWindow;
+                    }
+                    else if (_lastInputWindow != 0)
+                    {
+                        windowKey = _lastInputWindow;
+                    }
+                    else if (_windows.Count == 1)
+                    {
+                        windowKey = _windows.Keys.FirstOrDefault();
+                    }
+                }
+
+                _windows.TryGetValue(windowKey, out var backend);
+                var topModalBackend = GetTopModalBackend();
+                if (topModalBackend != null && IsMouseEvent(type) && backend != topModalBackend)
+                {
+                    topModalBackend.Activate();
+                    continue;
+                }
+
+                bool forwardToCocoa = type != 10 && type != 11;
+                if (forwardToCocoa && backend != null && !backend.IsEnabled && IsMouseEvent(type))
+                {
+                    forwardToCocoa = false;
+                }
+
+                if (forwardToCocoa)
+                {
+                    MacOSInterop.SendEvent(ev);
+                }
+
+                if (backend != null)
+                {
+                    backend.ProcessNSEvent(ev);
                 }
                 else if (_windows.Count == 1)
                 {
-                    windowKey = _windows.Keys.FirstOrDefault();
+                    _windows.Values.FirstOrDefault()?.ProcessNSEvent(ev);
                 }
             }
+            catch (Exception ex)
+            {
+                if (!Application.IsRunning || !Application.Current.TryHandleDispatcherException(ex))
+                {
+                    if (Application.IsRunning)
+                    {
+                        Application.Current.NotifyFatalDispatcherException(ex);
+                    }
 
-            _windows.TryGetValue(windowKey, out var backend);
-            var topModalBackend = GetTopModalBackend();
-            if (topModalBackend != null && IsMouseEvent(type) && backend != topModalBackend)
-            {
-                topModalBackend.Activate();
-                continue;
-            }
-
-            bool forwardToCocoa = type != 10 && type != 11;
-            if (forwardToCocoa && backend != null && !backend.IsEnabled && IsMouseEvent(type))
-            {
-                forwardToCocoa = false;
-            }
-
-            if (forwardToCocoa)
-            {
-                MacOSInterop.SendEvent(ev);
-            }
-
-            if (backend != null)
-            {
-                backend.ProcessNSEvent(ev);
-            }
-            else if (_windows.Count == 1)
-            {
-                _windows.Values.FirstOrDefault()?.ProcessNSEvent(ev);
+                    _running = false;
+                    break;
+                }
             }
         }
     }

@@ -290,7 +290,10 @@ internal static unsafe class MacOSInterop
     public static bool IsWindowMiniaturized(nint nsWindow)
     {
         if (nsWindow == 0)
+        {
             return false;
+        }
+
         return ObjC.MsgSend_bool(nsWindow, ObjC.Sel("isMiniaturized"));
     }
 

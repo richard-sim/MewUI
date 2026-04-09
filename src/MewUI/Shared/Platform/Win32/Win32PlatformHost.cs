@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 
 using Aprillz.MewUI.Native;
 using Aprillz.MewUI.Native.Constants;
@@ -162,58 +161,65 @@ public sealed class Win32PlatformHost : IPlatformHost
 
             while (_running)
             {
-                try
+                if (scheduler.IsContinuous)
                 {
-                    if (scheduler.IsContinuous)
+                    try
                     {
                         ProcessMessages();
-                        if (!_running)
-                        {
-                            break;
-                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!HandleLoopException(app, ex)) break;
+                    }
+                    if (!_running) break;
 
+                    try
+                    {
                         RenderAllWindows();
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!HandleLoopException(app, ex)) break;
+                    }
 
-                        int fps = scheduler.TargetFps;
-                        if (fps > 0)
+                    int fps = scheduler.TargetFps;
+                    if (fps > 0)
+                    {
+                        long frameTicks = ticksPerSecond / fps;
+                        long now = Stopwatch.GetTimestamp();
+                        long elapsed = now - lastFrameTicks;
+                        if (elapsed < frameTicks)
                         {
-                            long frameTicks = ticksPerSecond / fps;
-                            long now = Stopwatch.GetTimestamp();
-                            long elapsed = now - lastFrameTicks;
-                            if (elapsed < frameTicks)
+                            var waitMs = (frameTicks - elapsed) * 1000 / ticksPerSecond;
+                            if (waitMs > 0)
                             {
-                                var waitMs = (frameTicks - elapsed) * 1000 / ticksPerSecond;
-                                if (waitMs > 0)
-                                {
-                                    WaitForMessagesOrRender((uint)waitMs, renderOnSignal: false);
-                                }
+                                WaitForMessagesOrRender((uint)waitMs, renderOnSignal: false);
                             }
-                            lastFrameTicks = Stopwatch.GetTimestamp();
                         }
-                        else
-                        {
-                            WaitForMessagesOrRender(0, renderOnSignal: false);
-                        }
+                        lastFrameTicks = Stopwatch.GetTimestamp();
                     }
                     else
                     {
-                        WaitForMessagesOrRender(0xFFFFFFFF, renderOnSignal: true);
-                        ProcessMessages();
-
-                        if (_running && AnyWindowNeedsRender())
-                        {
-                            RequestRender();
-                        }
+                        WaitForMessagesOrRender(0, renderOnSignal: false);
                     }
                 }
-                catch (Exception ex)
+                else
                 {
-                    // Avoid letting managed exceptions escape into the native message loop.
-                    // Dispatcher-level handling is performed by the dispatcher queue.
-                    app.NotifyFatalDispatcherException(ex);
-                    _running = false;
-                    User32.PostQuitMessage(0);
-                    break;
+                    WaitForMessagesOrRender(0xFFFFFFFF, renderOnSignal: true);
+
+                    try
+                    {
+                        ProcessMessages();
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!HandleLoopException(app, ex)) break;
+                    }
+
+                    if (_running && AnyWindowNeedsRender())
+                    {
+                        RequestRender();
+                    }
                 }
             }
         }
@@ -221,6 +227,21 @@ public sealed class Win32PlatformHost : IPlatformHost
         {
             Shutdown(app);
         }
+    }
+
+    /// <summary>
+    /// Returns true if the exception was handled and the loop can continue.
+    /// Returns false if fatal — caller should break.
+    /// </summary>
+    private bool HandleLoopException(Application app, Exception ex)
+    {
+        if (app.TryHandleDispatcherException(ex))
+            return true;
+
+        app.NotifyFatalDispatcherException(ex);
+        _running = false;
+        User32.PostQuitMessage(0);
+        return false;
     }
 
     public void Quit(Application app)
@@ -241,13 +262,14 @@ public sealed class Win32PlatformHost : IPlatformHost
             }
             catch (Exception ex)
             {
-                if (Application.IsRunning)
+                if (!Application.IsRunning || !Application.Current.TryHandleDispatcherException(ex))
                 {
-                    Application.Current.NotifyFatalDispatcherException(ex);
+                    if (Application.IsRunning)
+                        Application.Current.NotifyFatalDispatcherException(ex);
+                    _running = false;
+                    User32.PostQuitMessage(0);
+                    break;
                 }
-                _running = false;
-                User32.PostQuitMessage(0);
-                break;
             }
         }
     }
@@ -301,7 +323,9 @@ public sealed class Win32PlatformHost : IPlatformHost
                     _dispatcher?.ProcessWorkItems();
                     if (_dispatcher?.HasPendingWork == true)
                     {
-                        _dispatcher?.BeginInvoke(DispatcherPriority.Background, () => { });
+                        _dispatcher?.BeginInvoke(DispatcherPriority.Background, () =>
+                        {
+                        });
                     }
                     return 0;
 
@@ -322,9 +346,12 @@ public sealed class Win32PlatformHost : IPlatformHost
             }
             catch (Exception ex)
             {
-                Application.Current.NotifyFatalDispatcherException(ex);
-                _running = false;
-                User32.PostQuitMessage(0);
+                if (!Application.Current.TryHandleDispatcherException(ex))
+                {
+                    Application.Current.NotifyFatalDispatcherException(ex);
+                    _running = false;
+                    User32.PostQuitMessage(0);
+                }
                 return 0;
             }
         }
@@ -568,6 +595,5 @@ public sealed class Win32PlatformHost : IPlatformHost
         }
     }
 
-    public void Dispose()
-    { }
+    public void Dispose() { }
 }

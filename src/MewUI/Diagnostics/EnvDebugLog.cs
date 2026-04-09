@@ -5,47 +5,72 @@ using System.Runtime.CompilerServices;
 namespace Aprillz.MewUI.Diagnostics;
 
 /// <summary>
-/// Tiny logging helper that gates logs via environment variables and avoids interpolated string formatting
-/// when disabled (via <see cref="InterpolatedStringHandlerAttribute" />).
+/// Environment-variable-backed on/off switches for debug logging.
 /// </summary>
-public static class EnvDebugLog
+internal static class EnvDebugSwitches
 {
-    private static readonly ConcurrentDictionary<string, bool> _enabledByEnvVar = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, bool> _values = new(StringComparer.Ordinal);
 
-    public static bool IsEnabled(string envVar, bool defaultValue = false)
+    public static bool IsOn(string envVar)
     {
-        return _enabledByEnvVar.GetOrAdd(envVar, _ =>
+        return _values.GetOrAdd(envVar, static key =>
         {
-            var v = Environment.GetEnvironmentVariable(envVar);
-            if (string.IsNullOrWhiteSpace(v))
-            {
-                return defaultValue;
-            }
-
-            if (string.Equals(v, "0", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(v, "false", StringComparison.OrdinalIgnoreCase))
+            var value = Environment.GetEnvironmentVariable(key);
+            if (string.IsNullOrWhiteSpace(value))
             {
                 return false;
             }
 
-            if (string.Equals(v, "1", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(v, "true", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(value, "true", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
 
-            // Non-empty but unrecognized values are treated as enabled to make "set anything" convenient.
-            return true;
+            return false;
         });
     }
+}
 
-    public static void Write(string envVar, string tag, string message, bool defaultEnabled = false)
+/// <summary>
+/// Tagged debug logger controlled by an environment variable.
+/// Interpolated string logging avoids formatting work when disabled.
+/// </summary>
+public sealed class EnvDebugLogger
+{
+    private readonly string _envVar;
+    private readonly string _tag;
+
+    public EnvDebugLogger(string envVar, string tag)
     {
-        if (!IsEnabled(envVar, defaultEnabled))
+        _envVar = envVar;
+        _tag = tag;
+    }
+
+    public bool Enabled => EnvDebugSwitches.IsOn(_envVar);
+
+    public void Write(string message)
+    {
+        if (!Enabled)
         {
             return;
         }
 
+        Emit(_tag, message);
+    }
+
+    public void Write([InterpolatedStringHandlerArgument("")] ref Handler message)
+    {
+        if (!message.IsActive)
+        {
+            return;
+        }
+
+        Emit(_tag, message.ToStringAndClear());
+    }
+
+    private static void Emit(string tag, string message)
+    {
         try
         {
             var line = $"{tag} {DateTime.Now:HH:mm:ss.fff} {message}";
@@ -57,119 +82,63 @@ public static class EnvDebugLog
         }
     }
 
-    public static void Write(string envVar, string tag, ref MessageHandler message, bool defaultEnabled = false)
-    {
-        if (!message.Enabled)
-        {
-            return;
-        }
-
-        try
-        {
-            var line = $"{tag} {DateTime.Now:HH:mm:ss.fff} {message.ToStringAndClear()}";
-            Console.WriteLine(line);
-            Debug.WriteLine(line);
-        }
-        catch
-        {
-        }
-    }
-
-    public readonly struct Logger
-    {
-        private readonly string _envVar;
-        private readonly string _tag;
-        private readonly bool _defaultEnabled;
-
-        public Logger(string envVar, string tag, bool defaultEnabled = false)
-        {
-            _envVar = envVar;
-            _tag = tag;
-            _defaultEnabled = defaultEnabled;
-        }
-
-        public bool IsEnabled()
-            => EnvDebugLog.IsEnabled(_envVar, _defaultEnabled);
-
-        public void Write(string message)
-            => EnvDebugLog.Write(_envVar, _tag, message, _defaultEnabled);
-
-        public void Write([InterpolatedStringHandlerArgument("")] ref Handler message)
-            => EnvDebugLog.Write(_envVar, _tag, ref message._inner, _defaultEnabled);
-
-        [InterpolatedStringHandler]
-        public ref struct Handler
-        {
-            internal MessageHandler _inner;
-
-            public Handler(int literalLength, int formattedCount, Logger logger, out bool enabled)
-            {
-                _inner = new MessageHandler(literalLength, formattedCount, logger._envVar, logger._tag, logger._defaultEnabled, out enabled);
-            }
-
-            public void AppendLiteral(string value) => _inner.AppendLiteral(value);
-            public void AppendFormatted<T>(T value) => _inner.AppendFormatted(value);
-            public void AppendFormatted<T>(T value, string? format) => _inner.AppendFormatted(value, format);
-            public void AppendFormatted(string? value) => _inner.AppendFormatted(value);
-            public void AppendFormatted(string? value, int alignment = 0, string? format = null) => _inner.AppendFormatted(value, alignment, format);
-        }
-    }
-
     [InterpolatedStringHandler]
-    public ref struct MessageHandler
+    public ref struct Handler
     {
-        private DefaultInterpolatedStringHandler _inner;
+        private DefaultInterpolatedStringHandler _builder;
 
-        public bool Enabled { get; }
+        public bool IsActive { get; }
 
-        public MessageHandler(int literalLength, int formattedCount, string envVar, string tag, bool defaultEnabled, out bool enabled)
+        public Handler(int literalLength, int formattedCount, EnvDebugLogger logger, out bool enabled)
         {
-            enabled = IsEnabled(envVar, defaultEnabled);
-            Enabled = enabled;
-            _inner = enabled ? new DefaultInterpolatedStringHandler(literalLength, formattedCount) : default;
+            enabled = logger.Enabled;
+            IsActive = enabled;
+            _builder = enabled
+                ? new DefaultInterpolatedStringHandler(literalLength, formattedCount)
+                : default;
         }
 
         public void AppendLiteral(string value)
         {
-            if (Enabled)
+            if (IsActive)
             {
-                _inner.AppendLiteral(value);
+                _builder.AppendLiteral(value);
             }
         }
 
         public void AppendFormatted<T>(T value)
         {
-            if (Enabled)
+            if (IsActive)
             {
-                _inner.AppendFormatted(value);
+                _builder.AppendFormatted(value);
             }
         }
 
         public void AppendFormatted<T>(T value, string? format)
         {
-            if (Enabled)
+            if (IsActive)
             {
-                _inner.AppendFormatted(value, format);
+                _builder.AppendFormatted(value, format);
             }
         }
 
         public void AppendFormatted(string? value)
         {
-            if (Enabled)
+            if (IsActive)
             {
-                _inner.AppendFormatted(value);
+                _builder.AppendFormatted(value);
             }
         }
 
         public void AppendFormatted(string? value, int alignment = 0, string? format = null)
         {
-            if (Enabled)
+            if (IsActive)
             {
-                _inner.AppendFormatted(value, alignment, format);
+                _builder.AppendFormatted(value, alignment, format);
             }
         }
 
         public string ToStringAndClear()
-            => Enabled ? _inner.ToStringAndClear() : string.Empty;
+            => IsActive ? _builder.ToStringAndClear() : string.Empty;
     }
 }

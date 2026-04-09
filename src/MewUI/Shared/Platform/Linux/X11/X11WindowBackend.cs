@@ -11,7 +11,7 @@ namespace Aprillz.MewUI.Platform.Linux.X11;
 
 internal sealed class X11WindowBackend : IWindowBackend
 {
-    private static readonly EnvDebugLog.Logger ImeLogger = new("MEWUI_IME_DEBUG", "[X11][IME]");
+    private static readonly EnvDebugLogger ImeLogger = new("MEWUI_IME_DEBUG", "[X11][IME]");
 
     private readonly X11PlatformHost _host;
 
@@ -770,11 +770,7 @@ internal sealed class X11WindowBackend : IWindowBackend
         }
         else
         {
-            ImeLogger.Write(
-                $"XIM disabled: im=0x{_xim.ToInt64():X} ic=0x{_xic.ToInt64():X} " +
-                $"XMODIFIERS='{Environment.GetEnvironmentVariable("XMODIFIERS") ?? ""}' " +
-                $"GTK_IM_MODULE='{Environment.GetEnvironmentVariable("GTK_IM_MODULE") ?? ""}' " +
-                $"QT_IM_MODULE='{Environment.GetEnvironmentVariable("QT_IM_MODULE") ?? ""}'");
+            ImeLogger.Write($"XIM disabled: im=0x{_xim.ToInt64():X} ic=0x{_xic.ToInt64():X} XMODIFIERS='{Environment.GetEnvironmentVariable("XMODIFIERS") ?? ""}' GTK_IM_MODULE='{Environment.GetEnvironmentVariable("GTK_IM_MODULE") ?? ""}' QT_IM_MODULE='{Environment.GetEnvironmentVariable("QT_IM_MODULE") ?? ""}'");
         }
 
         NeedsRender = true;

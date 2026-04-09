@@ -469,7 +469,7 @@ public sealed class Application
         }
     }
 
-    public bool TryHandleDispatcherException(Exception ex)
+    internal bool TryHandleDispatcherException(Exception ex)
     {
         try
         {
@@ -484,7 +484,7 @@ public sealed class Application
         }
     }
 
-    public void NotifyFatalDispatcherException(Exception ex)
+    internal void NotifyFatalDispatcherException(Exception ex)
         => Interlocked.CompareExchange(ref _pendingFatalException, ex, null);
 
     private static void ApplyPlatformFontDefaults(IPlatformHost host)

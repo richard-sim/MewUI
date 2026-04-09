@@ -22,7 +22,7 @@ internal static partial class X11Ime
         internal static partial nint setlocale(int category, string locale);
     }
 
-    private static readonly EnvDebugLog.Logger ImeLogger = new("MEWUI_IME_DEBUG", "[X11][IME]");
+    private static readonly EnvDebugLogger ImeLogger = new("MEWUI_IME_DEBUG", "[X11][IME]");
 
     // Cached function pointers for dynamic XIM calls (resolved once during IC creation).
     private static unsafe delegate* unmanaged[Cdecl]<nint, nint, nint, nint, nint> _createNestedList;

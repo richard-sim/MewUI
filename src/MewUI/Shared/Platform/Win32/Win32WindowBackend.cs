@@ -13,7 +13,7 @@ namespace Aprillz.MewUI.Platform.Win32;
 
 internal sealed class Win32WindowBackend : IWindowBackend
 {
-    private static readonly EnvDebugLog.Logger ImeLogger = new("MEWUI_IME_DEBUG", "[Win32][IME]");
+    private static readonly EnvDebugLogger ImeLogger = new("MEWUI_IME_DEBUG", "[Win32][IME]");
 
     private readonly Win32PlatformHost _host;
 
@@ -458,9 +458,25 @@ internal sealed class Win32WindowBackend : IWindowBackend
         uint dpi = Window.Dpi == 0 ? GetDpiForWindow(Handle) : Window.Dpi;
         double dpiScale = dpi / 96.0;
 
-        var rect = new RECT(0, 0, (int)Math.Round(widthDip * dpiScale), (int)Math.Round(heightDip * dpiScale));
-        Win32DpiApiResolver.AdjustWindowRectExForDpi(ref rect, GetWindowStyle(), false, 0, dpi);
-        User32.SetWindowPos(Handle, 0, 0, 0, rect.Width, rect.Height, 0x0002 | 0x0004); // SWP_NOMOVE | SWP_NOZORDER
+        int clientW = (int)Math.Round(widthDip * dpiScale);
+        int clientH = (int)Math.Round(heightDip * dpiScale);
+
+        int windowW, windowH;
+        if (_extendTitleBarHeight > 0)
+        {
+            // WM_NCCALCSIZE removes non-client area → client = window.
+            windowW = clientW;
+            windowH = clientH;
+        }
+        else
+        {
+            var rect = new RECT(0, 0, clientW, clientH);
+            Win32DpiApiResolver.AdjustWindowRectExForDpi(ref rect, GetWindowStyle(), false, 0, dpi);
+            windowW = rect.Width;
+            windowH = rect.Height;
+        }
+
+        User32.SetWindowPos(Handle, 0, 0, 0, windowW, windowH, 0x0002 | 0x0004); // SWP_NOMOVE | SWP_NOZORDER
     }
 
     public Point GetPosition()

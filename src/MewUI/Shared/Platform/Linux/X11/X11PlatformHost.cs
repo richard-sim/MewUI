@@ -121,81 +121,54 @@ public sealed class X11PlatformHost : IPlatformHost
         {
             try
             {
-                // Drain pending events
-                while (_running && NativeX11.XPending(display) != 0)
-                {
-                    NativeX11.XNextEvent(display, out var ev);
-                    if (ev.type == 28) // PropertyNotify
-                    {
-                        HandlePropertyNotify(ev.xproperty);
-                    }
-                    var window = GetEventWindow(ev);
-                    if (window != 0 && _windows.TryGetValue(window, out var backend))
-                    {
-                        var topModal = GetTopModalBackend();
-                        if (topModal != null && (IsMouseEvent(ev.type) || IsFocusIn(ev.type)) && backend != topModal)
-                        {
-                            topModal.Activate();
-                            continue;
-                        }
-                        backend.ProcessEvent(ref ev);
-                    }
-                }
-
-                PollDpiChanges();
-                if (Interlocked.Exchange(ref _systemThemeDirty, 0) != 0)
-                {
-                    TryUpdateSystemTheme(force: true);
-                }
-                else
-                {
-                    TryUpdateSystemTheme();
-                }
-
-                _dispatcher?.ProcessWorkItems();
-
-                if (scheduler.IsContinuous)
-                {
-                    RenderAllWindows();
-
-                    int fps = scheduler.TargetFps;
-                    if (fps > 0)
-                    {
-                        long frameTicks = ticksPerSecond / fps;
-                        long now = Stopwatch.GetTimestamp();
-                        long elapsed = now - lastFrameTicks;
-                        if (elapsed < frameTicks)
-                        {
-                            int waitMs = (int)((frameTicks - elapsed) * 1000 / ticksPerSecond);
-                            if (waitMs > 0)
-                            {
-                                WaitForWorkOrEvents(timeoutOverrideMs: waitMs, ignoreRenderRequests: true);
-                            }
-                        }
-                        lastFrameTicks = Stopwatch.GetTimestamp();
-                    }
-                    else
-                    {
-                        WaitForWorkOrEvents(timeoutOverrideMs: 0, ignoreRenderRequests: true);
-                    }
-                }
-                else
-                {
-                    // Coalesced rendering for all windows.
-                    RenderInvalidatedWindows();
-                }
+                DrainAndProcessEvents();
             }
             catch (Exception ex)
             {
-                // Dispatcher-level handling is performed by the dispatcher queue.
-                app.NotifyFatalDispatcherException(ex);
-                _running = false;
-                break;
+                if (!HandleLoopException(app, ex)) break;
             }
 
             if (scheduler.IsContinuous)
             {
+                try
+                {
+                    RenderAllWindows();
+                }
+                catch (Exception ex)
+                {
+                    if (!HandleLoopException(app, ex)) break;
+                }
+
+                int fps = scheduler.TargetFps;
+                if (fps > 0)
+                {
+                    long frameTicks = ticksPerSecond / fps;
+                    long now = Stopwatch.GetTimestamp();
+                    long elapsed = now - lastFrameTicks;
+                    if (elapsed < frameTicks)
+                    {
+                        int waitMs = (int)((frameTicks - elapsed) * 1000 / ticksPerSecond);
+                        if (waitMs > 0)
+                            WaitForWorkOrEvents(timeoutOverrideMs: waitMs, ignoreRenderRequests: true);
+                    }
+                    lastFrameTicks = Stopwatch.GetTimestamp();
+                }
+                else
+                {
+                    WaitForWorkOrEvents(timeoutOverrideMs: 0, ignoreRenderRequests: true);
+                }
                 continue;
+            }
+            else
+            {
+                try
+                {
+                    RenderInvalidatedWindows();
+                }
+                catch (Exception ex)
+                {
+                    if (!HandleLoopException(app, ex)) break;
+                }
             }
 
             WaitForWorkOrEvents();
@@ -203,7 +176,13 @@ public sealed class X11PlatformHost : IPlatformHost
 
         if (Display != 0)
         {
-            try { NativeX11.XCloseDisplay(Display); } catch { }
+            try
+            {
+                NativeX11.XCloseDisplay(Display);
+            }
+            catch
+            {
+            }
             Display = 0;
         }
 
@@ -247,6 +226,46 @@ public sealed class X11PlatformHost : IPlatformHost
         };
     }
 
+    private void DrainAndProcessEvents()
+    {
+        while (_running && NativeX11.XPending(Display) != 0)
+        {
+            NativeX11.XNextEvent(Display, out var ev);
+            if (ev.type == 28) // PropertyNotify
+                HandlePropertyNotify(ev.xproperty);
+
+            var window = GetEventWindow(ev);
+            if (window != 0 && _windows.TryGetValue(window, out var backend))
+            {
+                var topModal = GetTopModalBackend();
+                if (topModal != null && (IsMouseEvent(ev.type) || IsFocusIn(ev.type)) && backend != topModal)
+                {
+                    topModal.Activate();
+                    continue;
+                }
+                backend.ProcessEvent(ref ev);
+            }
+        }
+
+        PollDpiChanges();
+        if (Interlocked.Exchange(ref _systemThemeDirty, 0) != 0)
+            TryUpdateSystemTheme(force: true);
+        else
+            TryUpdateSystemTheme();
+
+        _dispatcher?.ProcessWorkItems();
+    }
+
+    private bool HandleLoopException(Application app, Exception ex)
+    {
+        if (app.TryHandleDispatcherException(ex))
+            return true;
+
+        app.NotifyFatalDispatcherException(ex);
+        _running = false;
+        return false;
+    }
+
     public void Quit(Application app) => _running = false;
 
     public void DoEvents()
@@ -258,23 +277,36 @@ public sealed class X11PlatformHost : IPlatformHost
 
         while (NativeX11.XPending(Display) != 0)
         {
-            NativeX11.XNextEvent(Display, out var ev);
-            if (ev.type == 28) // PropertyNotify
+            try
             {
-                HandlePropertyNotify(ev.xproperty);
-                // Fall through to also deliver PropertyNotify to the window backend
-                // so it can track _NET_WM_STATE changes for WindowState sync.
-            }
-            var window = GetEventWindow(ev);
-            if (window != 0 && _windows.TryGetValue(window, out var backend))
-            {
-                var topModal = GetTopModalBackend();
-                if (topModal != null && (IsMouseEvent(ev.type) || IsFocusIn(ev.type)) && backend != topModal)
+                NativeX11.XNextEvent(Display, out var ev);
+                if (ev.type == 28) // PropertyNotify
                 {
-                    topModal.Activate();
-                    continue;
+                    HandlePropertyNotify(ev.xproperty);
+                    // Fall through to also deliver PropertyNotify to the window backend
+                    // so it can track _NET_WM_STATE changes for WindowState sync.
                 }
-                backend.ProcessEvent(ref ev);
+                var window = GetEventWindow(ev);
+                if (window != 0 && _windows.TryGetValue(window, out var backend))
+                {
+                    var topModal = GetTopModalBackend();
+                    if (topModal != null && (IsMouseEvent(ev.type) || IsFocusIn(ev.type)) && backend != topModal)
+                    {
+                        topModal.Activate();
+                        continue;
+                    }
+                    backend.ProcessEvent(ref ev);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (!Application.IsRunning || !Application.Current.TryHandleDispatcherException(ex))
+                {
+                    if (Application.IsRunning)
+                        Application.Current.NotifyFatalDispatcherException(ex);
+                    _running = false;
+                    break;
+                }
             }
         }
 
@@ -296,14 +328,23 @@ public sealed class X11PlatformHost : IPlatformHost
 
         if (Display != 0)
         {
-            try { NativeX11.XCloseDisplay(Display); } catch { }
+            try
+            {
+                NativeX11.XCloseDisplay(Display);
+            }
+            catch
+            {
+            }
             Display = 0;
         }
 
         CloseWakePipe();
     }
 
-    internal nint Display { get; private set; }
+    internal nint Display
+    {
+        get; private set;
+    }
 
     internal void EnsureDisplay()
     {
@@ -392,13 +433,25 @@ public sealed class X11PlatformHost : IPlatformHost
         var readFd = Interlocked.Exchange(ref _wakeReadFd, -1);
         if (readFd >= 0)
         {
-            try { LibC.Close(readFd); } catch { }
+            try
+            {
+                LibC.Close(readFd);
+            }
+            catch
+            {
+            }
         }
 
         var writeFd = Interlocked.Exchange(ref _wakeWriteFd, -1);
         if (writeFd >= 0)
         {
-            try { LibC.Close(writeFd); } catch { }
+            try
+            {
+                LibC.Close(writeFd);
+            }
+            catch
+            {
+            }
         }
 
         _xConnectionFd = -1;
@@ -580,8 +633,16 @@ public sealed class X11PlatformHost : IPlatformHost
         unsafe
         {
             PollFd* fds = stackalloc PollFd[2];
-            fds[0] = new PollFd { fd = _xConnectionFd, events = PollEvents.POLLIN };
-            fds[1] = new PollFd { fd = _wakeReadFd, events = PollEvents.POLLIN };
+            fds[0] = new PollFd
+            {
+                fd = _xConnectionFd,
+                events = PollEvents.POLLIN
+            };
+            fds[1] = new PollFd
+            {
+                fd = _wakeReadFd,
+                events = PollEvents.POLLIN
+            };
 
             _ = LibC.Poll(fds, 2, timeoutMs);
             wakeSignaled = (fds[1].revents & PollEvents.POLLIN) != 0;
