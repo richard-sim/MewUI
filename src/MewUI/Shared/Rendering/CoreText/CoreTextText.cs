@@ -535,8 +535,18 @@ internal static unsafe partial class CoreTextText
 
                 if (!ok)
                 {
-                    // Ask CoreText for a font that can render this range.
-                    fontToUse = CTFontCreateForString(baseFont, cfString, new CFRange(i, clusterLen));
+                    // Try user-configured fallback chain first.
+                    nint userFallback = TryUserFallbackChain(baseFont, slice, glyphs, advances, clusterLen);
+                    if (userFallback != 0)
+                    {
+                        fontToUse = userFallback;
+                    }
+                    else
+                    {
+                        // Ask CoreText for a font that can render this range.
+                        fontToUse = CTFontCreateForString(baseFont, cfString, new CFRange(i, clusterLen));
+                    }
+
                     if (fontToUse == 0)
                     {
                         i += clusterLen;
@@ -545,17 +555,20 @@ internal static unsafe partial class CoreTextText
 
                     try
                     {
-                        fixed (char* pChars = slice)
-                        fixed (ushort* pGlyphs = glyphs)
-                        fixed (CGSize* pAdv = advances)
+                        if (userFallback == 0) // Need to get glyphs for CoreText fallback
                         {
-                            if (!CTFontGetGlyphsForCharacters(fontToUse, pChars, pGlyphs, (nuint)clusterLen))
+                            fixed (char* pChars = slice)
+                            fixed (ushort* pGlyphs = glyphs)
+                            fixed (CGSize* pAdv = advances)
                             {
-                                i += clusterLen;
-                                continue;
-                            }
+                                if (!CTFontGetGlyphsForCharacters(fontToUse, pChars, pGlyphs, (nuint)clusterLen))
+                                {
+                                    i += clusterLen;
+                                    continue;
+                                }
 
-                            _ = CTFontGetAdvancesForGlyphs(fontToUse, CTFontOrientationHorizontal, pGlyphs, pAdv, (nuint)clusterLen);
+                                _ = CTFontGetAdvancesForGlyphs(fontToUse, CTFontOrientationHorizontal, pGlyphs, pAdv, (nuint)clusterLen);
+                            }
                         }
 
                         // Draw this cluster with the fallback font.
@@ -639,7 +652,19 @@ internal static unsafe partial class CoreTextText
 
                 if (!ok)
                 {
-                    nint fallbackFont = CTFontCreateForString(baseFont, cfString, new CFRange(i, clusterLen));
+                    // Try user-configured fallback chain first.
+                    bool fromUserChain = false;
+                    nint fallbackFont = TryUserFallbackChain(baseFont, slice, glyphs, advances, clusterLen);
+                    if (fallbackFont != 0)
+                    {
+                        fromUserChain = true;
+                    }
+                    else
+                    {
+                        // Fall back to CoreText automatic selection.
+                        fallbackFont = CTFontCreateForString(baseFont, cfString, new CFRange(i, clusterLen));
+                    }
+
                     if (fallbackFont == 0)
                     {
                         i += clusterLen;
@@ -648,17 +673,20 @@ internal static unsafe partial class CoreTextText
 
                     try
                     {
-                        fixed (char* pChars = slice)
-                        fixed (ushort* pGlyphs = glyphs)
-                        fixed (CGSize* pAdv = advances)
+                        if (!fromUserChain)
                         {
-                            if (!CTFontGetGlyphsForCharacters(fallbackFont, pChars, pGlyphs, (nuint)clusterLen))
+                            fixed (char* pChars = slice)
+                            fixed (ushort* pGlyphs = glyphs)
+                            fixed (CGSize* pAdv = advances)
                             {
-                                i += clusterLen;
-                                continue;
-                            }
+                                if (!CTFontGetGlyphsForCharacters(fallbackFont, pChars, pGlyphs, (nuint)clusterLen))
+                                {
+                                    i += clusterLen;
+                                    continue;
+                                }
 
-                            _ = CTFontGetAdvancesForGlyphs(fallbackFont, CTFontOrientationHorizontal, pGlyphs, pAdv, (nuint)clusterLen);
+                                _ = CTFontGetAdvancesForGlyphs(fallbackFont, CTFontOrientationHorizontal, pGlyphs, pAdv, (nuint)clusterLen);
+                            }
                         }
 
                         for (int j = 0; j < clusterLen; j++)
@@ -688,6 +716,73 @@ internal static unsafe partial class CoreTextText
         {
             CFRelease(cfString);
         }
+    }
+
+    /// <summary>
+    /// Tries the user-configured <see cref="FontFallback.FallbackChain"/> before falling back
+    /// to CoreText's automatic font selection. Returns a CTFont ref (caller must CFRelease)
+    /// or 0 if no user fallback covers this cluster. On success, <paramref name="glyphs"/> and
+    /// <paramref name="advances"/> are filled.
+    /// </summary>
+    private static nint TryUserFallbackChain(
+        nint baseFont, ReadOnlySpan<char> cluster,
+        Span<ushort> glyphs, Span<CGSize> advances, int clusterLen)
+    {
+        var chain = FontFallback.GetChainSnapshot();
+        if (chain.Length == 0) return 0;
+
+        double fontSize = CTFontGetAscent(baseFont) + CTFontGetDescent(baseFont); // approximate size
+
+        foreach (var family in chain)
+        {
+            nint cfName = 0;
+            nint candidateFont = 0;
+            try
+            {
+                fixed (char* pName = family)
+                {
+                    cfName = CFStringCreateWithCharacters(allocator: 0, pName, new nint(family.Length));
+                }
+                if (cfName == 0) continue;
+
+                candidateFont = CTFontCreateWithName(cfName, fontSize, 0);
+                if (candidateFont == 0) continue;
+
+                fixed (char* pChars = cluster)
+                fixed (ushort* pGlyphs = glyphs)
+                fixed (CGSize* pAdv = advances)
+                {
+                    if (CTFontGetGlyphsForCharacters(candidateFont, pChars, pGlyphs, (nuint)clusterLen))
+                    {
+                        // Verify at least one non-zero glyph
+                        bool anyGlyph = false;
+                        for (int j = 0; j < clusterLen; j++)
+                        {
+                            if (pGlyphs[j] != 0) { anyGlyph = true; break; }
+                        }
+
+                        if (anyGlyph)
+                        {
+                            _ = CTFontGetAdvancesForGlyphs(candidateFont, CTFontOrientationHorizontal, pGlyphs, pAdv, (nuint)clusterLen);
+                            return candidateFont; // Caller takes ownership
+                        }
+                    }
+                }
+
+                CFRelease(candidateFont);
+                candidateFont = 0;
+            }
+            catch
+            {
+                if (candidateFont != 0) CFRelease(candidateFont);
+            }
+            finally
+            {
+                if (cfName != 0) CFRelease(cfName);
+            }
+        }
+
+        return 0;
     }
 
     private static nint CreateCFString(ReadOnlySpan<char> text)

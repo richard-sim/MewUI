@@ -13,6 +13,7 @@ internal sealed class TracingPlatformHost : IPlatformHost
     }
 
     public string DefaultFontFamily => _inner.DefaultFontFamily;
+    public IReadOnlyList<string> DefaultFontFallbacks => _inner.DefaultFontFallbacks;
     public IMessageBoxService MessageBox => _inner.MessageBox;
     public IFileDialogService FileDialog => _inner.FileDialog;
     public IClipboardService Clipboard => _inner.Clipboard;

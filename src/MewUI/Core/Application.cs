@@ -502,6 +502,9 @@ public sealed class Application
         {
             ThemeManager.DefaultMetrics = metrics with { FontFamily = fontFamily };
         }
+
+        // Apply platform default font fallback chain (same pattern as DefaultFontFamily).
+        Rendering.FontFallback.ApplyPlatformDefaults(host.DefaultFontFallbacks);
     }
 
     private static IPlatformHost CreateDefaultPlatformHost()

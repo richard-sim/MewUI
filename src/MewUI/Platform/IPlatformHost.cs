@@ -38,6 +38,13 @@ public interface IPlatformHost : IDisposable
     string DefaultFontFamily { get; }
 
     /// <summary>
+    /// Gets the platform's default font fallback chain.
+    /// Fonts are tried in order when a glyph is missing from the primary font.
+    /// Returns an empty array if the platform handles fallback automatically.
+    /// </summary>
+    IReadOnlyList<string> DefaultFontFallbacks { get; }
+
+    /// <summary>
     /// Gets the system DPI used when no window handle is available.
     /// </summary>
     uint GetSystemDpi();

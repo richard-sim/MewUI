@@ -30,6 +30,24 @@ public sealed class Win32PlatformHost : IPlatformHost
 
     public string DefaultFontFamily { get; } = QuerySystemFontFamily();
 
+    public IReadOnlyList<string> DefaultFontFallbacks { get; } = BuildDefaultFontFallbacks();
+
+    private static string[] BuildDefaultFontFallbacks()
+    {
+        var locale = Rendering.FontFallback.ResolvedLocale;
+        var cjk = Rendering.FontFallback.OrderCjkByLocale(locale,
+            kr: "Malgun Gothic", jp: "Yu Gothic UI",
+            sc: "Microsoft YaHei UI", tc: "Microsoft JhengHei UI");
+
+        var chain = new List<string>(12) { "Segoe UI Emoji" };
+        chain.AddRange(cjk);
+        chain.AddRange([
+            "Segoe UI", "Segoe UI Symbol", "Segoe UI Historic",
+            "Cambria Math",
+        ]);
+        return [.. chain];
+    }
+
     private static string QuerySystemFontFamily()
     {
         try

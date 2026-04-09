@@ -54,6 +54,16 @@ internal static partial class FreeType
 
     [LibraryImport(LibraryName)]
     public static unsafe partial int FT_Set_Var_Design_Coordinates(nint face, uint num_coords, nint coords);
+
+    /// <summary>
+    /// FT_HAS_COLOR macro: checks if the face has color glyph tables (CBDT/CBLC, COLR, SVG).
+    /// </summary>
+    public static unsafe bool FT_HAS_COLOR(nint face)
+    {
+        if (face == 0) return false;
+        var faceRec = (FT_FaceRec*)face;
+        return ((long)faceRec->face_flags & FreeTypeFaceFlags.FT_FACE_FLAG_COLOR) != 0;
+    }
 }
 
 internal static class FreeTypeLoad
@@ -66,6 +76,7 @@ internal static class FreeTypeLoad
     public const int FT_LOAD_TARGET_LIGHT = 0x1 << 16;
     public const int FT_LOAD_TARGET_LCD = 0x3 << 16;
     public const int FT_LOAD_FORCE_AUTOHINT = 0x20;
+    public const int FT_LOAD_COLOR = 1 << 20; // FT_LOAD_COLOR — load color bitmaps (CBDT/CBLC, COLR)
 }
 
 internal static class FreeTypeKerning
@@ -240,6 +251,7 @@ internal unsafe struct FT_MM_Var
 internal static class FreeTypeFaceFlags
 {
     public const long FT_FACE_FLAG_MULTIPLE_MASTERS = 1L << 8;
+    public const long FT_FACE_FLAG_COLOR = 1L << 14;
 }
 
 internal static class FreeTypeVarAxisTags

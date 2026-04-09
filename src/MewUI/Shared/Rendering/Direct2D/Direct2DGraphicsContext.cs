@@ -711,6 +711,7 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
                     w, h, out textLayout);
                 if (hr >= 0 && textLayout != 0)
                 {
+                    ApplyCustomFontFallback(textLayout);
                     DWriteVTable.CreateEllipsisTrimmingSign((IDWriteFactory*)_dwriteFactory, textFormat, out trimmingSign);
                     var dwriteTrimming = new DWRITE_TRIMMING { granularity = DWRITE_TRIMMING_GRANULARITY.CHARACTER };
                     DWriteVTable.SetTrimming(textLayout, dwriteTrimming, trimmingSign);
@@ -770,6 +771,8 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
         if (ownFormat) ComHelpers.Release(nativeFormat);
 
         if (hr < 0 || nativeLayout == 0) return null!;
+
+        ApplyCustomFontFallback(nativeLayout);
 
         // Apply trimming if requested.
         if (format.Trimming == TextTrimming.CharacterEllipsis)
@@ -865,6 +868,8 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
             int hr = DWriteVTable.CreateTextLayout((IDWriteFactory*)_dwriteFactory, text, textFormat, w, float.MaxValue, out textLayout);
             if (hr < 0 || textLayout == 0) return Size.Empty;
 
+            ApplyCustomFontFallback(textLayout);
+
             hr = DWriteVTable.GetMetrics(textLayout, out var metrics);
             if (hr < 0) return Size.Empty;
 
@@ -909,6 +914,23 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
         DWriteVTable.SetWordWrapping(textFormat,
             wrapping == TextWrapping.NoWrap ? DWRITE_WORD_WRAPPING.NO_WRAP : DWRITE_WORD_WRAPPING.WRAP);
         return textFormat;
+    }
+
+    /// <summary>
+    /// Applies the user-configured font fallback chain to a text layout (if any).
+    /// Uses IDWriteTextLayout2::SetFontFallback with a custom IDWriteFontFallback
+    /// built from <see cref="FontFallback.FallbackChain"/>.
+    /// Safe to call on any layout — silently no-ops if IDWriteFactory2 is unavailable.
+    /// </summary>
+    private void ApplyCustomFontFallback(nint textLayout)
+    {
+        if (textLayout == 0) return;
+
+        var fallback = DWriteFontFallbackHelper.GetOrCreate((IDWriteFactory*)_dwriteFactory);
+        if (fallback == 0) return;
+
+        // This may fail if the layout doesn't support IDWriteTextLayout2 — that's fine.
+        _ = DWriteTextLayout2VTable.SetFontFallback(textLayout, fallback);
     }
 
     public override void DrawImage(IImage image, Point location) =>

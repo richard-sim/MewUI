@@ -22,6 +22,24 @@ public sealed class MacOSPlatformHost : IPlatformHost
 
     public string DefaultFontFamily => ".AppleSystemUIFont";
 
+    public IReadOnlyList<string> DefaultFontFallbacks { get; } = BuildDefaultFontFallbacks();
+
+    private static string[] BuildDefaultFontFallbacks()
+    {
+        var locale = Rendering.FontFallback.ResolvedLocale;
+        var cjk = Rendering.FontFallback.OrderCjkByLocale(locale,
+            kr: "Apple SD Gothic Neo", jp: "Hiragino Sans",
+            sc: "PingFang SC", tc: "PingFang TC");
+
+        var chain = new List<string>(12) { "Apple Color Emoji" };
+        chain.AddRange(cjk);
+        chain.AddRange([
+            "Geeza Pro", "Devanagari Sangam MN", "Thonburi",
+            "Helvetica Neue", "Arial Unicode MS",
+        ]);
+        return [.. chain];
+    }
+
     public IMessageBoxService MessageBox
     {
         get;

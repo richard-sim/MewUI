@@ -72,6 +72,40 @@ internal static partial class Fontconfig
     public const int FC_SLANT_ITALIC = 100;
     public const int FC_SLANT_OBLIQUE = 110;
 
+    // --- Charset API (for fallback font queries) ---
+
+    // FcCharSetCreate
+    [LibraryImport(LibraryName)]
+    public static partial nint FcCharSetCreate();
+
+    // FcCharSetAddChar(charset, ucs4) -> bool
+    [LibraryImport(LibraryName)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FcCharSetAddChar(nint charset, uint ucs4);
+
+    // FcCharSetDestroy(charset)
+    [LibraryImport(LibraryName)]
+    public static partial void FcCharSetDestroy(nint charset);
+
+    // FcPatternAddCharSet(pattern, object, charset) -> bool
+    [LibraryImport(LibraryName, StringMarshalling = StringMarshalling.Utf8)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FcPatternAddCharSet(nint pattern, string obj, nint charset);
+
+    // --- FcFontSort ---
+
+    // FcFontSort(config, pattern, trim, &charsets, &result) -> FcFontSet*
+    [LibraryImport(LibraryName)]
+    public static partial nint FcFontSort(nint config, nint pattern,
+        [MarshalAs(UnmanagedType.Bool)] bool trim, out nint charsets, out int result);
+
+    // FcFontSetDestroy(fontSet)
+    [LibraryImport(LibraryName)]
+    public static partial void FcFontSetDestroy(nint fontSet);
+
+    // FcFontSet structure: { int nfont; int sfont; FcPattern** fonts; }
+    public const string FC_CHARSET = "charset";
+
     // FcMatchPattern
     public const int FcMatchPattern = 0;
 

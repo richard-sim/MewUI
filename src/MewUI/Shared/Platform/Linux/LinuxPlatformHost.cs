@@ -8,6 +8,8 @@ public sealed class LinuxPlatformHost : IPlatformHost
 {
     public string DefaultFontFamily => "sans-serif";
 
+    public IReadOnlyList<string> DefaultFontFallbacks { get; } = Array.Empty<string>();
+
     public IMessageBoxService MessageBox { get; } = new LinuxMessageBoxService();
 
     public IFileDialogService FileDialog { get; } = new LinuxFileDialogService();

@@ -38,6 +38,8 @@ internal sealed unsafe class Direct2DMeasurementContext : MeasureGraphicsContext
             hr = DWriteVTable.CreateTextLayout((IDWriteFactory*)_dwriteFactory, text, textFormat, w, float.MaxValue, out textLayout);
             if (hr < 0 || textLayout == 0) return default;
 
+            ApplyCustomFontFallback(textLayout);
+
             hr = DWriteVTable.GetMetrics(textLayout, out var metrics);
             if (hr < 0) return default;
 
@@ -74,6 +76,14 @@ internal sealed unsafe class Direct2DMeasurementContext : MeasureGraphicsContext
             ComHelpers.Release(textLayout);
             ComHelpers.Release(textFormat);
         }
+    }
+
+    private void ApplyCustomFontFallback(nint textLayout)
+    {
+        if (textLayout == 0) return;
+        var fallback = DWriteFontFallbackHelper.GetOrCreate((IDWriteFactory*)_dwriteFactory);
+        if (fallback == 0) return;
+        _ = DWriteTextLayout2VTable.SetFontFallback(textLayout, fallback);
     }
 
     public void ReleaseTextLayout(TextLayout layout)

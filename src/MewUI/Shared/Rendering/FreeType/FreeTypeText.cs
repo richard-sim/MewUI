@@ -28,7 +28,7 @@ internal static unsafe class FreeTypeText
         int maxLineWidth = 0;
         int lines = 0;
 
-        TextLayoutUtils.EnumerateLines(text, maxWidthPx, wrapping, span => MeasureRunWidthPx(span, face), line =>
+        TextLayoutUtils.EnumerateLines(text, maxWidthPx, wrapping, span => MeasureRunWidthPx(span, face, font.PixelHeight, font.Weight, font.IsItalic), line =>
         {
             int width = (int)Math.Ceiling(line.Width);
             if (width > maxLineWidth)
@@ -78,7 +78,7 @@ internal static unsafe class FreeTypeText
         var lines = new List<LineSegment>();
         int maxLineWidth = 0;
         int effectiveWrapWidth = wrapping == TextWrapping.Wrap ? widthPx : 0;
-        TextLayoutUtils.EnumerateLines(text, effectiveWrapWidth, wrapping, span => MeasureRunWidthPx(span, face), line =>
+        TextLayoutUtils.EnumerateLines(text, effectiveWrapWidth, wrapping, span => MeasureRunWidthPx(span, face, font.PixelHeight, font.Weight, font.IsItalic), line =>
         {
             int width = (int)Math.Ceiling(line.Width);
             if (width > maxLineWidth)
@@ -100,7 +100,7 @@ internal static unsafe class FreeTypeText
                     if (line.Width > widthPx && line.Length > 0)
                     {
                         var lineText = text.Slice(line.Start, line.Length);
-                        var trimmed = TextLayoutUtils.TrimLineWithEllipsis(lineText, line.Start, widthPx, span => MeasureRunWidthPx(span, face));
+                        var trimmed = TextLayoutUtils.TrimLineWithEllipsis(lineText, line.Start, widthPx, span => MeasureRunWidthPx(span, face, font.PixelHeight, font.Weight, font.IsItalic));
                         lines[i] = new LineSegment(trimmed.Start, trimmed.Length, trimmed.Width);
                         trimmedFlags.Add(true);
                     }
@@ -123,32 +123,32 @@ internal static unsafe class FreeTypeText
                     if (lastLine.Length > 0)
                     {
                         var lineText = text.Slice(lastLine.Start, lastLine.Length);
-                        int ellipsisW = MeasureRunWidthPx("...", face);
+                        int ellipsisW = MeasureRunWidthPx("...", face, font.PixelHeight, font.Weight, font.IsItalic);
                         int maxTextW = Math.Max(0, widthPx - ellipsisW);
 
                         // Don't use TrimLineWithEllipsis here — its fast path skips the
                         // ellipsis when text fits, but wrap overflow always needs "...".
                         int trimLen = lastLine.Length;
-                        int textW = MeasureRunWidthPx(lineText, face);
+                        int textW = MeasureRunWidthPx(lineText, face, font.PixelHeight, font.Weight, font.IsItalic);
                         if (textW > maxTextW)
                         {
                             double avgChar = (double)textW / trimLen;
                             trimLen = Math.Clamp((int)(maxTextW / avgChar), 0, lastLine.Length);
-                            textW = trimLen > 0 ? MeasureRunWidthPx(lineText.Slice(0, trimLen), face) : 0;
+                            textW = trimLen > 0 ? MeasureRunWidthPx(lineText.Slice(0, trimLen), face, font.PixelHeight, font.Weight, font.IsItalic) : 0;
 
                             if (textW > maxTextW)
                             {
                                 while (trimLen > 0 && textW > maxTextW)
                                 {
                                     trimLen--;
-                                    textW = trimLen > 0 ? MeasureRunWidthPx(lineText.Slice(0, trimLen), face) : 0;
+                                    textW = trimLen > 0 ? MeasureRunWidthPx(lineText.Slice(0, trimLen), face, font.PixelHeight, font.Weight, font.IsItalic) : 0;
                                 }
                             }
                             else
                             {
                                 while (trimLen < lastLine.Length)
                                 {
-                                    int next = MeasureRunWidthPx(lineText.Slice(0, trimLen + 1), face);
+                                    int next = MeasureRunWidthPx(lineText.Slice(0, trimLen + 1), face, font.PixelHeight, font.Weight, font.IsItalic);
                                     if (next > maxTextW) break;
                                     trimLen++;
                                     textW = next;
@@ -235,7 +235,7 @@ internal static unsafe class FreeTypeText
                 var shaped = HarfBuzzShaper.Shape(shapeInput, face);
                 if (shaped != null)
                 {
-                    RenderShapedGlyphs(shaped, face, font, penX, penY, buffer, widthPx, heightPx, color);
+                    RenderShapedGlyphs(shaped, face, font, penX, penY, buffer, widthPx, heightPx, color, shapeInput);
                     continue;
                 }
             }
@@ -246,7 +246,7 @@ internal static unsafe class FreeTypeText
             if (trimmed)
             {
                 // Advance penX to end of line for ellipsis placement.
-                int lineEndX = penX + MeasureRunWidthPxFallback(lineText, face);
+                int lineEndX = penX + MeasureRunWidthPxFallback(lineText, face, font.PixelHeight, font.Weight, font.IsItalic);
                 RenderEllipsisFallback(face, font, lineEndX, penY, buffer, widthPx, heightPx, color);
             }
         }
@@ -254,7 +254,8 @@ internal static unsafe class FreeTypeText
         return new TextBitmap(widthPx, heightPx, buffer);
     }
 
-    private static int MeasureRunWidthPx(ReadOnlySpan<char> text, FreeTypeFaceCache.FaceEntry face)
+    private static int MeasureRunWidthPx(ReadOnlySpan<char> text, FreeTypeFaceCache.FaceEntry face,
+        int pixelHeight, FontWeight weight, bool italic)
     {
         if (text.IsEmpty)
         {
@@ -266,28 +267,54 @@ internal static unsafe class FreeTypeText
             var shaped = HarfBuzzShaper.Shape(text, face);
             if (shaped != null)
             {
-                return MeasureShapedWidth(shaped);
+                return MeasureShapedWidth(shaped, text, pixelHeight, weight, italic);
             }
         }
 
-        return MeasureRunWidthPxFallback(text, face);
+        return MeasureRunWidthPxFallback(text, face, pixelHeight, weight, italic);
     }
 
-    private static int MeasureShapedWidth(ShapedGlyph[] glyphs)
+    /// <summary>
+    /// Measures the total width of shaped glyphs, substituting fallback face advances
+    /// for .notdef glyphs (glyph ID 0) so that measurement matches rendering.
+    /// </summary>
+    private static int MeasureShapedWidth(ShapedGlyph[] glyphs,
+        ReadOnlySpan<char> sourceText, int pixelHeight, FontWeight weight, bool italic)
     {
         long total = 0;
+
         for (int i = 0; i < glyphs.Length; i++)
         {
-            total += glyphs[i].XAdvance26_6;
+            ref readonly var g = ref glyphs[i];
+
+            if (g.GlyphId == 0 && !sourceText.IsEmpty)
+            {
+                // .notdef — use fallback face advance (same logic as RenderShapedGlyphs)
+                uint codepoint = GetCodepointFromCluster(sourceText, g.Cluster);
+                if (codepoint != 0)
+                {
+                    var fallbackFace = LinuxFontFallbackResolver.Resolve(
+                        codepoint, pixelHeight, weight, italic);
+                    if (fallbackFace != null && fallbackFace.GetGlyphIndex(codepoint) != 0)
+                    {
+                        total += (long)fallbackFace.GetAdvancePx(codepoint) << 6;
+                        continue;
+                    }
+                }
+            }
+
+            total += g.XAdvance26_6;
         }
 
         return (int)Math.Round(total / 64.0, MidpointRounding.AwayFromZero);
     }
 
-    private static int MeasureRunWidthPxFallback(ReadOnlySpan<char> text, FreeTypeFaceCache.FaceEntry face)
+    private static int MeasureRunWidthPxFallback(ReadOnlySpan<char> text, FreeTypeFaceCache.FaceEntry face,
+        int pixelHeight, FontWeight weight, bool italic)
     {
         int width = 0;
         uint prevGlyph = 0;
+        FreeTypeFaceCache.FaceEntry prevFace = face;
         for (int i = 0; i < text.Length; i++)
         {
             char ch = text[i];
@@ -308,9 +335,30 @@ internal static unsafe class FreeTypeText
             }
 
             uint glyph = face.GetGlyphIndex(code);
-            width += GetKerningPx(face, prevGlyph, glyph);
-            width += face.GetAdvancePx(code);
+            var activeFace = face;
+
+            if (glyph == 0)
+            {
+                var fallbackFace = LinuxFontFallbackResolver.Resolve(code, pixelHeight, weight, italic);
+                if (fallbackFace != null)
+                {
+                    uint fbGlyph = fallbackFace.GetGlyphIndex(code);
+                    if (fbGlyph != 0)
+                    {
+                        activeFace = fallbackFace;
+                        glyph = fbGlyph;
+                    }
+                }
+            }
+
+            // Only apply kerning within the same face
+            if (activeFace == prevFace)
+            {
+                width += GetKerningPx(activeFace, prevGlyph, glyph);
+            }
+            width += activeFace.GetAdvancePx(code);
             prevGlyph = glyph;
+            prevFace = activeFace;
         }
 
         return width;
@@ -344,7 +392,8 @@ internal static unsafe class FreeTypeText
         byte[] buffer,
         int widthPx,
         int heightPx,
-        Color color)
+        Color color,
+        ReadOnlySpan<char> sourceText = default)
     {
         long penX26_6 = (long)startPenX << 6;
         int baseY = penY + font.PixelHeight;
@@ -354,7 +403,35 @@ internal static unsafe class FreeTypeText
         {
             ref readonly var g = ref glyphs[i];
 
-            int drawX = (int)((penX26_6 + g.XOffset26_6) >> 6);
+            // Detect .notdef glyph (glyph ID 0) — try fallback
+            if (g.GlyphId == 0 && !sourceText.IsEmpty)
+            {
+                // Extract the codepoint from the source text using cluster offset
+                uint codepoint = GetCodepointFromCluster(sourceText, g.Cluster);
+                if (codepoint != 0)
+                {
+                    var fallbackFace = LinuxFontFallbackResolver.Resolve(
+                        codepoint, font.PixelHeight, font.Weight, font.IsItalic);
+                    if (fallbackFace != null)
+                    {
+                        uint fbGlyph = fallbackFace.GetGlyphIndex(codepoint);
+                        if (fbGlyph != 0)
+                        {
+                            int drawX = (int)(penX26_6 >> 6);
+                            RenderFallbackCodepoint(fallbackFace, codepoint, fbGlyph, drawX, baseY,
+                                buffer, widthPx, heightPx, color, out int advancePx);
+                            penX26_6 += (long)advancePx << 6;
+                            continue;
+                        }
+                    }
+                }
+
+                // No fallback found — skip this glyph
+                penX26_6 += g.XAdvance26_6;
+                continue;
+            }
+
+            int glyphDrawX = (int)((penX26_6 + g.XOffset26_6) >> 6);
             int drawYOffset = (int)(g.YOffset26_6 >> 6);
 
             lock (face.SyncRoot)
@@ -373,7 +450,7 @@ internal static unsafe class FreeTypeText
                         if (FT.FT_Glyph_To_Bitmap(ref bmpGlyphPtr, FreeTypeRenderMode.FT_RENDER_MODE_NORMAL, origin: 0, destroy: false) == 0 && bmpGlyphPtr != 0)
                         {
                             var bmpGlyph = Marshal.PtrToStructure<FT_BitmapGlyphRec>(bmpGlyphPtr);
-                            int dstX0 = drawX + bmpGlyph.left;
+                            int dstX0 = glyphDrawX + bmpGlyph.left;
                             int dstY0 = baseY - bmpGlyph.top - drawYOffset;
                             BlitGlyph(bmpGlyph.bitmap, (int)bmpGlyph.bitmap.width, (int)bmpGlyph.bitmap.rows,
                                 dstX0, dstY0, buffer, widthPx, heightPx, color);
@@ -396,6 +473,77 @@ internal static unsafe class FreeTypeText
         }
     }
 
+    private static uint GetCodepointFromCluster(ReadOnlySpan<char> text, uint cluster)
+    {
+        int offset = (int)cluster;
+        if ((uint)offset >= (uint)text.Length) return 0;
+
+        char ch = text[offset];
+        if (char.IsHighSurrogate(ch) && offset + 1 < text.Length && char.IsLowSurrogate(text[offset + 1]))
+        {
+            return (uint)char.ConvertToUtf32(ch, text[offset + 1]);
+        }
+
+        return ch;
+    }
+
+    private static void RenderFallbackCodepoint(
+        FreeTypeFaceCache.FaceEntry fallbackFace,
+        uint codepoint,
+        uint glyphId,
+        int penX,
+        int baseY,
+        byte[] buffer,
+        int widthPx,
+        int heightPx,
+        Color color,
+        out int advancePx)
+    {
+        advancePx = fallbackFace.GetAdvancePx(codepoint);
+
+        bool isColorFont = FT.FT_HAS_COLOR(fallbackFace.Face);
+        int flags = FreeTypeLoad.FT_LOAD_DEFAULT | FreeTypeLoad.FT_LOAD_TARGET_LIGHT;
+        if (isColorFont)
+        {
+            flags |= FreeTypeLoad.FT_LOAD_COLOR;
+        }
+
+        lock (fallbackFace.SyncRoot)
+        {
+            if (FT.FT_Load_Glyph(fallbackFace.Face, glyphId, flags) != 0) return;
+
+            var slotPtr = fallbackFace.GetGlyphSlotPointer();
+            if (slotPtr == 0) return;
+
+            if (FT.FT_Get_Glyph(slotPtr, out var glyphPtr) != 0 || glyphPtr == 0) return;
+
+            nint bmpGlyphPtr = glyphPtr;
+            try
+            {
+                if (FT.FT_Glyph_To_Bitmap(ref bmpGlyphPtr, FreeTypeRenderMode.FT_RENDER_MODE_NORMAL, origin: 0, destroy: false) == 0 && bmpGlyphPtr != 0)
+                {
+                    var bmpGlyph = Marshal.PtrToStructure<FT_BitmapGlyphRec>(bmpGlyphPtr);
+                    if (isColorFont && bmpGlyph.bitmap.pixel_mode == 7) // FT_PIXEL_MODE_BGRA
+                    {
+                        BlitColorGlyph(bmpGlyph.bitmap, (int)bmpGlyph.bitmap.width, (int)bmpGlyph.bitmap.rows,
+                            penX + bmpGlyph.left, baseY - bmpGlyph.top, buffer, widthPx, heightPx);
+                    }
+                    else
+                    {
+                        BlitGlyph(bmpGlyph.bitmap, (int)bmpGlyph.bitmap.width, (int)bmpGlyph.bitmap.rows,
+                            penX + bmpGlyph.left, baseY - bmpGlyph.top, buffer, widthPx, heightPx, color);
+                    }
+                }
+            }
+            finally
+            {
+                if (bmpGlyphPtr != 0 && bmpGlyphPtr != glyphPtr)
+                    FT.FT_Done_Glyph(bmpGlyphPtr);
+                FT.FT_Done_Glyph(glyphPtr);
+            }
+        }
+    }
+
     private static void RenderLineFallback(
         ReadOnlySpan<char> text,
         LineSegment line,
@@ -409,6 +557,7 @@ internal static unsafe class FreeTypeText
         Color color)
     {
         uint prevGlyph = 0;
+        FreeTypeFaceCache.FaceEntry prevFace = face;
         int flags = FreeTypeLoad.FT_LOAD_DEFAULT | FreeTypeLoad.FT_LOAD_TARGET_LIGHT;
         int baseY = penY + font.PixelHeight;
 
@@ -432,17 +581,42 @@ internal static unsafe class FreeTypeText
             }
 
             uint glyph = face.GetGlyphIndex(code);
-            penX += GetKerningPx(face, prevGlyph, glyph);
-            prevGlyph = glyph;
+            var activeFace = face;
 
-            lock (face.SyncRoot)
+            if (glyph == 0)
             {
-                if (FT.FT_Load_Char(face.Face, code, flags) != 0)
+                var fallbackFace = LinuxFontFallbackResolver.Resolve(code, font.PixelHeight, font.Weight, font.IsItalic);
+                if (fallbackFace != null && fallbackFace.GetGlyphIndex(code) != 0)
+                {
+                    activeFace = fallbackFace;
+                    glyph = fallbackFace.GetGlyphIndex(code);
+                }
+            }
+
+            // Only apply kerning within the same face
+            if (activeFace == prevFace)
+            {
+                penX += GetKerningPx(activeFace, prevGlyph, glyph);
+            }
+            prevGlyph = glyph;
+            prevFace = activeFace;
+
+            int loadFlags = flags;
+            // Check for color emoji (CBDT/CBLC bitmap fonts)
+            bool isColorFont = FT.FT_HAS_COLOR(activeFace.Face);
+            if (isColorFont)
+            {
+                loadFlags |= FreeTypeLoad.FT_LOAD_COLOR;
+            }
+
+            lock (activeFace.SyncRoot)
+            {
+                if (FT.FT_Load_Char(activeFace.Face, code, loadFlags) != 0)
                 {
                     goto Advance;
                 }
 
-                var slotPtr = face.GetGlyphSlotPointer();
+                var slotPtr = activeFace.GetGlyphSlotPointer();
                 if (slotPtr != 0 && FT.FT_Get_Glyph(slotPtr, out var glyphPtr) == 0 && glyphPtr != 0)
                 {
                     nint bmpGlyphPtr = glyphPtr;
@@ -452,8 +626,16 @@ internal static unsafe class FreeTypeText
                         if (err == 0 && bmpGlyphPtr != 0)
                         {
                             var bmpGlyph = Marshal.PtrToStructure<FT_BitmapGlyphRec>(bmpGlyphPtr);
-                            BlitGlyph(bmpGlyph.bitmap, (int)bmpGlyph.bitmap.width, (int)bmpGlyph.bitmap.rows,
-                                penX + bmpGlyph.left, baseY - bmpGlyph.top, buffer, widthPx, heightPx, color);
+                            if (isColorFont && bmpGlyph.bitmap.pixel_mode == 7) // FT_PIXEL_MODE_BGRA
+                            {
+                                BlitColorGlyph(bmpGlyph.bitmap, (int)bmpGlyph.bitmap.width, (int)bmpGlyph.bitmap.rows,
+                                    penX + bmpGlyph.left, baseY - bmpGlyph.top, buffer, widthPx, heightPx);
+                            }
+                            else
+                            {
+                                BlitGlyph(bmpGlyph.bitmap, (int)bmpGlyph.bitmap.width, (int)bmpGlyph.bitmap.rows,
+                                    penX + bmpGlyph.left, baseY - bmpGlyph.top, buffer, widthPx, heightPx, color);
+                            }
                         }
                     }
                     finally
@@ -469,7 +651,7 @@ internal static unsafe class FreeTypeText
             }
 
             Advance:
-            penX += face.GetAdvancePx(code);
+            penX += activeFace.GetAdvancePx(code);
         }
     }
 
@@ -505,9 +687,13 @@ internal static unsafe class FreeTypeText
             return;
         }
 
-        // We only handle grayscale bitmaps for now.
-        // pixel_mode == 2 : FT_PIXEL_MODE_GRAY
-        if (bitmap.pixel_mode != 2)
+        // We handle grayscale (mode 2) and color BGRA (mode 7) bitmaps.
+        if (bitmap.pixel_mode == 7) // FT_PIXEL_MODE_BGRA — use BlitColorGlyph instead
+        {
+            return;
+        }
+
+        if (bitmap.pixel_mode != 2) // FT_PIXEL_MODE_GRAY
         {
             return;
         }
@@ -572,6 +758,93 @@ internal static unsafe class FreeTypeText
                 dstBgra[di + 3] = (byte)outA;
             }
         }
+    }
+
+    /// <summary>
+    /// Blits a BGRA color bitmap glyph (e.g., color emoji from CBDT/CBLC tables).
+    /// pixel_mode == 7 (FT_PIXEL_MODE_BGRA): each pixel is 4 bytes (B, G, R, A premultiplied).
+    /// </summary>
+    private static unsafe void BlitColorGlyph(
+        FT_Bitmap bitmap,
+        int glyphW,
+        int glyphH,
+        int dstX0,
+        int dstY0,
+        byte[] dstBgra,
+        int dstW,
+        int dstH)
+    {
+        if (bitmap.buffer == null || glyphW <= 0 || glyphH <= 0)
+        {
+            return;
+        }
+
+        int pitch = bitmap.pitch;
+        if (pitch == 0)
+        {
+            return;
+        }
+
+        for (int y = 0; y < glyphH; y++)
+        {
+            int dy = dstY0 + y;
+            if ((uint)dy >= (uint)dstH)
+            {
+                continue;
+            }
+
+            byte* srcRow = bitmap.buffer + y * pitch;
+
+            for (int x = 0; x < glyphW; x++)
+            {
+                int dx = dstX0 + x;
+                if ((uint)dx >= (uint)dstW)
+                {
+                    continue;
+                }
+
+                int si = x * 4;
+                byte srcB = srcRow[si + 0];
+                byte srcG = srcRow[si + 1];
+                byte srcR = srcRow[si + 2];
+                byte srcA = srcRow[si + 3];
+
+                if (srcA == 0)
+                {
+                    continue;
+                }
+
+                int di = (dy * dstW + dx) * 4;
+
+                if (srcA == 255)
+                {
+                    dstBgra[di + 0] = srcB;
+                    dstBgra[di + 1] = srcG;
+                    dstBgra[di + 2] = srcR;
+                    dstBgra[di + 3] = 255;
+                    continue;
+                }
+
+                // Alpha composite (source is premultiplied).
+                byte dstA0 = dstBgra[di + 3];
+                int invAlpha = 255 - srcA;
+
+                dstBgra[di + 0] = (byte)(srcB + dstBgra[di + 0] * invAlpha / 255);
+                dstBgra[di + 1] = (byte)(srcG + dstBgra[di + 1] * invAlpha / 255);
+                dstBgra[di + 2] = (byte)(srcR + dstBgra[di + 2] * invAlpha / 255);
+                dstBgra[di + 3] = (byte)(srcA + dstA0 * invAlpha / 255);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extracts the pixel height from a FaceEntry by reading the FT_Size metrics.
+    /// Used when we only have a FaceEntry and need the pixel height for fallback resolution.
+    /// </summary>
+    private static int GetPixelHeight(FreeTypeFaceCache.FaceEntry face)
+    {
+        var metrics = FreeTypeFaceCache.GetSizeMetrics(face.Face);
+        return metrics.y_ppem;
     }
 
 }

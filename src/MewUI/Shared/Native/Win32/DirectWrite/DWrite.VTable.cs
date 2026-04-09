@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Aprillz.MewUI.Native.DirectWrite;
 
@@ -46,9 +47,21 @@ internal static unsafe class DWriteVTable
         DWRITE_FONT_STYLE style,
         float size,
         out nint textFormat)
+        => CreateTextFormat(factory, family, fontCollection, weight, style, size,
+            Rendering.FontFallback.ResolvedLocale, out textFormat);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int CreateTextFormat(
+        IDWriteFactory* factory,
+        string family,
+        nint fontCollection,
+        DWRITE_FONT_WEIGHT weight,
+        DWRITE_FONT_STYLE style,
+        float size,
+        string locale,
+        out nint textFormat)
     {
         nint format = 0;
-        const string locale = "en-us";
         fixed (char* pFamily = family)
         fixed (char* pLocale = locale)
         {
@@ -274,6 +287,127 @@ internal static unsafe class DWriteVTable
             fn(dwriteFont, p);
         }
     }
+}
+
+/// <summary>
+/// IDWriteFactory2+ vtable helpers for font fallback builder.
+/// IDWriteFactory2 inherits from IDWriteFactory1 which inherits from IDWriteFactory.
+/// </summary>
+internal static unsafe class DWriteFactory2VTable
+{
+    // IDWriteFactory2::GetSystemFontFallback — vtable index 29
+    // IDWriteFactory: 3 (IUnknown) + 25 methods = vtable[0..27]
+    // IDWriteFactory1: extends with 2 methods = vtable[28..29]
+    // IDWriteFactory2: extends with 4 methods:
+    //   GetSystemFontFallback = 30, CreateFontFallbackBuilder = 31, ...
+    // (Actual indices depend on the exact IDL; these are for Windows 8.1+ SDK)
+
+    /// <summary>
+    /// IDWriteFactory2::GetSystemFontFallback (vtable index 30).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int GetSystemFontFallback(IDWriteFactory* factory, out nint fontFallback)
+    {
+        fontFallback = 0;
+        nint fb = 0;
+        var fn = (delegate* unmanaged[Stdcall]<IDWriteFactory*, nint*, int>)factory->lpVtbl[30];
+        int hr = fn(factory, &fb);
+        fontFallback = fb;
+        return hr;
+    }
+
+    /// <summary>
+    /// IDWriteFactory2::CreateFontFallbackBuilder (vtable index 31).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int CreateFontFallbackBuilder(IDWriteFactory* factory, out nint builder)
+    {
+        builder = 0;
+        nint b = 0;
+        var fn = (delegate* unmanaged[Stdcall]<IDWriteFactory*, nint*, int>)factory->lpVtbl[31];
+        int hr = fn(factory, &b);
+        builder = b;
+        return hr;
+    }
+}
+
+/// <summary>
+/// IDWriteFontFallbackBuilder vtable helpers.
+/// </summary>
+internal static unsafe class DWriteFontFallbackBuilderVTable
+{
+    /// <summary>
+    /// IDWriteFontFallbackBuilder::AddMapping (vtable index 3).
+    /// Maps a set of Unicode ranges to one or more font families with a locale and scale.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int AddMapping(
+        nint builder,
+        DWRITE_UNICODE_RANGE* ranges,
+        uint rangesCount,
+        char** targetFamilyNames,
+        uint targetFamilyNamesCount,
+        nint fontCollection,
+        char* localeName,
+        char* baseFamilyName,
+        float scale)
+    {
+        var vtbl = *(nint**)builder;
+        var fn = (delegate* unmanaged[Stdcall]<nint, DWRITE_UNICODE_RANGE*, uint, char**, uint, nint, char*, char*, float, int>)vtbl[3];
+        return fn(builder, ranges, rangesCount, targetFamilyNames, targetFamilyNamesCount, fontCollection, localeName, baseFamilyName, scale);
+    }
+
+    /// <summary>
+    /// IDWriteFontFallbackBuilder::AddMappings (vtable index 4).
+    /// Copies all mappings from an existing IDWriteFontFallback.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int AddMappings(nint builder, nint fontFallback)
+    {
+        var vtbl = *(nint**)builder;
+        var fn = (delegate* unmanaged[Stdcall]<nint, nint, int>)vtbl[4];
+        return fn(builder, fontFallback);
+    }
+
+    /// <summary>
+    /// IDWriteFontFallbackBuilder::CreateFontFallback (vtable index 5).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int CreateFontFallback(nint builder, out nint fontFallback)
+    {
+        fontFallback = 0;
+        nint fb = 0;
+        var vtbl = *(nint**)builder;
+        var fn = (delegate* unmanaged[Stdcall]<nint, nint*, int>)vtbl[5];
+        int hr = fn(builder, &fb);
+        fontFallback = fb;
+        return hr;
+    }
+}
+
+/// <summary>
+/// IDWriteTextLayout vtable helper for setting custom font fallback.
+/// IDWriteTextLayout2 extends IDWriteTextLayout1 extends IDWriteTextLayout extends IDWriteTextFormat.
+/// </summary>
+internal static unsafe class DWriteTextLayout2VTable
+{
+    /// <summary>
+    /// IDWriteTextLayout2::SetFontFallback (vtable index 82).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int SetFontFallback(nint textLayout, nint fontFallback)
+    {
+        var vtbl = *(nint**)textLayout;
+        var fn = (delegate* unmanaged[Stdcall]<nint, nint, int>)vtbl[82];
+        return fn(textLayout, fontFallback);
+    }
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct DWRITE_UNICODE_RANGE
+{
+    public uint first;
+    public uint last;
 }
 
 #pragma warning restore CS0649
