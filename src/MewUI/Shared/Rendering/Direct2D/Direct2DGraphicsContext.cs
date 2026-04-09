@@ -743,10 +743,10 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
         return format;
     }
 
-    public override TextLayout CreateTextLayout(ReadOnlySpan<char> text,
+    public override TextLayout? CreateTextLayout(ReadOnlySpan<char> text,
         TextFormat format, in TextLayoutConstraints constraints)
     {
-        if (text.IsEmpty) return null!;
+        if (text.IsEmpty) return null;
 
         if (format.Font is not DirectWriteFont dwFont)
             throw new ArgumentException("Font must be a DirectWriteFont", nameof(format));
@@ -760,7 +760,7 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
         if (nativeFormat == 0)
         {
             nativeFormat = CreateDWriteTextFormat(dwFont, format.HorizontalAlignment, format.VerticalAlignment, format.Wrapping);
-            if (nativeFormat == 0) return null!;
+            if (nativeFormat == 0) return null;
             ownFormat = true;
         }
 
@@ -770,7 +770,7 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
 
         if (ownFormat) ComHelpers.Release(nativeFormat);
 
-        if (hr < 0 || nativeLayout == 0) return null!;
+        if (hr < 0 || nativeLayout == 0) return null;
 
         ApplyCustomFontFallback(nativeLayout);
 
@@ -791,7 +791,7 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
         if (hr < 0)
         {
             ComHelpers.Release(nativeLayout);
-            return null!;
+            return null;
         }
 
         var height = metrics.height;

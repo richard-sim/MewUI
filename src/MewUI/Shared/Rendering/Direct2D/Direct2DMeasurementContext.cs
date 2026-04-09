@@ -11,10 +11,10 @@ internal sealed unsafe class Direct2DMeasurementContext : MeasureGraphicsContext
 
     public Direct2DMeasurementContext(nint dwriteFactory) => _dwriteFactory = dwriteFactory;
 
-    public override TextLayout CreateTextLayout(ReadOnlySpan<char> text,
+    public override TextLayout? CreateTextLayout(ReadOnlySpan<char> text,
         TextFormat format, in TextLayoutConstraints constraints)
     {
-        if (text.IsEmpty) return default;
+        if (text.IsEmpty) return null;
 
         if (format.Font is not DirectWriteFont dwFont)
             throw new ArgumentException("Font must be a DirectWriteFont", nameof(format));
@@ -29,19 +29,19 @@ internal sealed unsafe class Direct2DMeasurementContext : MeasureGraphicsContext
             var weight = (DWRITE_FONT_WEIGHT)(int)dwFont.Weight;
             var style = dwFont.IsItalic ? DWRITE_FONT_STYLE.ITALIC : DWRITE_FONT_STYLE.NORMAL;
             int hr = DWriteVTable.CreateTextFormat((IDWriteFactory*)_dwriteFactory, dwFont.Family, dwFont.PrivateFontCollection, weight, style, (float)dwFont.Size, out textFormat);
-            if (hr < 0 || textFormat == 0) return default;
+            if (hr < 0 || textFormat == 0) return null;
 
             DWriteVTable.SetWordWrapping(textFormat,
                 format.Wrapping == TextWrapping.NoWrap ? DWRITE_WORD_WRAPPING.NO_WRAP : DWRITE_WORD_WRAPPING.WRAP);
 
             float w = maxWidth >= float.MaxValue ? float.MaxValue : (float)maxWidth;
             hr = DWriteVTable.CreateTextLayout((IDWriteFactory*)_dwriteFactory, text, textFormat, w, float.MaxValue, out textLayout);
-            if (hr < 0 || textLayout == 0) return default;
+            if (hr < 0 || textLayout == 0) return null;
 
             ApplyCustomFontFallback(textLayout);
 
             hr = DWriteVTable.GetMetrics(textLayout, out var metrics);
-            if (hr < 0) return default;
+            if (hr < 0) return null;
 
             var height = metrics.height;
             if (metrics.top < 0) height += -metrics.top;

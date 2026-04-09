@@ -247,7 +247,7 @@ public abstract class GraphicsContextBase : IGraphicsContext
         return format;
     }
 
-    public abstract TextLayout CreateTextLayout(ReadOnlySpan<char> text,
+    public abstract TextLayout? CreateTextLayout(ReadOnlySpan<char> text,
         TextFormat format, in TextLayoutConstraints constraints);
 
     public abstract void DrawTextLayout(ReadOnlySpan<char> text,

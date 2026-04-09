@@ -14,7 +14,7 @@ internal sealed partial class OpenGLMeasurementContext : MeasureGraphicsContextB
         DpiScale = _dpi / 96.0;
     }
 
-    public override TextLayout CreateTextLayout(ReadOnlySpan<char> text,
+    public override TextLayout? CreateTextLayout(ReadOnlySpan<char> text,
         TextFormat format, in TextLayoutConstraints constraints)
     {
         var bounds = constraints.Bounds;

@@ -65,7 +65,7 @@ public abstract class MeasureGraphicsContextBase : IGraphicsContext
         return format;
     }
 
-    public abstract TextLayout CreateTextLayout(ReadOnlySpan<char> text, TextFormat format, in TextLayoutConstraints constraints);
+    public abstract TextLayout? CreateTextLayout(ReadOnlySpan<char> text, TextFormat format, in TextLayoutConstraints constraints);
 
     public void DrawTextLayout(ReadOnlySpan<char> text, TextFormat format, TextLayout layout, Color color) { }
 

@@ -246,10 +246,10 @@ public partial class TextBlock : FrameworkElement, IDisposable
 
         _textFormat = ctx.CreateTextFormat(font, TextAlignment, VerticalTextAlignment, wrapping, TextTrimming);
         _textLayout = ctx.CreateTextLayout(Text, _textFormat, in constraints);
-        _hasTextLayout = true;
+        _hasTextLayout = _textLayout != null;
         _isTextLayoutDirty = false;
 
-        return _textLayout.MeasuredSize;
+        return _textLayout?.MeasuredSize ?? Size.Empty;
     }
 
     protected override void ArrangeContent(Rect bounds)

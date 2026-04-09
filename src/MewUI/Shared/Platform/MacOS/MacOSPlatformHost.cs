@@ -431,7 +431,7 @@ public sealed class MacOSPlatformHost : IPlatformHost
     private void ProcessEventsAndDispatcher()
     {
         DrainEvents();
-        _dispatcher.ProcessWorkItems();
+        _dispatcher!.ProcessWorkItems();
         CleanupClosedWindows();
         if (Interlocked.Exchange(ref _themeUpdateRequested, 0) != 0)
         {
@@ -442,7 +442,7 @@ public sealed class MacOSPlatformHost : IPlatformHost
     private void DrainEventsAndDispatcher()
     {
         DrainEvents();
-        _dispatcher.ProcessWorkItems();
+        _dispatcher!.ProcessWorkItems();
     }
 
     private bool HandleLoopException(Application app, Exception ex)

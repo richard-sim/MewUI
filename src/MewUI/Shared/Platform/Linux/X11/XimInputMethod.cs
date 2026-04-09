@@ -27,8 +27,10 @@ internal sealed class XimInputMethod : IX11InputMethod
     public bool IsAvailable => _xic != 0;
     public bool SupportsPreedit => false; // XIM fallback: commit-only
 
+#pragma warning disable CS0067 // Required by IX11InputMethod; XIM uses synchronous commit via ProcessKeyEvent
     public event Action<string>? CommitText;
     public event Action<X11PreeditState>? PreeditChanged;
+#pragma warning restore CS0067
 
     private XimInputMethod(nint display, nint window)
     {

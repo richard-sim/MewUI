@@ -235,7 +235,7 @@ namespace Aprillz.MewUI.Rendering
         /// Computes text layout from format and constraints.
         /// Layout phase — must not perform any drawing.
         /// </summary>
-        TextLayout CreateTextLayout(ReadOnlySpan<char> text, TextFormat format, in TextLayoutConstraints constraints);
+        TextLayout? CreateTextLayout(ReadOnlySpan<char> text, TextFormat format, in TextLayoutConstraints constraints);
 
         /// <summary>
         /// Draws text using a precomputed <see cref="TextLayout"/>.
