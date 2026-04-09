@@ -683,7 +683,12 @@ internal sealed class MacOSWindowBackend : IWindowBackend
     { }
 
     public void CancelImeComposition()
-    { }
+    {
+        if (_imeHasMarkedText)
+        {
+            ImeUnmarkText();
+        }
+    }
 
     public void Dispose()
     {
@@ -1520,13 +1525,28 @@ internal sealed class MacOSWindowBackend : IWindowBackend
             return;
         }
 
-        var endArgs = new TextCompositionEventArgs(_imeMarkedText);
-        _window.RaisePreviewTextCompositionEnd(endArgs);
-        if (!endArgs.Handled)
+        // unmarkText means "accept the current preedit as committed text".
+        // Use CommitTextCompositionInternal (which records undo) instead of
+        // EndTextCompositionInternal (which removes the text and loses it).
+        if (_window.FocusManager.FocusedElement is Controls.TextBase tb && tb.IsComposing)
         {
-            if (_window.FocusManager.FocusedElement is ITextCompositionClient client)
+            var endArgs = new TextCompositionEventArgs(_imeMarkedText);
+            _window.RaisePreviewTextCompositionEnd(endArgs);
+            if (!endArgs.Handled)
             {
-                client.HandleTextCompositionEnd(endArgs);
+                tb.CommitTextCompositionInternal();
+            }
+        }
+        else
+        {
+            var endArgs = new TextCompositionEventArgs(_imeMarkedText);
+            _window.RaisePreviewTextCompositionEnd(endArgs);
+            if (!endArgs.Handled)
+            {
+                if (_window.FocusManager.FocusedElement is ITextCompositionClient client)
+                {
+                    client.HandleTextCompositionEnd(endArgs);
+                }
             }
         }
 
@@ -1547,22 +1567,11 @@ internal sealed class MacOSWindowBackend : IWindowBackend
             return;
         }
 
-        // If the platform provides a replacement range, align our selection/caret so the inserted text
-        // replaces the intended portion of the document.
-        if (replacementRange.location != NSNotFound && _window.FocusManager.FocusedElement is Controls.TextBase tbReplace)
-        {
-            int start = (int)replacementRange.location;
-            int end = start + (int)replacementRange.length;
-            tbReplace.SetSelectionRangeForPlatform(start, end);
-        }
-
-        // IME commit: AppKit typically calls insertText while we still have marked text.
-        // Do NOT route this through TextInput. The composition pipeline already materializes the preedit text.
+        // IME commit: AppKit typically calls insertText while we still have marked text (setMarkedText path).
         if (_imeHasMarkedText && _window.FocusManager.FocusedElement is Controls.TextBase tb)
         {
             if (!string.Equals(text, _imeMarkedText, StringComparison.Ordinal))
             {
-                // Ensure the document contains the final committed string before committing.
                 ImeSetMarkedText(text);
             }
 
@@ -1580,9 +1589,16 @@ internal sealed class MacOSWindowBackend : IWindowBackend
             return;
         }
 
+        // If the platform provides a replacement range, align our selection/caret so the inserted text
+        // replaces the intended portion of the document.
+        if (replacementRange.location != NSNotFound && _window.FocusManager.FocusedElement is Controls.TextBase tbReplace)
+        {
+            int start = (int)replacementRange.location;
+            int end = start + (int)replacementRange.length;
+            tbReplace.SetSelectionRangeForPlatform(start, end);
+        }
+
         // Cocoa routes plain text input through insertText during keyDown handling.
-        // For Tab/Enter we defer dispatch until after KeyDown routing so KeyDown handlers can suppress
-        // the corresponding text input consistently (WPF-like behavior).
         if (_isHandlingKeyDown && !_imeHasMarkedText && _imeState == ImeState.Ground)
         {
             var normalized = TextInputEventArgs.NormalizeText(text);
@@ -1594,7 +1610,7 @@ internal sealed class MacOSWindowBackend : IWindowBackend
             }
         }
 
-        // Filter out non-text control characters. Key navigation/editing is handled via KeyDown.
+        // Filter out non-text control characters.
         bool hasPrintable = false;
         for (int i = 0; i < text.Length; i++)
         {
@@ -1635,9 +1651,16 @@ internal sealed class MacOSWindowBackend : IWindowBackend
 
         _forwardKeyToAppThisKeyDown = true;
 
-        // If we are in preedit, leave it so we also report key-up for this key.
+        // If we are in preedit (setMarkedText path), commit the current composition so the TextBase
+        // undo stack stays consistent, then reset IME state for key-up reporting.
         if (_imeHasMarkedText && _imeState == ImeState.Preedit)
         {
+            if (_window.FocusManager.FocusedElement is Controls.TextBase tb && tb.IsComposing)
+            {
+                tb.CommitTextCompositionInternal();
+            }
+            _imeHasMarkedText = false;
+            _imeMarkedText = string.Empty;
             _imeState = ImeState.Ground;
         }
     }

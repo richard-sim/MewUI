@@ -511,7 +511,8 @@ public static class ControlExtensions
     /// </summary>
     /// <typeparam name="T">Control type.</typeparam>
     /// <param name="control">Target control.</param>
-    /// <param name="header">Header text.</param>
+    /// <param name="text">Header text.</param>
+    /// <param name="accessKey">When true (default), "_" prefixes mark access key characters.</param>
     /// <returns>The control for chaining.</returns>
     public static T Header<T>(this T control, string text, bool accessKey = true) where T : HeaderedContentControl
     {
@@ -524,7 +525,7 @@ public static class ControlExtensions
         }
         else
         {
-            control.Header = new TextBlock()
+            control.Header = new TextBlock().SemiBold()
                 .Text(text ?? string.Empty);
         }
         return control;
@@ -2463,21 +2464,21 @@ public static class ControlExtensions
     /// Sets the header text.
     /// </summary>
     /// <param name="tab">Target tab item.</param>
-    /// <param name="header">Header text.</param>
+    /// <param name="text">Header text.</param>
     /// <param name="accessKey">When true (default), "_" prefixes mark access key characters.</param>
     /// <returns>The tab item for chaining.</returns>
-    public static TabItem Header(this TabItem tab, string header, bool accessKey = true)
+    public static TabItem Header(this TabItem tab, string text, bool accessKey = true)
     {
         ArgumentNullException.ThrowIfNull(tab);
         if (accessKey)
         {
             var at = new AccessText();
-            at.SetRawText(header ?? string.Empty);
+            at.SetRawText(text ?? string.Empty);
             tab.Header = at;
         }
         else
         {
-            tab.Header = new TextBlock { Text = header ?? string.Empty };
+            tab.Header = new TextBlock { Text = text ?? string.Empty };
         }
         return tab;
     }

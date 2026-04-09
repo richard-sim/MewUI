@@ -851,7 +851,8 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
         base.OnLostFocus();
         if (_isTextComposing)
         {
-            EndTextCompositionInternal();
+            // Commit rather than discard — preserves typed text and records undo.
+            CommitTextCompositionInternal();
             InvalidateMeasure();
             InvalidateVisual();
         }
@@ -934,11 +935,21 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
             return;
         }
 
-        // Record the committed composition text as a single undo entry.
+        // Record the committed composition text for undo.
         // The text is already in the document (placed by CompositionUpdate), so we only record — not apply.
+        // Split into individual characters so that Undo removes one character at a time
+        // (macOS Korean IME may commit multi-character compositions).
         if (_compositionLength > 0)
         {
-            _editor.RecordInsertForUndo(_compositionStart, GetTextSubstringCore(_compositionStart, _compositionLength));
+            string committed = GetTextSubstringCore(_compositionStart, _compositionLength);
+            var enumerator = System.Globalization.StringInfo.GetTextElementEnumerator(committed);
+            int offset = 0;
+            while (enumerator.MoveNext())
+            {
+                string element = enumerator.GetTextElement();
+                _editor.RecordInsertForUndo(_compositionStart + offset, element);
+                offset += element.Length;
+            }
         }
 
         SetCaretAndSelection(_compositionStart + _compositionLength, extendSelection: false);
