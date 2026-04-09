@@ -11,9 +11,15 @@ public sealed class AppOptions
     public ThemeVariant? ThemeMode { get; set; }
 
     /// <summary>
-    /// Gets or sets the default accent.
+    /// Gets or sets the default accent (built-in).
     /// </summary>
     public Accent? Accent { get; set; }
+
+    /// <summary>
+    /// Gets or sets the default accent as a custom color.
+    /// Takes precedence over <see cref="Accent"/> when set.
+    /// </summary>
+    public Color? AccentColor { get; set; }
 
     /// <summary>
     /// Gets or sets the light theme seed palette.

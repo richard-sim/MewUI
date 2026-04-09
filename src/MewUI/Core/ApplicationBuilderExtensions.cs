@@ -24,9 +24,24 @@ public static class ApplicationBuilderExtensions
     public static ApplicationBuilder UseAccent(this ApplicationBuilder builder, Accent accent)
     {
         builder.Options.Accent = accent;
+        builder.Options.AccentColor = null;
         if (!Application.IsRunning)
         {
+            ThemeManager.DefaultAccentColor = null;
             ThemeManager.DefaultAccent = accent;
+        }
+        return builder;
+    }
+
+    /// <summary>
+    /// Sets the default accent to a custom color.
+    /// </summary>
+    public static ApplicationBuilder UseAccent(this ApplicationBuilder builder, Color accentColor)
+    {
+        builder.Options.AccentColor = accentColor;
+        if (!Application.IsRunning)
+        {
+            ThemeManager.DefaultAccentColor = accentColor;
         }
         return builder;
     }

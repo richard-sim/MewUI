@@ -126,7 +126,11 @@ public sealed class ApplicationBuilder
             ThemeManager.Default = Options.ThemeMode.Value;
         }
 
-        if (Options.Accent != null)
+        if (Options.AccentColor != null)
+        {
+            ThemeManager.DefaultAccentColor = Options.AccentColor.Value;
+        }
+        else if (Options.Accent != null)
         {
             ThemeManager.DefaultAccent = Options.Accent.Value;
         }

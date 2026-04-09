@@ -148,6 +148,31 @@ public sealed class ThemeManager
     } = Accent.Blue;
 
     /// <summary>
+    /// Gets or sets a custom default accent color.
+    /// When set, takes precedence over <see cref="DefaultAccent"/>.
+    /// This property must be set before the application starts.
+    /// </summary>
+    public static Color? DefaultAccentColor
+    {
+        get;
+        set
+        {
+            if (Application.IsRunning)
+            {
+                throw new InvalidOperationException("ThemeManager.DefaultAccentColor cannot be changed after Application is running.");
+            }
+
+            if (field == value)
+            {
+                return;
+            }
+
+            field = value;
+            ResetCachedDefaultThemes();
+        }
+    }
+
+    /// <summary>
     /// Gets or sets the default theme variant.
     /// This property must be set before the application starts.
     /// </summary>
@@ -349,7 +374,8 @@ public sealed class ThemeManager
     private static Theme CreateDefaultTheme(bool isDark)
     {
         var seed = isDark ? DefaultDarkSeed : DefaultLightSeed;
-        var palette = new Palette(seed, DefaultAccent.GetColor(isDark));
+        var accentColor = DefaultAccentColor ?? DefaultAccent.GetColor(isDark);
+        var palette = new Palette(seed, accentColor);
 
         return new Theme
         {
