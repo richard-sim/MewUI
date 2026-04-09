@@ -125,9 +125,11 @@ internal sealed unsafe class Direct2DMeasurementContext : MeasureGraphicsContext
             }
             finally
             {
-
-                ReleaseTextLayout(layout);
-                TextLayout.Deatch(ref layout);
+                if (layout is not null)
+                {
+                    ReleaseTextLayout(layout);
+                    TextLayout.Deatch(ref layout);
+                }
             }
         }
         finally
