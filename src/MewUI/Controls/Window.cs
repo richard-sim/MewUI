@@ -1490,7 +1490,11 @@ public partial class Window : ContentControl, ILayoutRoundingHost
             }
 
             // MewUI bounds are in window coordinates, so we can arrange directly.
-            var bounds = adorned.Bounds;
+            // Window is the root element and is never arranged by a parent, so its Bounds
+            // stays at (0,0,0,0). Use the client size rect when the adorned element is this window.
+            var bounds = ReferenceEquals(adorned, this)
+                ? new Rect(0, 0, _clientSizeDip.Width, _clientSizeDip.Height)
+                : adorned.Bounds;
             adorner.Measure(new Size(bounds.Width, bounds.Height));
             adorner.Arrange(bounds);
         }
