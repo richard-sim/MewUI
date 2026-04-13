@@ -411,6 +411,14 @@ internal sealed class TextBoxView
         {
             double w = context.MeasureText(span.Slice(chunkStart, j), font).Width;
             positions[j] = baseX + w + adjust;
+
+            // For surrogate pairs: the high surrogate (j-1) and low surrogate (j) form one
+            // visual glyph. Set the high-surrogate position equal to the position before the
+            // pair so the caret never appears in the middle of the glyph.
+            if (j >= 2 && char.IsHighSurrogate(span[chunkStart + j - 2]) && char.IsLowSurrogate(span[chunkStart + j - 1]))
+            {
+                positions[j - 1] = positions[j - 2];
+            }
         }
 
         _charPositions![chunkIndex] = positions;

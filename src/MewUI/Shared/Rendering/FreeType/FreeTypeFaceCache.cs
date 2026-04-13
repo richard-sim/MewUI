@@ -42,12 +42,30 @@ internal sealed unsafe class FreeTypeFaceCache
     {
         private readonly ConcurrentDictionary<uint, uint> _glyphIndexCache = new();
         private readonly ConcurrentDictionary<uint, int> _advanceCache = new();
+        private readonly ConcurrentDictionary<uint, ScaledBitmap?> _scaledBitmapCache = new();
+
+        /// <summary>
+        /// Pre-scaled color emoji bitmap cached per glyph ID.
+        /// Avoids repeated area-average downscaling for the same glyph.
+        /// </summary>
+        internal readonly record struct ScaledBitmap(byte[] Bgra, int Width, int Height, int Left, int Top);
         private nint _hbFont;
         private bool _disposed;
 
-        private FaceEntry(nint face) => Face = face;
+        private FaceEntry(nint face, double bitmapScale = 1.0)
+        {
+            Face = face;
+            BitmapScale = bitmapScale;
+        }
 
         public nint Face { get; private set; }
+
+        /// <summary>
+        /// Scale factor for bitmap-only fonts. The selected strike may differ from the
+        /// requested pixel size; glyphs must be scaled by this factor during blit.
+        /// Always 1.0 for scalable (outline) fonts.
+        /// </summary>
+        public double BitmapScale { get; }
 
         public long LastUsedTicks { get; private set; } = DateTime.UtcNow.Ticks;
 
@@ -63,15 +81,53 @@ internal sealed unsafe class FreeTypeFaceCache
                 throw new InvalidOperationException($"FT_New_Face failed: {err} ({fontPath})");
             }
 
+            double bitmapScale = 1.0;
             err = FT.FT_Set_Pixel_Sizes(face, 0, (uint)Math.Max(1, pixelHeight));
             if (err != 0)
             {
-                throw new InvalidOperationException($"FT_Set_Pixel_Sizes failed: {err}");
+                // Bitmap-only fonts (e.g. Noto Color Emoji) require a fixed strike size.
+                int strikeHeight = TrySelectNearestBitmapStrike(face, pixelHeight);
+                if (strikeHeight <= 0)
+                {
+                    FT.FT_Done_Face(face);
+                    throw new InvalidOperationException($"FT_Set_Pixel_Sizes failed: {err}");
+                }
+                bitmapScale = (double)pixelHeight / strikeHeight;
             }
 
             TrySetVariableAxes(lib.Handle, face, weight, italic);
 
-            return new FaceEntry(face);
+            return new FaceEntry(face, bitmapScale);
+        }
+
+        /// <summary>
+        /// Selects the bitmap strike closest to <paramref name="pixelHeight"/>.
+        /// Returns the selected strike's pixel height, or 0 on failure.
+        /// </summary>
+        private static int TrySelectNearestBitmapStrike(nint face, int pixelHeight)
+        {
+            var faceRec = (FT_FaceRec*)face;
+            int numSizes = faceRec->num_fixed_sizes;
+            if (numSizes <= 0 || faceRec->available_sizes == 0)
+                return 0;
+
+            var sizes = (FT_Bitmap_Size*)faceRec->available_sizes;
+            int bestIndex = 0;
+            int bestDiff = int.MaxValue;
+            for (int i = 0; i < numSizes; i++)
+            {
+                int diff = Math.Abs(sizes[i].height - pixelHeight);
+                if (diff < bestDiff)
+                {
+                    bestDiff = diff;
+                    bestIndex = i;
+                }
+            }
+
+            if (FT.FT_Select_Size(face, bestIndex) != 0)
+                return 0;
+
+            return sizes[bestIndex].height;
         }
 
         private static void TrySetVariableAxes(nint library, nint face, FontWeight weight, bool italic)
@@ -148,6 +204,12 @@ internal sealed unsafe class FreeTypeFaceCache
 
         public void Touch() => LastUsedTicks = DateTime.UtcNow.Ticks;
 
+        internal ScaledBitmap? GetScaledBitmap(uint glyphId)
+            => _scaledBitmapCache.TryGetValue(glyphId, out var bmp) ? bmp : null;
+
+        internal void CacheScaledBitmap(uint glyphId, ScaledBitmap bmp)
+            => _scaledBitmapCache.TryAdd(glyphId, bmp);
+
         public uint GetGlyphIndex(uint charCode)
             => _glyphIndexCache.GetOrAdd(charCode, c => FT.FT_Get_Char_Index(Face, c));
 
@@ -173,6 +235,8 @@ internal sealed unsafe class FreeTypeFaceCache
 
                     // FT_Fixed 16.16 pixels (scaled).
                     double px = (long)advFixed / 65536.0;
+                    if (BitmapScale != 1.0)
+                        px *= BitmapScale;
                     return (int)Math.Round(px, MidpointRounding.AwayFromZero);
                 }
             });

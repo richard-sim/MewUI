@@ -296,14 +296,20 @@ internal static unsafe partial class CoreTextText
 
             _ = CTFontGetAdvancesForGlyphs(ctFont, CTFontOrientationHorizontal, pGlyphs, pAdv, (nuint)count);
 
+            // Compact out low-surrogate slots (glyph 0, zero advance) so positions are correct.
+            int drawCount = 0;
             double penX = x;
             for (int i = 0; i < count; i++)
             {
-                pPos[i] = new CGPoint(penX, baselineY);
+                if (i > 0 && char.IsLowSurrogate(text[i]))
+                    continue;
+                pGlyphs[drawCount] = pGlyphs[i];
+                pPos[drawCount] = new CGPoint(penX, baselineY);
                 penX += pAdv[i].width;
+                drawCount++;
             }
 
-            CTFontDrawGlyphs(ctFont, pGlyphs, pPos, (nuint)count, ctx);
+            CTFontDrawGlyphs(ctFont, pGlyphs, pPos, (nuint)drawCount, ctx);
         }
     }
 
@@ -462,6 +468,10 @@ internal static unsafe partial class CoreTextText
             double width = 0;
             for (int i = 0; i < count; i++)
             {
+                // Skip low surrogates — CTFont maps the surrogate pair to one glyph on the
+                // high surrogate slot; the low surrogate slot contains glyph 0 with zero advance.
+                if (i > 0 && char.IsLowSurrogate(text[i]))
+                    continue;
                 width += pAdv[i].width;
             }
             return width;
@@ -499,291 +509,116 @@ internal static unsafe partial class CoreTextText
 
     private static void DrawLineGlyphsWithFallback(nint ctx, nint baseFont, ReadOnlySpan<char> text, double x, double baselineY)
     {
+        // Render the entire line through CTLine. This handles font cascading (emoji → Apple Color Emoji,
+        // CJK → system CJK font, etc.) and GSUB shaping (ZWJ sequences → single combined glyph)
+        // in one pass, avoiding state corruption from mixing CTLineDraw and CTFontDrawGlyphs.
         nint cfString = CreateCFString(text);
-        if (cfString == 0)
-        {
-            return;
-        }
+        if (cfString == 0) return;
 
-        try
-        {
-            double penX = x;
-            Span<ushort> glyphsBuffer = stackalloc ushort[2];
-            Span<CGSize> advancesBuffer = stackalloc CGSize[2];
-            int i = 0;
-            while (i < text.Length)
-            {
-                int clusterLen = (i + 1 < text.Length && char.IsHighSurrogate(text[i]) && char.IsLowSurrogate(text[i + 1])) ? 2 : 1;
-                var slice = text.Slice(i, clusterLen);
+        nint attrStr = CreateFontAttrStringWithContextColor(cfString, baseFont);
+        CFRelease(cfString);
+        if (attrStr == 0) return;
 
-                var glyphs = glyphsBuffer.Slice(0, clusterLen);
-                var advances = advancesBuffer.Slice(0, clusterLen);
+        nint line = CTLineCreateWithAttributedString(attrStr);
+        CFRelease(attrStr);
+        if (line == 0) return;
 
-                nint fontToUse = baseFont;
-                bool ok;
-
-                fixed (char* pChars = slice)
-                fixed (ushort* pGlyphs = glyphs)
-                fixed (CGSize* pAdv = advances)
-                {
-                    ok = CTFontGetGlyphsForCharacters(baseFont, pChars, pGlyphs, (nuint)clusterLen);
-                    if (ok)
-                    {
-                        _ = CTFontGetAdvancesForGlyphs(baseFont, CTFontOrientationHorizontal, pGlyphs, pAdv, (nuint)clusterLen);
-                    }
-                }
-
-                if (!ok)
-                {
-                    // Try user-configured fallback chain first.
-                    nint userFallback = TryUserFallbackChain(baseFont, slice, glyphs, advances, clusterLen);
-                    if (userFallback != 0)
-                    {
-                        fontToUse = userFallback;
-                    }
-                    else
-                    {
-                        // Ask CoreText for a font that can render this range.
-                        fontToUse = CTFontCreateForString(baseFont, cfString, new CFRange(i, clusterLen));
-                    }
-
-                    if (fontToUse == 0)
-                    {
-                        i += clusterLen;
-                        continue;
-                    }
-
-                    try
-                    {
-                        if (userFallback == 0) // Need to get glyphs for CoreText fallback
-                        {
-                            fixed (char* pChars = slice)
-                            fixed (ushort* pGlyphs = glyphs)
-                            fixed (CGSize* pAdv = advances)
-                            {
-                                if (!CTFontGetGlyphsForCharacters(fontToUse, pChars, pGlyphs, (nuint)clusterLen))
-                                {
-                                    i += clusterLen;
-                                    continue;
-                                }
-
-                                _ = CTFontGetAdvancesForGlyphs(fontToUse, CTFontOrientationHorizontal, pGlyphs, pAdv, (nuint)clusterLen);
-                            }
-                        }
-
-                        // Draw this cluster with the fallback font.
-                        for (int j = 0; j < clusterLen; j++)
-                        {
-                            ushort glyph = glyphs[j];
-                            if (glyph == 0)
-                            {
-                                continue;
-                            }
-
-                            var pos = new CGPoint(penX, baselineY);
-                            CTFontDrawGlyphs(fontToUse, &glyph, &pos, 1, ctx);
-                            penX += advances[j].width;
-                        }
-                    }
-                    finally
-                    {
-                        CFRelease(fontToUse);
-                    }
-                }
-                else
-                {
-                    // Draw this cluster with the base font.
-                    for (int j = 0; j < clusterLen; j++)
-                    {
-                        ushort glyph = glyphs[j];
-                        if (glyph == 0)
-                        {
-                            continue;
-                        }
-
-                        var pos = new CGPoint(penX, baselineY);
-                        CTFontDrawGlyphs(baseFont, &glyph, &pos, 1, ctx);
-                        penX += advances[j].width;
-                    }
-                }
-
-                i += clusterLen;
-            }
-        }
-        finally
-        {
-            CFRelease(cfString);
-        }
+        CGContextSaveGState(ctx);
+        CGContextSetTextPosition(ctx, x, baselineY);
+        CTLineDraw(line, ctx);
+        CGContextRestoreGState(ctx);
+        CFRelease(line);
     }
 
     private static double MeasureRunWidthWithFallback(nint baseFont, ReadOnlySpan<char> text)
     {
         nint cfString = CreateCFString(text);
-        if (cfString == 0)
-        {
-            return 0;
-        }
+        if (cfString == 0) return 0;
 
+        nint attrStr = CreateFontAttrString(cfString, baseFont);
+        CFRelease(cfString);
+        if (attrStr == 0) return 0;
+
+        nint line = CTLineCreateWithAttributedString(attrStr);
+        CFRelease(attrStr);
+        if (line == 0) return 0;
+
+        double w = CTLineGetTypographicBounds(line, null, null, null);
+        CFRelease(line);
+        return w;
+    }
+
+    #region CTLine helpers for complex grapheme clusters
+
+    private static nint _kCTFontAttributeName;
+    private static nint _kCTForegroundColorFromContextAttributeName;
+    private static nint _kCFBooleanTrue;
+    private static nint _kCFTypeDictKeyCallBacks;
+    private static nint _kCFTypeDictValueCallBacks;
+    private static bool _ctLineConstantsLoaded;
+
+    private static bool EnsureCTLineConstants()
+    {
+        if (_ctLineConstantsLoaded) return _kCTFontAttributeName != 0;
+        _ctLineConstantsLoaded = true;
         try
         {
-            double width = 0;
-            Span<ushort> glyphsBuffer = stackalloc ushort[2];
-            Span<CGSize> advancesBuffer = stackalloc CGSize[2];
-            int i = 0;
-            while (i < text.Length)
-            {
-                int clusterLen = (i + 1 < text.Length && char.IsHighSurrogate(text[i]) && char.IsLowSurrogate(text[i + 1])) ? 2 : 1;
-                var slice = text.Slice(i, clusterLen);
+            if (!NativeLibrary.TryLoad("/System/Library/Frameworks/CoreText.framework/CoreText", out var ct)) return false;
+            if (!NativeLibrary.TryLoad("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation", out var cf)) return false;
 
-                var glyphs = glyphsBuffer.Slice(0, clusterLen);
-                var advances = advancesBuffer.Slice(0, clusterLen);
-
-                bool ok;
-                fixed (char* pChars = slice)
-                fixed (ushort* pGlyphs = glyphs)
-                fixed (CGSize* pAdv = advances)
-                {
-                    ok = CTFontGetGlyphsForCharacters(baseFont, pChars, pGlyphs, (nuint)clusterLen);
-                    if (ok)
-                    {
-                        _ = CTFontGetAdvancesForGlyphs(baseFont, CTFontOrientationHorizontal, pGlyphs, pAdv, (nuint)clusterLen);
-                    }
-                }
-
-                if (!ok)
-                {
-                    // Try user-configured fallback chain first.
-                    bool fromUserChain = false;
-                    nint fallbackFont = TryUserFallbackChain(baseFont, slice, glyphs, advances, clusterLen);
-                    if (fallbackFont != 0)
-                    {
-                        fromUserChain = true;
-                    }
-                    else
-                    {
-                        // Fall back to CoreText automatic selection.
-                        fallbackFont = CTFontCreateForString(baseFont, cfString, new CFRange(i, clusterLen));
-                    }
-
-                    if (fallbackFont == 0)
-                    {
-                        i += clusterLen;
-                        continue;
-                    }
-
-                    try
-                    {
-                        if (!fromUserChain)
-                        {
-                            fixed (char* pChars = slice)
-                            fixed (ushort* pGlyphs = glyphs)
-                            fixed (CGSize* pAdv = advances)
-                            {
-                                if (!CTFontGetGlyphsForCharacters(fallbackFont, pChars, pGlyphs, (nuint)clusterLen))
-                                {
-                                    i += clusterLen;
-                                    continue;
-                                }
-
-                                _ = CTFontGetAdvancesForGlyphs(fallbackFont, CTFontOrientationHorizontal, pGlyphs, pAdv, (nuint)clusterLen);
-                            }
-                        }
-
-                        for (int j = 0; j < clusterLen; j++)
-                        {
-                            width += advances[j].width;
-                        }
-                    }
-                    finally
-                    {
-                        CFRelease(fallbackFont);
-                    }
-                }
-                else
-                {
-                    for (int j = 0; j < clusterLen; j++)
-                    {
-                        width += advances[j].width;
-                    }
-                }
-
-                i += clusterLen;
-            }
-
-            return width;
+            if (NativeLibrary.TryGetExport(ct, "kCTFontAttributeName", out var p) && p != 0)
+                _kCTFontAttributeName = Marshal.ReadIntPtr(p);
+            if (NativeLibrary.TryGetExport(ct, "kCTForegroundColorFromContextAttributeName", out var p2) && p2 != 0)
+                _kCTForegroundColorFromContextAttributeName = Marshal.ReadIntPtr(p2);
+            if (NativeLibrary.TryGetExport(cf, "kCFBooleanTrue", out var p3) && p3 != 0)
+                _kCFBooleanTrue = Marshal.ReadIntPtr(p3);
+            NativeLibrary.TryGetExport(cf, "kCFTypeDictionaryKeyCallBacks", out _kCFTypeDictKeyCallBacks);
+            NativeLibrary.TryGetExport(cf, "kCFTypeDictionaryValueCallBacks", out _kCFTypeDictValueCallBacks);
         }
-        finally
-        {
-            CFRelease(cfString);
-        }
+        catch { }
+        return _kCTFontAttributeName != 0;
     }
 
     /// <summary>
-    /// Tries the user-configured <see cref="FontFallback.FallbackChain"/> before falling back
-    /// to CoreText's automatic font selection. Returns a CTFont ref (caller must CFRelease)
-    /// or 0 if no user fallback covers this cluster. On success, <paramref name="glyphs"/> and
-    /// <paramref name="advances"/> are filled.
+    /// Creates a CFAttributedString with font attribute only (for measurement).
     /// </summary>
-    private static nint TryUserFallbackChain(
-        nint baseFont, ReadOnlySpan<char> cluster,
-        Span<ushort> glyphs, Span<CGSize> advances, int clusterLen)
+    private static nint CreateFontAttrString(nint cfStr, nint font)
     {
-        var chain = FontFallback.GetChainSnapshot();
-        if (chain.Length == 0) return 0;
-
-        double fontSize = CTFontGetAscent(baseFont) + CTFontGetDescent(baseFont); // approximate size
-
-        foreach (var family in chain)
-        {
-            nint cfName = 0;
-            nint candidateFont = 0;
-            try
-            {
-                fixed (char* pName = family)
-                {
-                    cfName = CFStringCreateWithCharacters(allocator: 0, pName, new nint(family.Length));
-                }
-                if (cfName == 0) continue;
-
-                candidateFont = CTFontCreateWithName(cfName, fontSize, 0);
-                if (candidateFont == 0) continue;
-
-                fixed (char* pChars = cluster)
-                fixed (ushort* pGlyphs = glyphs)
-                fixed (CGSize* pAdv = advances)
-                {
-                    if (CTFontGetGlyphsForCharacters(candidateFont, pChars, pGlyphs, (nuint)clusterLen))
-                    {
-                        // Verify at least one non-zero glyph
-                        bool anyGlyph = false;
-                        for (int j = 0; j < clusterLen; j++)
-                        {
-                            if (pGlyphs[j] != 0) { anyGlyph = true; break; }
-                        }
-
-                        if (anyGlyph)
-                        {
-                            _ = CTFontGetAdvancesForGlyphs(candidateFont, CTFontOrientationHorizontal, pGlyphs, pAdv, (nuint)clusterLen);
-                            return candidateFont; // Caller takes ownership
-                        }
-                    }
-                }
-
-                CFRelease(candidateFont);
-                candidateFont = 0;
-            }
-            catch
-            {
-                if (candidateFont != 0) CFRelease(candidateFont);
-            }
-            finally
-            {
-                if (cfName != 0) CFRelease(cfName);
-            }
-        }
-
-        return 0;
+        if (!EnsureCTLineConstants()) return 0;
+        nint key = _kCTFontAttributeName;
+        nint dict = CFDictionaryCreate(0, &key, &font, 1, _kCFTypeDictKeyCallBacks, _kCFTypeDictValueCallBacks);
+        if (dict == 0) return 0;
+        nint result = CFAttributedStringCreate(0, cfStr, dict);
+        CFRelease(dict);
+        return result;
     }
+
+    /// <summary>
+    /// Creates a CFAttributedString with font + kCTForegroundColorFromContextAttributeName=true
+    /// so CTLineDraw uses the CGContext's current fill color for text rendering.
+    /// </summary>
+    private static nint CreateFontAttrStringWithContextColor(nint cfStr, nint font)
+    {
+        if (!EnsureCTLineConstants()) return 0;
+        nint* keys = stackalloc nint[2];
+        nint* vals = stackalloc nint[2];
+        keys[0] = _kCTFontAttributeName;
+        vals[0] = font;
+        int count = 1;
+        if (_kCTForegroundColorFromContextAttributeName != 0 && _kCFBooleanTrue != 0)
+        {
+            keys[count] = _kCTForegroundColorFromContextAttributeName;
+            vals[count] = _kCFBooleanTrue;
+            count++;
+        }
+        nint dict = CFDictionaryCreate(0, keys, vals, count, _kCFTypeDictKeyCallBacks, _kCFTypeDictValueCallBacks);
+        if (dict == 0) return 0;
+        nint result = CFAttributedStringCreate(0, cfStr, dict);
+        CFRelease(dict);
+        return result;
+    }
+
+    #endregion
 
     private static nint CreateCFString(ReadOnlySpan<char> text)
     {
@@ -874,11 +709,35 @@ internal static unsafe partial class CoreTextText
     [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
     private static partial void CTFontDrawGlyphs(nint font, ushort* glyphs, CGPoint* positions, nuint count, nint context);
 
+    [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
+    private static partial nint CTLineCreateWithAttributedString(nint attrString);
+
+    [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
+    private static partial void CTLineDraw(nint line, nint context);
+
+    [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
+    private static partial double CTLineGetTypographicBounds(nint line, double* ascent, double* descent, double* leading);
+
     [LibraryImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")]
     private static partial nint CFStringCreateWithCharacters(nint allocator, char* chars, nint numChars);
 
     [LibraryImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")]
+    private static partial nint CFAttributedStringCreate(nint allocator, nint str, nint attributes);
+
+    [LibraryImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")]
+    private static partial nint CFDictionaryCreate(nint allocator, nint* keys, nint* values, nint numValues, nint keyCallBacks, nint valueCallBacks);
+
+    [LibraryImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")]
     private static partial void CFRelease(nint cf);
+
+    [LibraryImport("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")]
+    private static partial void CGContextSetTextPosition(nint context, double x, double y);
+
+    [LibraryImport("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")]
+    private static partial void CGContextSaveGState(nint context);
+
+    [LibraryImport("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")]
+    private static partial void CGContextRestoreGState(nint context);
 
     [LibraryImport("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")]
     private static partial nint CGColorSpaceCreateDeviceRGB();

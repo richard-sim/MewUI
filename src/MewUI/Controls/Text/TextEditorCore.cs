@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Aprillz.MewUI.Controls.Text;
 
 internal sealed class TextEditorCore
@@ -213,15 +215,66 @@ internal sealed class TextEditorCore
     }
 
     /// <summary>
-    /// If <paramref name="pos"/> lands between a surrogate pair, nudge it forward
-    /// so the caret never sits between the high and low surrogates.
+    /// If <paramref name="pos"/> lands inside a grapheme cluster, nudge it to the
+    /// nearest cluster boundary so the caret never splits a combined emoji sequence.
     /// </summary>
     private int AdjustForSurrogate(int pos)
     {
         int length = _getLength();
-        if (pos > 0 && pos < length && char.IsLowSurrogate(_getChar(pos)))
-            pos++;
-        return Math.Min(pos, length);
+        if (pos <= 0) return 0;
+        if (pos >= length) return length;
+        // Fast path: not inside a surrogate pair and not after a ZWJ/VS/skin-tone.
+        char c = _getChar(pos);
+        if (!char.IsLowSurrogate(c) && c != '\u200D' && c != '\uFE0F' && c != '\uFE0E' && c != '\u20E3')
+            return pos;
+        // Slow path: walk back to find cluster start, then measure forward.
+        return AdjustToClusterBoundary(pos, length);
+    }
+
+    private int AdjustToClusterBoundary(int pos, int length)
+    {
+        // Walk backwards to find a safe cluster start (limit scan for perf).
+        int scanBack = Math.Max(0, pos - 32);
+        string region = _getSubstring(scanBack, Math.Min(length - scanBack, 64));
+        var enumerator = StringInfo.GetTextElementEnumerator(region);
+        int clusterStart = scanBack;
+        while (enumerator.MoveNext())
+        {
+            int idx = enumerator.ElementIndex + scanBack;
+            int nextIdx = idx + ((string)enumerator.GetTextElement()).Length;
+            if (nextIdx > pos) return nextIdx; // snap forward to cluster end
+            clusterStart = nextIdx;
+        }
+        return Math.Min(clusterStart, length);
+    }
+
+    /// <summary>
+    /// Returns the length of the grapheme cluster starting at <paramref name="pos"/>.
+    /// </summary>
+    private int GetGraphemeClusterLengthForward(int pos)
+    {
+        int length = _getLength();
+        if (pos >= length) return 0;
+        int remaining = Math.Min(length - pos, 32);
+        string sub = _getSubstring(pos, remaining);
+        return StringInfo.GetNextTextElementLength(sub);
+    }
+
+    /// <summary>
+    /// Returns the length of the grapheme cluster ending at <paramref name="pos"/>.
+    /// </summary>
+    private int GetGraphemeClusterLengthBackward(int pos)
+    {
+        if (pos <= 0) return 0;
+        int scanStart = Math.Max(0, pos - 32);
+        string sub = _getSubstring(scanStart, pos - scanStart);
+        var enumerator = StringInfo.GetTextElementEnumerator(sub);
+        int lastClusterLen = 1;
+        while (enumerator.MoveNext())
+        {
+            lastClusterLen = ((string)enumerator.GetTextElement()).Length;
+        }
+        return lastClusterLen;
     }
 
     private static bool IsWordChar(char c) => char.IsLetterOrDigit(c) || c == '_';
@@ -244,12 +297,17 @@ internal sealed class TextEditorCore
         }
         else
         {
-            newPos = Math.Clamp(CaretPosition + direction, 0, length);
-            // Skip over surrogate pairs so the caret never lands between them.
-            if (direction > 0 && newPos < length && char.IsLowSurrogate(_getChar(newPos)))
-                newPos = Math.Min(newPos + 1, length);
-            else if (direction < 0 && newPos > 0 && char.IsLowSurrogate(_getChar(newPos)))
-                newPos--;
+            // Move by grapheme cluster (handles surrogate pairs, ZWJ sequences, skin-tone modifiers, etc.).
+            if (direction > 0)
+            {
+                int clusterLen = GetGraphemeClusterLengthForward(CaretPosition);
+                newPos = Math.Min(CaretPosition + Math.Max(clusterLen, 1), length);
+            }
+            else
+            {
+                int clusterLen = GetGraphemeClusterLengthBackward(CaretPosition);
+                newPos = Math.Max(CaretPosition - Math.Max(clusterLen, 1), 0);
+            }
         }
 
         SetCaretAndSelection(newPos, extendSelection);
@@ -329,10 +387,9 @@ internal sealed class TextEditorCore
         }
         else
         {
-            deleteFrom = CaretPosition - 1;
-            // Treat surrogate pair as a single unit.
-            if (deleteFrom > 0 && char.IsLowSurrogate(_getChar(deleteFrom)))
-                deleteFrom--;
+            // Delete entire grapheme cluster (handles surrogate pairs, ZWJ sequences, etc.).
+            int clusterLen = GetGraphemeClusterLengthBackward(CaretPosition);
+            deleteFrom = CaretPosition - Math.Max(clusterLen, 1);
         }
         int deleteLen = CaretPosition - deleteFrom;
         if (deleteLen <= 0)
@@ -367,10 +424,9 @@ internal sealed class TextEditorCore
         }
         else
         {
-            deleteTo = CaretPosition + 1;
-            // Treat surrogate pair as a single unit.
-            if (deleteTo < length && char.IsLowSurrogate(_getChar(deleteTo)))
-                deleteTo++;
+            // Delete entire grapheme cluster (handles surrogate pairs, ZWJ sequences, etc.).
+            int clusterLen = GetGraphemeClusterLengthForward(CaretPosition);
+            deleteTo = CaretPosition + Math.Max(clusterLen, 1);
         }
         deleteTo = Math.Clamp(deleteTo, CaretPosition, length);
 

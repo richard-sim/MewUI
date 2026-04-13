@@ -68,9 +68,9 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
         _useClearTypeText = textAa == D2D1_TEXT_ANTIALIAS_MODE.CLEARTYPE;
         D2D1VTable.SetTextAntialiasMode((ID2D1RenderTarget*)_renderTarget, textAa);
 
-        // Try QI for ID2D1DeviceContext (D2D 1.1, Windows 8+) to use IGNORE_ALPHA layers for ClearType.
-        if (_useClearTypeText &&
-            ComHelpers.QueryInterface(_renderTarget, D2D1.IID_ID2D1DeviceContext, out var dc) >= 0 && dc != 0)
+        // Try QI for ID2D1DeviceContext (D2D 1.1, Windows 8+).
+        // Required for IGNORE_ALPHA layers (ClearType) and ENABLE_COLOR_FONT (color emoji).
+        if (ComHelpers.QueryInterface(_renderTarget, D2D1.IID_ID2D1DeviceContext, out var dc) >= 0 && dc != 0)
         {
             _deviceContext = dc;
         }
@@ -705,8 +705,8 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
         {
             nint brush = GetSolidBrush(color);
             var options = _textPixelSnap
-                ? D2D1_DRAW_TEXT_OPTIONS.CLIP
-                : D2D1_DRAW_TEXT_OPTIONS.NO_SNAP | D2D1_DRAW_TEXT_OPTIONS.CLIP;
+                ? D2D1_DRAW_TEXT_OPTIONS.CLIP | D2D1_DRAW_TEXT_OPTIONS.ENABLE_COLOR_FONT
+                : D2D1_DRAW_TEXT_OPTIONS.NO_SNAP | D2D1_DRAW_TEXT_OPTIONS.CLIP | D2D1_DRAW_TEXT_OPTIONS.ENABLE_COLOR_FONT;
 
             if (trimming == TextTrimming.CharacterEllipsis)
             {
@@ -718,13 +718,16 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
                     DWriteVTable.CreateEllipsisTrimmingSign((IDWriteFactory*)_dwriteFactory, textFormat, out trimmingSign);
                     var dwriteTrimming = new DWRITE_TRIMMING { granularity = DWRITE_TRIMMING_GRANULARITY.CHARACTER };
                     DWriteVTable.SetTrimming(textLayout, dwriteTrimming, trimmingSign);
-                    D2D1VTable.DrawTextLayout((ID2D1RenderTarget*)_renderTarget,
+                    var rtLayout = _deviceContext != 0 ? _deviceContext : _renderTarget;
+                    D2D1VTable.DrawTextLayout((ID2D1RenderTarget*)rtLayout,
                         new D2D1_POINT_2F(left, top), textLayout, brush, options);
                     return;
                 }
             }
 
-            D2D1VTable.DrawText((ID2D1RenderTarget*)_renderTarget, text, textFormat, layoutRect, brush, options);
+            // Use ID2D1DeviceContext (D2D 1.1) when available — required for ENABLE_COLOR_FONT.
+            var rt = _deviceContext != 0 ? _deviceContext : _renderTarget;
+            D2D1VTable.DrawText((ID2D1RenderTarget*)rt, text, textFormat, layoutRect, brush, options);
         }
         finally
         {
@@ -832,10 +835,11 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
 
         nint brush = GetSolidBrush(color);
         var options = _textPixelSnap
-            ? D2D1_DRAW_TEXT_OPTIONS.CLIP
-            : D2D1_DRAW_TEXT_OPTIONS.NO_SNAP | D2D1_DRAW_TEXT_OPTIONS.CLIP;
+            ? D2D1_DRAW_TEXT_OPTIONS.CLIP | D2D1_DRAW_TEXT_OPTIONS.ENABLE_COLOR_FONT
+            : D2D1_DRAW_TEXT_OPTIONS.NO_SNAP | D2D1_DRAW_TEXT_OPTIONS.CLIP | D2D1_DRAW_TEXT_OPTIONS.ENABLE_COLOR_FONT;
 
-        D2D1VTable.DrawTextLayout((ID2D1RenderTarget*)_renderTarget,
+        var rt = _deviceContext != 0 ? _deviceContext : _renderTarget;
+        D2D1VTable.DrawTextLayout((ID2D1RenderTarget*)rt,
             new D2D1_POINT_2F((float)bounds.X, (float)bounds.Y), layout.BackendHandle, brush, options);
     }
 

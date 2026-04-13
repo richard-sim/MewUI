@@ -22,6 +22,9 @@ internal static partial class FreeType
     public static partial int FT_Set_Pixel_Sizes(nint face, uint pixel_width, uint pixel_height);
 
     [LibraryImport(LibraryName)]
+    public static partial int FT_Select_Size(nint face, int strike_index);
+
+    [LibraryImport(LibraryName)]
     public static partial int FT_Load_Char(nint face, uint char_code, int load_flags);
 
     [LibraryImport(LibraryName)]
@@ -159,6 +162,17 @@ internal unsafe struct FT_GlyphSlotRec
     public FT_Bitmap bitmap;
     public int bitmap_left;
     public int bitmap_top;
+}
+
+/// <summary>FT_Bitmap_Size — metrics for a fixed-size bitmap strike.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct FT_Bitmap_Size
+{
+    public short height;
+    public short width;
+    public nint size;   // 26.6 fixed
+    public nint x_ppem; // 26.6 fixed
+    public nint y_ppem; // 26.6 fixed
 }
 
 [StructLayout(LayoutKind.Sequential)]

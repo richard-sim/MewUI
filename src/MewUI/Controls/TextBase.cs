@@ -1289,7 +1289,14 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
             int selectionLength = HasSelection ? end - start : 0;
             int remaining = MaxLength - GetTextLengthCore() + selectionLength;
             if (remaining <= 0) return;
-            if (text.Length > remaining) text = text[..remaining];
+            if (text.Length > remaining)
+            {
+                // Avoid splitting a surrogate pair.
+                if (remaining > 0 && char.IsHighSurrogate(text[remaining - 1]))
+                    remaining--;
+                if (remaining <= 0) return;
+                text = text[..remaining];
+            }
         }
 
         _editor.InsertTextAtCaretForEdit(text);

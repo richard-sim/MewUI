@@ -99,7 +99,7 @@ public sealed class DispatcherTimer : IDisposable
                 }
 
                 _isEnabled = true;
-                UnsubscribeFromDispatcherChanged_NoLock();
+                UnsubscribeFromDispatcherChanged();
                 _scheduled?.Dispose();
                 _scheduled = (dispatcher as IDispatcherCore)!.Schedule(_interval, OnTick);
             }
@@ -117,7 +117,7 @@ public sealed class DispatcherTimer : IDisposable
             lock (_gate)
             {
                 _isEnabled = false;
-                UnsubscribeFromDispatcherChanged_NoLock();
+                UnsubscribeFromDispatcherChanged();
                 _scheduled?.Dispose();
                 _scheduled = null;
             }
@@ -134,7 +134,7 @@ public sealed class DispatcherTimer : IDisposable
                 }
 
                 _isEnabled = false;
-                UnsubscribeFromDispatcherChanged_NoLock();
+                UnsubscribeFromDispatcherChanged();
                 _scheduled?.Dispose();
                 _scheduled = null;
             }
@@ -209,7 +209,7 @@ public sealed class DispatcherTimer : IDisposable
         Application.DispatcherChanged += OnDispatcherChanged;
     }
 
-    private void UnsubscribeFromDispatcherChanged_NoLock()
+    private void UnsubscribeFromDispatcherChanged()
     {
         if (!_subscribedToDispatcherChanged)
         {
@@ -236,7 +236,7 @@ public sealed class DispatcherTimer : IDisposable
                     return;
                 }
 
-                UnsubscribeFromDispatcherChanged_NoLock();
+                UnsubscribeFromDispatcherChanged();
                 _scheduled = (dispatcher as IDispatcherCore)!.Schedule(_interval, OnTick);
             }
         });
