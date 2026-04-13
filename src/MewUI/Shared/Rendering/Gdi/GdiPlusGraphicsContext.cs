@@ -28,7 +28,6 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
     private readonly Stack<GraphicsStateSnapshot> _states = new();
     private bool _disposed;
     private readonly double _dpiScale;
-    private Matrix3x2 _transform = Matrix3x2.Identity;
 
     // Double-buffering (set only via CreateDoubleBuffered factory)
     private nint _screenDc;
@@ -147,7 +146,6 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
         _states.Push(new GraphicsStateSnapshot
         {
             GdiPlusState = state,
-            Transform = _transform,
         });
     }
 
@@ -161,12 +159,13 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
         }
 
         var state = _states.Pop();
-        _transform = state.Transform;
 
         if (_graphics != 0 && state.GdiPlusState != 0)
         {
             GdiPlusInterop.GdipRestoreGraphics(_graphics, state.GdiPlusState);
         }
+
+        SyncWorldTransform();
     }
 
     protected override void SetClipCore(Rect rect)
@@ -222,34 +221,33 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
 
     protected override void TranslateCore(double dx, double dy)
     {
-        _transform = Matrix3x2.CreateTranslation((float)dx, (float)dy) * _transform;
         _stateManager.Translate(dx, dy);
         SyncWorldTransform();
     }
 
     protected override void RotateCore(double angleRadians)
     {
-        _transform = Matrix3x2.CreateRotation((float)angleRadians) * _transform;
+        _stateManager.Rotate(angleRadians);
         SyncWorldTransform();
     }
 
     protected override void ScaleCore(double sx, double sy)
     {
-        _transform = Matrix3x2.CreateScale((float)sx, (float)sy) * _transform;
+        _stateManager.Scale(sx, sy);
         SyncWorldTransform();
     }
 
     protected override void SetTransformCore(Matrix3x2 matrix)
     {
-        _transform = matrix;
+        _stateManager.SetTransform(matrix);
         SyncWorldTransform();
     }
 
-    protected override Matrix3x2 GetTransformCore() => _transform;
+    protected override Matrix3x2 GetTransformCore() => _stateManager.Transform;
 
     protected override void ResetTransformCore()
     {
-        _transform = Matrix3x2.Identity;
+        _stateManager.ResetTransform();
         SyncWorldTransform();
     }
 
@@ -259,7 +257,7 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
         // Drawing coordinates are already in device pixels (via ToDevice*), so the world transform's
         // scale/rotation components (M11-M22) are dimensionless and work as-is. But translation
         // components (M31, M32) are in logical units and must be converted to device pixels.
-        var m = _transform;
+        var m = _stateManager.Transform;
         float dpi = (float)_dpiScale;
         if (GdiPlusInterop.GdipCreateMatrix2(
                 m.M11, m.M12,
@@ -982,7 +980,7 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
             return;
         }
 
-        // GDI text bypasses GDI+ WorldTransform — apply _transform manually.
+        // GDI text bypasses GDI+ WorldTransform — apply transform manually.
         bounds = TransformRect(bounds);
 
         // Early cull: skip if the bounds rect is entirely outside the current clip region.
@@ -1123,7 +1121,7 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
         var wrapping = format.Wrapping;
         var trimming = format.Trimming;
 
-        // GDI text bypasses GDI+ WorldTransform — apply _transform manually.
+        // GDI text bypasses GDI+ WorldTransform — apply transform manually.
         var bounds = TransformRect(layout.EffectiveBounds);
 
         // Early cull: skip if the bounds rect is entirely outside the current clip region.
@@ -1464,7 +1462,19 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
     {
         gdiImage.EnsureUpToDate();
 
-        var destPx = ToDeviceRect(destRect);
+        // Check if the current transform requires GDI+ (rotation/skew).
+        // GDI AlphaBlend only supports axis-aligned blitting.
+        var m = _stateManager.Transform;
+        bool isAxisAligned = m.M12 == 0 && m.M21 == 0;
+
+        if (!isAxisAligned)
+        {
+            DrawImageGdiPlus(gdiImage, destRect, sourceRect);
+            return;
+        }
+
+        // Axis-aligned transform: apply transform manually (GDI AlphaBlend ignores WorldTransform).
+        var destPx = _stateManager.ToDeviceRect(destRect);
         if (destPx.Width <= 0 || destPx.Height <= 0)
         {
             return;
@@ -1606,6 +1616,80 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
         }
     }
 
+    /// <summary>
+    /// Draws an image via GDI+ DrawImageRectRect, which respects the WorldTransform
+    /// for rotation/skew. Used as fallback when GDI AlphaBlend cannot handle the transform.
+    /// </summary>
+    private void DrawImageGdiPlus(GdiImage gdiImage, Rect destRect, Rect sourceRect)
+    {
+        var m = _stateManager.Transform;
+        float dpi = (float)_dpiScale;
+
+        var effective = ImageScaleQuality == ImageScaleQuality.Default
+            ? (_imageScaleQuality == ImageScaleQuality.Default ? ImageScaleQuality.Normal : _imageScaleQuality)
+            : ImageScaleQuality;
+
+        int destWPx = (int)Math.Round(destRect.Width * dpi);
+        int destHPx = (int)Math.Round(destRect.Height * dpi);
+
+        if (destWPx <= 0 || destHPx <= 0) return;
+
+        // Try cached transformed bitmap — avoids per-frame GDI+ rendering in immediate mode.
+        if (gdiImage.TryGetTransformedBitmap(
+                m.M11, m.M12, m.M21, m.M22,
+                sourceRect, destWPx, destHPx,
+                effective,
+                out nint txBmp, out int txW, out int txH))
+        {
+            // Compute the center of the dest rect in device pixels.
+            float cx = (float)(destRect.X + destRect.Width * 0.5);
+            float cy = (float)(destRect.Y + destRect.Height * 0.5);
+            var center = Vector2.Transform(new Vector2(cx, cy), m);
+            int blitX = (int)Math.Round(center.X * dpi - txW * 0.5);
+            int blitY = (int)Math.Round(center.Y * dpi - txH * 0.5);
+
+            // AlphaBlend the cached DIB directly (bypasses WorldTransform).
+            var txDc = Gdi32.CreateCompatibleDC(Hdc);
+            var oldTx = Gdi32.SelectObject(txDc, txBmp);
+            try
+            {
+                var blend = BLENDFUNCTION.SourceOver(255);
+                Gdi32.AlphaBlend(
+                    Hdc, blitX, blitY, txW, txH,
+                    txDc, 0, 0, txW, txH,
+                    blend);
+            }
+            finally
+            {
+                Gdi32.SelectObject(txDc, oldTx);
+                Gdi32.DeleteDC(txDc);
+            }
+            return;
+        }
+
+        // Fallback: GDI+ DrawImage with WorldTransform.
+        if (!EnsureGraphics()) return;
+
+        var gpBitmap = gdiImage.GetGdiPlusBitmap();
+        if (gpBitmap == 0) return;
+
+        var interpMode = effective switch
+        {
+            ImageScaleQuality.Fast => GdiPlusInterop.InterpolationMode.NearestNeighbor,
+            ImageScaleQuality.HighQuality => GdiPlusInterop.InterpolationMode.HighQualityBicubic,
+            _ => GdiPlusInterop.InterpolationMode.Bilinear,
+        };
+        GdiPlusInterop.GdipSetInterpolationMode(_graphics, interpMode);
+
+        GdiPlusInterop.GdipDrawImageRectRect(
+            _graphics, gpBitmap,
+            (float)destRect.X * dpi, (float)destRect.Y * dpi,
+            (float)destRect.Width * dpi, (float)destRect.Height * dpi,
+            (float)sourceRect.X, (float)sourceRect.Y,
+            (float)sourceRect.Width, (float)sourceRect.Height,
+            GdiPlusInterop.Unit.Pixel, 0, 0, 0);
+    }
+
     private static bool IsNearInt(double value) => Math.Abs(value - Math.Round(value)) <= 0.0001;
 
     #endregion
@@ -1674,20 +1758,27 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
 
     private Point TransformPoint(Point pt)
     {
-        var v = Vector2.Transform(new Vector2((float)pt.X, (float)pt.Y), _transform);
+        var v = Vector2.Transform(new Vector2((float)pt.X, (float)pt.Y), _stateManager.Transform);
         return new Point(v.X, v.Y);
     }
 
     private Rect TransformRect(Rect rect)
     {
-        var tl = Vector2.Transform(new Vector2((float)rect.X, (float)rect.Y), _transform);
-        var br = Vector2.Transform(new Vector2((float)rect.Right, (float)rect.Bottom), _transform);
-        return new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y);
+        var m = _stateManager.Transform;
+        var tl = Vector2.Transform(new Vector2((float)rect.X, (float)rect.Y), m);
+        var tr = Vector2.Transform(new Vector2((float)rect.Right, (float)rect.Y), m);
+        var bl = Vector2.Transform(new Vector2((float)rect.X, (float)rect.Bottom), m);
+        var br = Vector2.Transform(new Vector2((float)rect.Right, (float)rect.Bottom), m);
+        float minX = Math.Min(Math.Min(tl.X, tr.X), Math.Min(bl.X, br.X));
+        float minY = Math.Min(Math.Min(tl.Y, tr.Y), Math.Min(bl.Y, br.Y));
+        float maxX = Math.Max(Math.Max(tl.X, tr.X), Math.Max(bl.X, br.X));
+        float maxY = Math.Max(Math.Max(tl.Y, tr.Y), Math.Max(bl.Y, br.Y));
+        return new Rect(minX, minY, maxX - minX, maxY - minY);
     }
 
     private POINT ToDevicePoint(Point pt)
     {
-        // _transform is applied by GDI+ World Transform; only DPI scale here.
+        // Transform is applied by GDI+ World Transform; only DPI scale here.
         return new POINT(
             (int)Math.Round(pt.X * _dpiScale),
             (int)Math.Round(pt.Y * _dpiScale));
@@ -1695,14 +1786,14 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
 
     private RECT ToDeviceRect(Rect rect)
     {
-        // _transform is applied by GDI+ World Transform; only DPI scale here.
+        // Transform is applied by GDI+ World Transform; only DPI scale here.
         var (left, top, right, bottom) = RenderingUtil.ToDeviceRect(rect, 0, 0, _dpiScale);
         return new RECT(left, top, right, bottom);
     }
 
     private Rect ToDeviceRectF(Rect rect)
     {
-        // _transform is applied by GDI+ World Transform; only DPI scale here.
+        // Transform is applied by GDI+ World Transform; only DPI scale here.
         var (left, top, right, bottom) = RenderingUtil.ToDeviceRect(rect, 0, 0, _dpiScale);
         return new Rect(left, top, right, bottom);
     }
@@ -1726,7 +1817,7 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
 
     private (double x, double y) ToDeviceCoords(double x, double y)
     {
-        // _transform is applied by GDI+ World Transform; only DPI scale here.
+        // Transform is applied by GDI+ World Transform; only DPI scale here.
         return (x * _dpiScale, y * _dpiScale);
     }
 
@@ -1992,7 +2083,6 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
     private readonly struct GraphicsStateSnapshot
     {
         public required uint GdiPlusState { get; init; }
-        public required Matrix3x2 Transform { get; init; }
     }
 
     #region BackBuffer (double-buffering)

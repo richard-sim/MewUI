@@ -15,6 +15,15 @@ internal sealed class GdiImage : IImage
     private readonly Dictionary<ScaledKey, nint> _scaled = new();
     private readonly IPixelBufferSource? _source;
     private int _sourceVersion = -1;
+    private nint _gpBitmap;
+    private int _gpBitmapVersion = -1;
+
+    // Transformed image cache: stores a pre-rendered rotated/scaled DIB so that
+    // subsequent frames can blit via fast GDI AlphaBlend instead of GDI+ DrawImage.
+    private nint _txBitmap;     // cached HBITMAP (DIB section)
+    private nint _txBits;       // pixel pointer of the cached DIB
+    private int _txW, _txH;     // cached bitmap dimensions
+    private TransformedKey _txKey;
 
     public int PixelWidth { get; }
     public int PixelHeight { get; }
@@ -108,6 +117,19 @@ internal sealed class GdiImage : IImage
             CopyToDibPremultiplied(l.Buffer);
             _sourceVersion = v;
 
+            if (_gpBitmap != 0)
+            {
+                GdiPlusInterop.GdipDisposeImage(_gpBitmap);
+                _gpBitmap = 0;
+            }
+
+            if (_txBitmap != 0)
+            {
+                Gdi32.DeleteObject(_txBitmap);
+                _txBitmap = 0;
+                _txBits = 0;
+            }
+
             foreach (var kvp in _scaled)
             {
                 Gdi32.DeleteObject(kvp.Value);
@@ -121,6 +143,19 @@ internal sealed class GdiImage : IImage
     {
         if (!_disposed && Handle != 0)
         {
+            if (_gpBitmap != 0)
+            {
+                GdiPlusInterop.GdipDisposeImage(_gpBitmap);
+                _gpBitmap = 0;
+            }
+
+            if (_txBitmap != 0)
+            {
+                Gdi32.DeleteObject(_txBitmap);
+                _txBitmap = 0;
+                _txBits = 0;
+            }
+
             foreach (var kvp in _scaled)
             {
                 Gdi32.DeleteObject(kvp.Value);
@@ -135,7 +170,219 @@ internal sealed class GdiImage : IImage
         }
     }
 
+    /// <summary>
+    /// Returns a cached GDI+ bitmap handle wrapping the current pixel buffer (PixelFormat32bppPARGB).
+    /// Recreated when the source version changes. The caller must NOT dispose this handle.
+    /// </summary>
+    internal nint GetGdiPlusBitmap()
+    {
+        const int PixelFormat32bppPARGB = 0x000E200B;
+        int version = _sourceVersion;
+        if (_gpBitmap != 0 && _gpBitmapVersion == version)
+            return _gpBitmap;
+
+        if (_gpBitmap != 0)
+        {
+            GdiPlusInterop.GdipDisposeImage(_gpBitmap);
+            _gpBitmap = 0;
+        }
+
+        int stride = PixelWidth * 4;
+        if (GdiPlusInterop.GdipCreateBitmapFromScan0(
+                PixelWidth, PixelHeight, stride,
+                PixelFormat32bppPARGB, _bits, out _gpBitmap) != 0)
+        {
+            _gpBitmap = 0;
+        }
+
+        _gpBitmapVersion = version;
+        return _gpBitmap;
+    }
+
     private readonly record struct ScaledKey(int SrcX, int SrcY, int SrcW, int SrcH, int DestW, int DestH, ImageScaleQuality Quality);
+
+    // Cache key for transformed (rotated/skewed) rendering.
+    // Uses the linear part of the transform (M11-M22) rounded to avoid float noise.
+    // Translation is excluded because it only affects blit position, not pixel content.
+    private readonly record struct TransformedKey(
+        int Version,
+        short M11, short M12, short M21, short M22,
+        int SrcX, int SrcY, int SrcW, int SrcH,
+        int DstW, int DstH);
+
+    private static short FloatToKey(float v) => (short)MathF.Round(v * 1024f);
+
+    /// <summary>
+    /// Returns a cached pre-rendered DIB of this image with the given transform applied.
+    /// On cache hit, returns the existing HBITMAP. On miss, renders to an offscreen DIB via GDI+.
+    /// </summary>
+    /// <param name="linearM11">M11 of transform (rotation/scale only, no translation).</param>
+    /// <param name="linearM12">M12 of transform.</param>
+    /// <param name="linearM21">M21 of transform.</param>
+    /// <param name="linearM22">M22 of transform.</param>
+    /// <param name="sourceRect">Source region of the image.</param>
+    /// <param name="destWPx">Destination width in device pixels (before transform).</param>
+    /// <param name="destHPx">Destination height in device pixels (before transform).</param>
+    /// <param name="quality">Interpolation quality.</param>
+    /// <param name="bitmap">The cached HBITMAP.</param>
+    /// <param name="bitmapW">Width of the cached bitmap.</param>
+    /// <param name="bitmapH">Height of the cached bitmap.</param>
+    /// <returns>True if the cached bitmap is valid.</returns>
+    internal bool TryGetTransformedBitmap(
+        float linearM11, float linearM12, float linearM21, float linearM22,
+        Rect sourceRect, int destWPx, int destHPx,
+        ImageScaleQuality quality,
+        out nint bitmap, out int bitmapW, out int bitmapH)
+    {
+        bitmap = 0;
+        bitmapW = 0;
+        bitmapH = 0;
+
+        if (_disposed || Handle == 0 || _bits == 0)
+            return false;
+
+        var key = new TransformedKey(
+            _sourceVersion,
+            FloatToKey(linearM11), FloatToKey(linearM12),
+            FloatToKey(linearM21), FloatToKey(linearM22),
+            (int)sourceRect.X, (int)sourceRect.Y,
+            (int)sourceRect.Width, (int)sourceRect.Height,
+            destWPx, destHPx);
+
+        if (_txBitmap != 0 && _txKey == key)
+        {
+            bitmap = _txBitmap;
+            bitmapW = _txW;
+            bitmapH = _txH;
+            return true;
+        }
+
+        // Cache miss — render to offscreen DIB.
+
+        // Compute AABB of the transformed dest rect centered at origin.
+        float hw = destWPx * 0.5f;
+        float hh = destHPx * 0.5f;
+        // Transform the 4 corners of (-hw,-hh)→(hw,hh) through the linear matrix.
+        // Linear: x' = x*M11 + y*M21, y' = x*M12 + y*M22
+        float ax = linearM11 * -hw + linearM21 * -hh;
+        float ay = linearM12 * -hw + linearM22 * -hh;
+        float bx = linearM11 * hw + linearM21 * -hh;
+        float by = linearM12 * hw + linearM22 * -hh;
+        float cx = linearM11 * hw + linearM21 * hh;
+        float cy = linearM12 * hw + linearM22 * hh;
+        float dx = linearM11 * -hw + linearM21 * hh;
+        float dy = linearM12 * -hw + linearM22 * hh;
+
+        float minX = MathF.Min(MathF.Min(ax, bx), MathF.Min(cx, dx));
+        float minY = MathF.Min(MathF.Min(ay, by), MathF.Min(cy, dy));
+        float maxX = MathF.Max(MathF.Max(ax, bx), MathF.Max(cx, dx));
+        float maxY = MathF.Max(MathF.Max(ay, by), MathF.Max(cy, dy));
+
+        int outW = Math.Max(1, (int)MathF.Ceiling(maxX - minX));
+        int outH = Math.Max(1, (int)MathF.Ceiling(maxY - minY));
+
+        // Create offscreen DIB section.
+        var bmi = BITMAPINFO.Create32bpp(outW, outH);
+        nint screenDc = User32.GetDC(0);
+        nint dibBits;
+        nint dibBitmap;
+        try
+        {
+            dibBitmap = Gdi32.CreateDIBSection(screenDc, ref bmi, 0, out dibBits, 0, 0);
+        }
+        finally
+        {
+            User32.ReleaseDC(0, screenDc);
+        }
+
+        if (dibBitmap == 0 || dibBits == 0)
+            return false;
+
+        // Create GDI+ Graphics on the offscreen DIB.
+        nint memDc = Gdi32.CreateCompatibleDC(0);
+        nint oldBmp = Gdi32.SelectObject(memDc, dibBitmap);
+        bool ok = false;
+
+        try
+        {
+            if (GdiPlusInterop.GdipCreateFromHDC(memDc, out nint offGfx) != 0 || offGfx == 0)
+                return false;
+
+            try
+            {
+                GdiPlusInterop.GdipSetSmoothingMode(offGfx, GdiPlusInterop.SmoothingMode.AntiAlias);
+                GdiPlusInterop.GdipSetCompositingMode(offGfx, GdiPlusInterop.CompositingMode.SourceOver);
+
+                var interpMode = quality switch
+                {
+                    ImageScaleQuality.Fast => GdiPlusInterop.InterpolationMode.NearestNeighbor,
+                    ImageScaleQuality.HighQuality => GdiPlusInterop.InterpolationMode.HighQualityBicubic,
+                    _ => GdiPlusInterop.InterpolationMode.Bilinear,
+                };
+                GdiPlusInterop.GdipSetInterpolationMode(offGfx, interpMode);
+
+                // Set transform: translate center of output → apply linear transform → place dest rect at center.
+                float ocx = outW * 0.5f;
+                float ocy = outH * 0.5f;
+                // Combined: T(ocx,ocy) * Linear * T(-hw,-hh)
+                // = translate so that (0,0)→(destW,destH) ends up centered and rotated in the output bitmap.
+                // dx = -hw*M11 - hh*M21 + ocx, dy = -hw*M12 - hh*M22 + ocy
+                float m31 = linearM11 * -hw + linearM21 * -hh + ocx;
+                float m32 = linearM12 * -hw + linearM22 * -hh + ocy;
+
+                if (GdiPlusInterop.GdipCreateMatrix2(
+                        linearM11, linearM12,
+                        linearM21, linearM22,
+                        m31, m32, out nint matrix) == 0 && matrix != 0)
+                {
+                    GdiPlusInterop.GdipSetWorldTransform(offGfx, matrix);
+                    GdiPlusInterop.GdipDeleteMatrix(matrix);
+                }
+
+                var gpBmp = GetGdiPlusBitmap();
+                if (gpBmp == 0)
+                    return false;
+
+                GdiPlusInterop.GdipDrawImageRectRect(
+                    offGfx, gpBmp,
+                    0, 0, destWPx, destHPx,
+                    (float)sourceRect.X, (float)sourceRect.Y,
+                    (float)sourceRect.Width, (float)sourceRect.Height,
+                    GdiPlusInterop.Unit.Pixel, 0, 0, 0);
+
+                ok = true;
+            }
+            finally
+            {
+                GdiPlusInterop.GdipDeleteGraphics(offGfx);
+            }
+        }
+        finally
+        {
+            Gdi32.SelectObject(memDc, oldBmp);
+            Gdi32.DeleteDC(memDc);
+
+            if (!ok)
+            {
+                Gdi32.DeleteObject(dibBitmap);
+            }
+        }
+
+        // Store in cache (evict previous).
+        if (_txBitmap != 0)
+            Gdi32.DeleteObject(_txBitmap);
+
+        _txBitmap = dibBitmap;
+        _txBits = dibBits;
+        _txW = outW;
+        _txH = outH;
+        _txKey = key;
+
+        bitmap = dibBitmap;
+        bitmapW = outW;
+        bitmapH = outH;
+        return true;
+    }
 
     public bool TryGetOrCreateScaledBitmap(
         int srcX,

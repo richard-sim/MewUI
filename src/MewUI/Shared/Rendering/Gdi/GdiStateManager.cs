@@ -111,16 +111,25 @@ internal sealed class GdiStateManager
             (int)Math.Round(v.Y * DpiScale, MidpointRounding.AwayFromZero));
     }
 
-    /// <summary>Converts a logical rectangle to device coordinates (integer pixels).</summary>
+    /// <summary>Converts a logical rectangle to device coordinates (integer pixels).
+    /// Uses all 4 corners to compute a correct axis-aligned bounding box under rotation.</summary>
     public RECT ToDeviceRect(Rect rect)
     {
         var tl = Vector2.Transform(new Vector2((float)rect.X, (float)rect.Y), Transform);
+        var tr = Vector2.Transform(new Vector2((float)rect.Right, (float)rect.Y), Transform);
+        var bl = Vector2.Transform(new Vector2((float)rect.X, (float)rect.Bottom), Transform);
         var br = Vector2.Transform(new Vector2((float)rect.Right, (float)rect.Bottom), Transform);
+
+        float minX = Math.Min(Math.Min(tl.X, tr.X), Math.Min(bl.X, br.X));
+        float minY = Math.Min(Math.Min(tl.Y, tr.Y), Math.Min(bl.Y, br.Y));
+        float maxX = Math.Max(Math.Max(tl.X, tr.X), Math.Max(bl.X, br.X));
+        float maxY = Math.Max(Math.Max(tl.Y, tr.Y), Math.Max(bl.Y, br.Y));
+
         return new RECT(
-            (int)Math.Round(tl.X * DpiScale, MidpointRounding.AwayFromZero),
-            (int)Math.Round(tl.Y * DpiScale, MidpointRounding.AwayFromZero),
-            (int)Math.Round(br.X * DpiScale, MidpointRounding.AwayFromZero),
-            (int)Math.Round(br.Y * DpiScale, MidpointRounding.AwayFromZero));
+            (int)Math.Round(minX * DpiScale, MidpointRounding.AwayFromZero),
+            (int)Math.Round(minY * DpiScale, MidpointRounding.AwayFromZero),
+            (int)Math.Round(maxX * DpiScale, MidpointRounding.AwayFromZero),
+            (int)Math.Round(maxY * DpiScale, MidpointRounding.AwayFromZero));
     }
 
     /// <summary>Quantizes a stroke thickness to device pixels.</summary>

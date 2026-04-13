@@ -225,6 +225,32 @@ internal static partial class GdiPlusInterop
             return GdipSetPathGradientPresetBlend(brush, pc, pp, colors.Length);
     }
 
+    [LibraryImport("gdiplus.dll")]
+    public static partial int GdipCreateBitmapFromScan0(
+        int width, int height, int stride, int format, nint scan0, out nint bitmap);
+
+    [LibraryImport("gdiplus.dll")]
+    public static partial int GdipDisposeImage(nint image);
+
+    [LibraryImport("gdiplus.dll")]
+    public static partial int GdipDrawImageRectRect(
+        nint graphics, nint image,
+        float dstX, float dstY, float dstWidth, float dstHeight,
+        float srcX, float srcY, float srcWidth, float srcHeight,
+        Unit srcUnit, nint imageAttributes, nint callback, nint callbackData);
+
+    [LibraryImport("gdiplus.dll")]
+    public static partial int GdipSetInterpolationMode(nint graphics, InterpolationMode mode);
+
+    public enum InterpolationMode
+    {
+        Default = 0,
+        NearestNeighbor = 5,
+        Bilinear = 3,
+        HighQualityBilinear = 6,
+        HighQualityBicubic = 7,
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     public struct GdiplusStartupInput
     {
