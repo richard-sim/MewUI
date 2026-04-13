@@ -348,6 +348,11 @@ public sealed class FocusManager
 
     private void CollectFocusableElementsCore(Element? element, List<UIElement> result)
     {
+        if (element is UIElement ue && (!ue.IsVisible || !ue.IsEffectivelyEnabled))
+        {
+            return;
+        }
+
         if (element is TabControl tabControl)
         {
             int before = result.Count;
