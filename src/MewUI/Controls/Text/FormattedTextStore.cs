@@ -9,17 +9,24 @@ namespace Aprillz.MewUI.Controls.Text;
 internal sealed class FormattedTextStore
 {
     private TextFormat? _format;
-    private TextLayout? _layout;
-    private Rect _renderBounds;
+    private Size _measuredSize;
+    private TextLayout? _renderLayout;
+    private double _renderWidth;
+    private double _renderHeight;
+    private bool _dirty = true;
 
     public TextFormat? Format => _format;
-    public TextLayout? Layout => _layout;
+    public TextLayout? Layout => _renderLayout;
+    public Size MeasuredSize => _measuredSize;
 
     public void Invalidate()
     {
         _format = null;
-        _layout = null;
-        _renderBounds = default;
+        _renderLayout = null;
+        _measuredSize = Size.Empty;
+        _renderWidth = 0;
+        _renderHeight = 0;
+        _dirty = true;
     }
 
     public void SetFormat(TextFormat format)
@@ -27,25 +34,28 @@ internal sealed class FormattedTextStore
         _format = format;
     }
 
-    /// <summary>Measure phase: create layout for sizing. No native handle.</summary>
+    /// <summary>Measure phase: compute size only. Native layout created and released immediately by MeasurementContext.</summary>
     public Size Measure(IGraphicsContext ctx, ReadOnlySpan<char> text, in TextLayoutConstraints constraints)
     {
         if (_format == null) return Size.Empty;
-        _layout = ctx.CreateTextLayout(text, _format, in constraints);
-        _renderBounds = default; // render layout needs refresh
-        return _layout?.MeasuredSize ?? Size.Empty;
+        var layout = ctx.CreateTextLayout(text, _format, in constraints);
+        _measuredSize = layout?.MeasuredSize ?? Size.Empty;
+        return _measuredSize;
     }
 
-    /// <summary>Render phase: ensure layout has native handle for actual bounds.</summary>
+    /// <summary>Render phase: ensure layout with native handle for actual bounds. Cached until dirty or size changes.</summary>
     public TextLayout? EnsureRenderLayout(IGraphicsContext ctx, ReadOnlySpan<char> text, Rect bounds)
     {
-        if (_format == null || _layout == null) return null;
-        if (_layout.BackendHandle != 0 && _renderBounds == bounds)
-            return _layout;
+        if (_format == null) return null;
+        if (!_dirty && _renderLayout != null &&
+            _renderWidth == bounds.Width && _renderHeight == bounds.Height)
+            return _renderLayout;
 
         var constraints = new TextLayoutConstraints(bounds);
-        _layout = ctx.CreateTextLayout(text, _format, in constraints);
-        _renderBounds = bounds;
-        return _layout;
+        _renderLayout = ctx.CreateTextLayout(text, _format, in constraints);
+        _renderWidth = bounds.Width;
+        _renderHeight = bounds.Height;
+        _dirty = false;
+        return _renderLayout;
     }
 }

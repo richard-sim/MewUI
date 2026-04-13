@@ -155,7 +155,6 @@ public sealed class GroupBox : HeaderedContentControl
 
     protected override void OnRender(IGraphicsContext context)
     {
-        
         var bounds = GetBorderRenderMetrics(Bounds, BorderThickness, 0).Bounds;
         if (bounds.Width <= 0 || bounds.Height <= 0)
         {

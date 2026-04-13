@@ -9,63 +9,28 @@ namespace Aprillz.MewUI.Controls;
 public sealed class MultiLineTextBox : TextBase
     , IVisualTreeHost
 {
-    private bool _syncingText;
-
     public static readonly MewProperty<string> TextProperty =
         MewProperty<string>.Register<MultiLineTextBox>(nameof(Text), string.Empty,
             MewPropertyOptions.BindsTwoWayByDefault,
             static (self, _, newVal) => self.OnTextPropertyChanged(newVal));
 
-    /// <summary>
-    /// Gets or sets the text content.
-    /// </summary>
-    public string Text
-    {
-        get => GetTextCore();
-        set
-        {
-            var normalized = NormalizeText(value ?? string.Empty);
-            if (GetTextCore() == normalized)
-                return;
-            SetValue(TextProperty, normalized);
-        }
-    }
-
-    protected override void NotifyTextChanged()
-    {
-        _syncingText = true;
-        try { SetValue(TextProperty, GetTextCore()); }
-        finally { _syncingText = false; }
-        base.NotifyTextChanged();
-    }
-
-    private void OnTextPropertyChanged(string newValue)
-    {
-        if (_syncingText) return;
-        _syncingText = true;
-        try { ApplyExternalTextChange(newValue); }
-        finally { _syncingText = false; }
-    }
-
     private const int WrapSegmentHardLimit = 4096;
     private const int WrapLineCountHardLimit = 4096;
     private const int ExtentWidthLineCountHardLimit = 4096;
 
+    private readonly List<int> _lineStarts = [0];
+    private readonly MultiLineTextView _textView;
+    private readonly TextWrapVirtualizer _wrapVirtualizer;
+    private readonly TextLineWidthEstimator _lineWidthEstimator;
+    private readonly ScrollBar _vBar;
+    private readonly ScrollBar _hBar;
+
+    private bool _syncingText;
     private double _lineHeight;
-    private readonly List<int> _lineStarts = new() { 0 };
 
     private int _pendingViewAnchorIndex = -1;
     private double _pendingViewAnchorYOffset;
     private double _pendingViewAnchorXOffset;
-
-    private readonly MultiLineTextView _textView;
-    private readonly TextWrapVirtualizer _wrapVirtualizer;
-    private readonly TextLineWidthEstimator _lineWidthEstimator;
-
-    // Undo/Redo handled by TextBase.
-
-    private readonly ScrollBar _vBar;
-    private readonly ScrollBar _hBar;
 
     static MultiLineTextBox()
     {
@@ -74,7 +39,6 @@ public sealed class MultiLineTextBox : TextBase
 
     public MultiLineTextBox()
     {
-
         _textView = new MultiLineTextView(
             () => DocumentVersion,
             () => _lineStarts.Count,
@@ -105,6 +69,111 @@ public sealed class MultiLineTextBox : TextBase
 
         _vBar.ValueChanged += v => SetVerticalOffset(v);
         _hBar.ValueChanged += v => SetHorizontalOffset(v);
+    }
+
+    /// <summary>
+    /// Gets or sets the text content.
+    /// </summary>
+    public string Text
+    {
+        get => GetTextCore();
+        set
+        {
+            var normalized = NormalizeText(value ?? string.Empty);
+            if (GetTextCore() == normalized)
+                return;
+            SetValue(TextProperty, normalized);
+        }
+    }
+
+    /// <summary>
+    /// Enables hard-wrapping at the available width. When enabled, horizontal scrolling is disabled.
+    /// </summary>
+    public bool Wrap
+    {
+        get => WrapEnabled;
+        set
+        {
+            if (WrapEnabled == value)
+            {
+                return;
+            }
+
+            if (value && _lineStarts.Count > WrapLineCountHardLimit)
+            {
+                // Cannot re-enable for very large documents.
+                NotifyWrapChanged(false);
+                return;
+            }
+
+            SetWrapEnabled(value);
+        }
+    }
+
+    protected override bool SupportsWrap => true;
+
+    protected override TextAlignment PlaceholderVerticalAlignment => TextAlignment.Top;
+
+    public override Rect GetCharRectInWindow(int charIndex)
+    {
+        var contentBounds = GetViewportContentBounds();
+        using var measure = BeginTextMeasurement();
+        var font = measure.Font;
+
+        int idx = Math.Clamp(charIndex, 0, Document.Length);
+        GetLineFromIndex(idx, out int line, out int lineStart, out int lineEnd);
+        double lineHeight = GetLineHeight();
+
+        double charY;
+        double charX;
+
+        if (!WrapEnabled)
+        {
+            charY = line * lineHeight - VerticalOffset;
+            if (idx <= lineStart)
+                charX = 0;
+            else
+            {
+                var cache = _textView.EnsureLineMeasureCache(line, lineStart, lineEnd, measure.Context, font);
+                charX = MultiLineTextView.GetPrefixWidthCached(cache, idx - lineStart, measure.Context, font) - HorizontalOffset;
+            }
+        }
+        else
+        {
+            double wrapWidth = Math.Max(1, contentBounds.Width);
+            GetLineSpan(line, out _, out int wrapLineEnd);
+
+            var lineMeasure = _textView.EnsureLineMeasureCache(line, lineStart, wrapLineEnd, measure.Context, font);
+            string fullLine = lineMeasure.Text;
+            var layout = _wrapVirtualizer.GetWrapLayout(line, fullLine, wrapWidth, measure.Context, font);
+            int col = Math.Clamp(idx - lineStart, 0, fullLine.Length);
+            int row = TextWrapVirtualizer.GetWrapRowFromColumn(layout, col);
+            int lineStartRow = _wrapVirtualizer.GetVisualRowStartForLine(line, wrapWidth, measure.Context, font);
+            charY = (lineStartRow + row) * lineHeight - VerticalOffset;
+
+            int segStart = layout.SegmentStarts[row];
+            charX = MultiLineTextView.GetPrefixWidthCached(lineMeasure, col, measure.Context, font) -
+                     MultiLineTextView.GetPrefixWidthCached(lineMeasure, segStart, measure.Context, font);
+        }
+
+        return new Rect(contentBounds.X + charX, contentBounds.Y + charY, 1, lineHeight);
+    }
+
+    bool IVisualTreeHost.VisitChildren(Func<Element, bool> visitor)
+        => visitor(_vBar) && visitor(_hBar);
+
+    protected override void NotifyTextChanged()
+    {
+        _syncingText = true;
+        try
+        {
+            SetValue(TextProperty, GetTextCore());
+        }
+        finally
+        {
+            _syncingText = false;
+        }
+        base.NotifyTextChanged();
     }
 
     protected override Rect GetInteractionContentBounds()
@@ -144,81 +213,9 @@ public sealed class MultiLineTextBox : TextBase
 
     protected override void EnsureCaretVisibleCore(Rect contentBounds) => EnsureCaretVisible(contentBounds);
 
-    public override Rect GetCharRectInWindow(int charIndex)
-    {
-        var contentBounds = GetViewportContentBounds();
-        using var measure = BeginTextMeasurement();
-        var font = measure.Font;
-
-        int idx = Math.Clamp(charIndex, 0, Document.Length);
-        GetLineFromIndex(idx, out int line, out int lineStart, out int lineEnd);
-        double lineHeight = GetLineHeight();
-
-        double charY;
-        double charX;
-
-        if (!WrapEnabled)
-        {
-            charY = line * lineHeight - VerticalOffset;
-            if (idx <= lineStart)
-                charX = 0;
-            else
-            {
-                var cache = _textView.EnsureLineMeasureCache(line, lineStart, lineEnd, measure.Context, font);
-                charX = MultiLineTextView.GetPrefixWidthCached(cache, idx - lineStart, measure.Context, font) - HorizontalOffset;
-            }
-        }
-        else
-        {
-            double wrapWidth = Math.Max(1, contentBounds.Width);
-            GetLineSpan(line, out _, out int wrapLineEnd);
-            var lineMeasure = _textView.EnsureLineMeasureCache(line, lineStart, wrapLineEnd, measure.Context, font);
-            string fullLine = lineMeasure.Text;
-            var layout = _wrapVirtualizer.GetWrapLayout(line, fullLine, wrapWidth, measure.Context, font);
-            int col = Math.Clamp(idx - lineStart, 0, fullLine.Length);
-            int row = TextWrapVirtualizer.GetWrapRowFromColumn(layout, col);
-            int lineStartRow = _wrapVirtualizer.GetVisualRowStartForLine(line, wrapWidth, measure.Context, font);
-            charY = (lineStartRow + row) * lineHeight - VerticalOffset;
-
-            int segStart = layout.SegmentStarts[row];
-            charX = MultiLineTextView.GetPrefixWidthCached(lineMeasure, col, measure.Context, font) -
-                     MultiLineTextView.GetPrefixWidthCached(lineMeasure, segStart, measure.Context, font);
-        }
-
-        return new Rect(contentBounds.X + charX, contentBounds.Y + charY, 1, lineHeight);
-    }
-
-    /// <summary>
-    /// Enables hard-wrapping at the available width. When enabled, horizontal scrolling is disabled.
-    /// </summary>
-    public bool Wrap
-    {
-        get => WrapEnabled;
-        set
-        {
-            if (WrapEnabled == value)
-            {
-                return;
-            }
-
-            if (value && _lineStarts.Count > WrapLineCountHardLimit)
-            {
-                // Cannot re-enable for very large documents.
-                NotifyWrapChanged(false);
-                return;
-            }
-
-            SetWrapEnabled(value);
-        }
-    }
-
-    protected override bool SupportsWrap => true;
-
-    protected override TextAlignment PlaceholderVerticalAlignment => TextAlignment.Top;
-
     protected override void OnWrapChanged(bool oldValue, bool newValue)
     {
-        if (FindVisualRoot() is not null)
+        if (FindVisualRoot() != null)
         {
             CaptureViewAnchor();
         }
@@ -229,8 +226,6 @@ public sealed class MultiLineTextBox : TextBase
         InvalidateMeasure();
         InvalidateVisual();
     }
-
-    private bool CanComputeExtentWidth() => !WrapEnabled && _lineStarts.Count <= ExtentWidthLineCountHardLimit;
 
     protected override void OnTextChanged(string oldText, string newText)
     {
@@ -402,9 +397,6 @@ public sealed class MultiLineTextBox : TextBase
         ApplyViewAnchorIfPending();
     }
 
-    bool IVisualTreeHost.VisitChildren(Func<Element, bool> visitor)
-        => visitor(_vBar) && visitor(_hBar);
-
     protected override void RenderTextContent(IGraphicsContext context, Rect contentBounds, IFont font, Theme theme, in VisualState state)
     {
         double extentBefore = WrapEnabled ? GetExtentHeight(Math.Max(1, contentBounds.Width)) : 0;
@@ -481,14 +473,54 @@ public sealed class MultiLineTextBox : TextBase
         e.Handled = true;
     }
 
-    // Key handling is centralized in TextBase.
-
     protected override void MoveCaretToLineEdge(bool start, bool extendSelection)
         => MoveToLineEdge(start, extendSelection);
 
+    // Key handling is centralized in TextBase.
     protected override void MoveCaretVerticalKey(int deltaLines, bool extendSelection)
         => MoveCaretVertical(deltaLines, extendSelection);
 
+    protected override void OnDispose()
+    {
+        base.OnDispose();
+        _vBar.Dispose();
+        _hBar.Dispose();
+    }
+
+    private static void DrawCaret(IGraphicsContext context, double x, double y, double lineHeight, Theme theme)
+    {
+        if (lineHeight <= 0)
+        {
+            return;
+        }
+
+        // Keep caret slightly inset to match single-line TextBox behavior and avoid a "top aligned" look.
+        if (lineHeight <= 4)
+        {
+            context.FillRectangle(new Rect(x, y, 1, Math.Max(1, lineHeight)), theme.Palette.WindowText);
+            return;
+        }
+
+        const double pad = 2;
+        double top = y + pad;
+        double bottom = y + lineHeight - pad;
+        if (bottom <= top)
+        {
+            top = y;
+            bottom = y + lineHeight;
+        }
+
+        context.DrawLine(new Point(x, top), new Point(x, bottom), theme.Palette.WindowText, 1, pixelSnap: true);
+    }
+
+    private void OnTextPropertyChanged(string newValue)
+    {
+        if (_syncingText) return;
+        _syncingText = true;
+        try { ApplyExternalTextChange(newValue); }
+        finally { _syncingText = false; }
+    }
+    private bool CanComputeExtentWidth() => !WrapEnabled && _lineStarts.Count <= ExtentWidthLineCountHardLimit;
     private void RenderText(IGraphicsContext context, Rect contentBounds, IFont font, Theme theme)
     {
         double lineHeight = GetLineHeight();
@@ -1068,33 +1100,6 @@ public sealed class MultiLineTextBox : TextBase
     }
 
     // Note: text measurement caches live in MultiLineTextView.
-
-    private static void DrawCaret(IGraphicsContext context, double x, double y, double lineHeight, Theme theme)
-    {
-        if (lineHeight <= 0)
-        {
-            return;
-        }
-
-        // Keep caret slightly inset to match single-line TextBox behavior and avoid a "top aligned" look.
-        if (lineHeight <= 4)
-        {
-            context.FillRectangle(new Rect(x, y, 1, Math.Max(1, lineHeight)), theme.Palette.WindowText);
-            return;
-        }
-
-        const double pad = 2;
-        double top = y + pad;
-        double bottom = y + lineHeight - pad;
-        if (bottom <= top)
-        {
-            top = y;
-            bottom = y + lineHeight;
-        }
-
-        context.DrawLine(new Point(x, top), new Point(x, bottom), theme.Palette.WindowText, 1, pixelSnap: true);
-    }
-
     private string GetLineText(int lineIndex, int start, int end)
     {
         return _textView.GetLineText(lineIndex, start, end);
@@ -1206,14 +1211,6 @@ public sealed class MultiLineTextBox : TextBase
         }
         return lo;
     }
-
-    protected override void OnDispose()
-    {
-        base.OnDispose();
-        _vBar.Dispose();
-        _hBar.Dispose();
-    }
-
     private readonly record struct WrapLayout(int Version, double Width, int[] SegmentStarts);
     private readonly record struct WrapAnchor(int LineIndex, int StartRow);
 

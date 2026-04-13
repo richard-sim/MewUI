@@ -265,7 +265,10 @@ public partial class TextBlock : FrameworkElement, IDisposable
 
     protected override void OnRender(IGraphicsContext context)
     {
-        if (_textStore.Format == null || _textStore.Layout == null) return;
+        if (_textStore.Format == null)
+        {
+            return;
+        }
         var layout = _textStore.EnsureRenderLayout(context, Text, Bounds);
         if (layout == null) return;
         layout.EffectiveBounds = Bounds;
