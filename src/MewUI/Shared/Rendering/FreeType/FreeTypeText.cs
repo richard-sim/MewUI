@@ -176,7 +176,8 @@ internal static unsafe class FreeTypeText
                 trimmedFlags.Add(false);
         }
 
-        int contentW = Math.Min(widthPx, (int)Math.Round(TextMeasurePolicy.ApplyWidthPadding(maxLineWidth)));
+        // Use actual text width for centering — padding is for external Measure() only.
+        int contentW = Math.Min(widthPx, maxLineWidth);
         int contentH = Math.Min(heightPx, lines.Count * lineHeightPx);
 
         int startX = hAlign switch
@@ -203,7 +204,7 @@ internal static unsafe class FreeTypeText
                 continue;
             }
 
-            int lineWidthPx = line.Width > 0 ? (int)Math.Ceiling(TextMeasurePolicy.ApplyWidthPadding(line.Width)) : 0;
+            int lineWidthPx = line.Width > 0 ? (int)Math.Ceiling(line.Width) : 0;
             int lineX = hAlign switch
             {
                 TextAlignment.Center => startX + (contentW - lineWidthPx) / 2,
