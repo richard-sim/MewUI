@@ -12,6 +12,7 @@ internal sealed class MewPropertyBinding<T> : IDisposable
     private readonly MewProperty<T> _property;
     private readonly ObservableValue<T> _source;
     private readonly BindingMode _mode;
+    private readonly Action? _onPropertyChanged;
     private bool _updating;
 
     public MewPropertyBinding(
@@ -29,7 +30,8 @@ internal sealed class MewPropertyBinding<T> : IDisposable
 
         if (mode == BindingMode.TwoWay)
         {
-            owner.AddPropertyBindingCallback(property.Id, OnPropertyChanged);
+            _onPropertyChanged = OnPropertyChanged;
+            owner.AddPropertyBindingCallback(property.Id, _onPropertyChanged);
         }
 
         // Initial sync from source.
@@ -80,9 +82,9 @@ internal sealed class MewPropertyBinding<T> : IDisposable
     {
         _source.Changed -= OnSourceChanged;
 
-        if (_mode == BindingMode.TwoWay)
+        if (_mode == BindingMode.TwoWay && _onPropertyChanged != null)
         {
-            _owner.RemovePropertyBindingCallback(_property.Id);
+            _owner.RemovePropertyBindingCallback(_property.Id, _onPropertyChanged);
         }
     }
 }

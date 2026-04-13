@@ -16,6 +16,8 @@ internal sealed class MewObjectPropertyBinding<TProp, TSource> : IDisposable
     private readonly Func<TSource, TProp> _convert;
     private readonly Func<TProp, TSource>? _convertBack;
     private readonly BindingMode _mode;
+    private readonly Action _onSourceChanged;
+    private readonly Action? _onTargetChanged;
     private bool _updating;
 
     public MewObjectPropertyBinding(
@@ -34,14 +36,16 @@ internal sealed class MewObjectPropertyBinding<TProp, TSource> : IDisposable
         _convert = convert;
         _convertBack = convertBack;
         _mode = mode;
+        _onSourceChanged = OnSourceChanged;
 
         // Source → Target
-        source.AddPropertyBindingCallback(sourceProperty.Id, OnSourceChanged);
+        source.AddPropertyBindingCallback(sourceProperty.Id, _onSourceChanged);
 
         // Target → Source (TwoWay)
         if (mode == BindingMode.TwoWay && convertBack != null)
         {
-            target.AddPropertyBindingCallback(targetProperty.Id, OnTargetChanged);
+            _onTargetChanged = OnTargetChanged;
+            target.AddPropertyBindingCallback(targetProperty.Id, _onTargetChanged);
         }
 
         // Initial sync
@@ -84,10 +88,10 @@ internal sealed class MewObjectPropertyBinding<TProp, TSource> : IDisposable
 
     public void Dispose()
     {
-        _source.RemovePropertyBindingCallback(_sourceProperty.Id);
-        if (_mode == BindingMode.TwoWay && _convertBack != null)
+        _source.RemovePropertyBindingCallback(_sourceProperty.Id, _onSourceChanged);
+        if (_mode == BindingMode.TwoWay && _onTargetChanged != null)
         {
-            _target.RemovePropertyBindingCallback(_targetProperty.Id);
+            _target.RemovePropertyBindingCallback(_targetProperty.Id, _onTargetChanged);
         }
     }
 }

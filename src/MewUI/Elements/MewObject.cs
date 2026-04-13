@@ -157,12 +157,22 @@ public abstract class MewObject : IPropertyOwner
     internal void AddPropertyBindingCallback(int propertyId, Action callback)
     {
         _propertyBindingCallbacks ??= new Dictionary<int, Action>(capacity: 2);
-        _propertyBindingCallbacks[propertyId] = callback;
+        if (_propertyBindingCallbacks.TryGetValue(propertyId, out var existing))
+            _propertyBindingCallbacks[propertyId] = existing + callback;
+        else
+            _propertyBindingCallbacks[propertyId] = callback;
     }
 
-    internal void RemovePropertyBindingCallback(int propertyId)
+    internal void RemovePropertyBindingCallback(int propertyId, Action callback)
     {
-        _propertyBindingCallbacks?.Remove(propertyId);
+        if (_propertyBindingCallbacks != null && _propertyBindingCallbacks.TryGetValue(propertyId, out var existing))
+        {
+            var updated = existing - callback;
+            if (updated == null)
+                _propertyBindingCallbacks.Remove(propertyId);
+            else
+                _propertyBindingCallbacks[propertyId] = updated;
+        }
     }
 
     internal void AddPropertyForward(int sourcePropertyId, MewObject target, MewProperty targetProperty)

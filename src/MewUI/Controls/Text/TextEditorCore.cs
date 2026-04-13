@@ -82,12 +82,12 @@ internal sealed class TextEditorCore
 
     public void SetCaretPosition(int value)
     {
-        CaretPosition = Math.Clamp(value, 0, _getLength());
+        CaretPosition = AdjustForSurrogate(Math.Clamp(value, 0, _getLength()));
     }
 
     public void SetCaretAndSelection(int newPos, bool extendSelection)
     {
-        newPos = Math.Clamp(newPos, 0, _getLength());
+        newPos = AdjustForSurrogate(Math.Clamp(newPos, 0, _getLength()));
         if (!extendSelection)
         {
             CaretPosition = newPos;
@@ -212,6 +212,18 @@ internal sealed class TextEditorCore
         CaretPosition = currentPosition < anchorStart ? selStart : selEnd;
     }
 
+    /// <summary>
+    /// If <paramref name="pos"/> lands between a surrogate pair, nudge it forward
+    /// so the caret never sits between the high and low surrogates.
+    /// </summary>
+    private int AdjustForSurrogate(int pos)
+    {
+        int length = _getLength();
+        if (pos > 0 && pos < length && char.IsLowSurrogate(_getChar(pos)))
+            pos++;
+        return Math.Min(pos, length);
+    }
+
     private static bool IsWordChar(char c) => char.IsLetterOrDigit(c) || c == '_';
     private static bool IsPunctuation(char c) => !char.IsLetterOrDigit(c) && !char.IsWhiteSpace(c) && c != '_';
 
@@ -233,6 +245,11 @@ internal sealed class TextEditorCore
         else
         {
             newPos = Math.Clamp(CaretPosition + direction, 0, length);
+            // Skip over surrogate pairs so the caret never lands between them.
+            if (direction > 0 && newPos < length && char.IsLowSurrogate(_getChar(newPos)))
+                newPos = Math.Min(newPos + 1, length);
+            else if (direction < 0 && newPos > 0 && char.IsLowSurrogate(_getChar(newPos)))
+                newPos--;
         }
 
         SetCaretAndSelection(newPos, extendSelection);
@@ -305,7 +322,18 @@ internal sealed class TextEditorCore
             return;
         }
 
-        int deleteFrom = word ? FindPreviousWordBoundary(CaretPosition) : CaretPosition - 1;
+        int deleteFrom;
+        if (word)
+        {
+            deleteFrom = FindPreviousWordBoundary(CaretPosition);
+        }
+        else
+        {
+            deleteFrom = CaretPosition - 1;
+            // Treat surrogate pair as a single unit.
+            if (deleteFrom > 0 && char.IsLowSurrogate(_getChar(deleteFrom)))
+                deleteFrom--;
+        }
         int deleteLen = CaretPosition - deleteFrom;
         if (deleteLen <= 0)
         {
@@ -332,7 +360,18 @@ internal sealed class TextEditorCore
             return;
         }
 
-        int deleteTo = word ? FindNextWordBoundary(CaretPosition) : CaretPosition + 1;
+        int deleteTo;
+        if (word)
+        {
+            deleteTo = FindNextWordBoundary(CaretPosition);
+        }
+        else
+        {
+            deleteTo = CaretPosition + 1;
+            // Treat surrogate pair as a single unit.
+            if (deleteTo < length && char.IsLowSurrogate(_getChar(deleteTo)))
+                deleteTo++;
+        }
         deleteTo = Math.Clamp(deleteTo, CaretPosition, length);
 
         int deleteLen = deleteTo - CaretPosition;

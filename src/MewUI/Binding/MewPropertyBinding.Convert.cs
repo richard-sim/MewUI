@@ -14,6 +14,7 @@ internal sealed class MewPropertyBinding<TProp, TSource> : IDisposable
     private readonly Func<TSource, TProp> _convert;
     private readonly Func<TProp, TSource>? _convertBack;
     private readonly BindingMode _mode;
+    private readonly Action? _onPropertyChanged;
     private bool _updating;
 
     public MewPropertyBinding(
@@ -35,7 +36,8 @@ internal sealed class MewPropertyBinding<TProp, TSource> : IDisposable
 
         if (mode == BindingMode.TwoWay && convertBack != null)
         {
-            owner.AddPropertyBindingCallback(property.Id, OnPropertyChanged);
+            _onPropertyChanged = OnPropertyChanged;
+            owner.AddPropertyBindingCallback(property.Id, _onPropertyChanged);
         }
 
         OnSourceChanged();
@@ -71,9 +73,9 @@ internal sealed class MewPropertyBinding<TProp, TSource> : IDisposable
     public void Dispose()
     {
         _source.Changed -= OnSourceChanged;
-        if (_mode == BindingMode.TwoWay && _convertBack != null)
+        if (_mode == BindingMode.TwoWay && _onPropertyChanged != null)
         {
-            _owner.RemovePropertyBindingCallback(_property.Id);
+            _owner.RemovePropertyBindingCallback(_property.Id, _onPropertyChanged);
         }
     }
 }
