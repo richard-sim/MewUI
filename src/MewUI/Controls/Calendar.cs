@@ -353,20 +353,24 @@ public sealed class Calendar : Control, IVisualTreeHost
             bool isSelected = selected.HasValue && date == selected.Value.Date;
             bool isHot = i == _hotCellIndex;
 
+            var unit = Math.Min(cellRect.Width, cellRect.Height);
+            var circleRect = new Rect(cellRect.X + (cellRect.Width - unit) / 2, cellRect.Y + (cellRect.Height - unit) / 2, unit, unit);
+            snappedRadius = unit / 2.0;
+
             // Background
             if (isSelected)
             {
-                context.FillRoundedRectangle(cellRect, snappedRadius, snappedRadius, palette.Accent);
+                context.FillRoundedRectangle(circleRect, snappedRadius, snappedRadius, palette.Accent);
             }
             else if (isHot)
             {
-                context.FillRoundedRectangle(cellRect, snappedRadius, snappedRadius, palette.AccentHoverOverlay);
+                context.FillRoundedRectangle(circleRect, snappedRadius, snappedRadius, palette.AccentHoverOverlay);
             }
 
             // Today ring
             if (isToday && !isSelected)
             {
-                context.DrawRoundedRectangle(cellRect, snappedRadius, snappedRadius, palette.Accent, snappedStroke);
+                context.DrawRoundedRectangle(circleRect, snappedRadius, snappedRadius, palette.Accent, snappedStroke, true);
             }
 
             // Text
@@ -395,6 +399,11 @@ public sealed class Calendar : Control, IVisualTreeHost
         for (int i = 0; i < YearDecadeCells; i++)
         {
             var cellRect = _cellRects[i];
+
+            var unit = Math.Min(cellRect.Width, cellRect.Height) - 2;
+            var circleRect = new Rect(cellRect.X + (cellRect.Width - unit) / 2, cellRect.Y + (cellRect.Height - unit) / 2, unit, unit);
+            snappedRadius = unit / 2.0;
+
             int month = i + 1;
             bool isSelected = selected.HasValue &&
                               selected.Value.Year == display.Year &&
@@ -404,16 +413,16 @@ public sealed class Calendar : Control, IVisualTreeHost
 
             if (isSelected)
             {
-                context.FillRoundedRectangle(cellRect, snappedRadius, snappedRadius, palette.Accent);
+                context.FillRoundedRectangle(circleRect, snappedRadius, snappedRadius, palette.Accent);
             }
             else if (isHot)
             {
-                context.FillRoundedRectangle(cellRect, snappedRadius, snappedRadius, palette.AccentHoverOverlay);
+                context.FillRoundedRectangle(circleRect, snappedRadius, snappedRadius, palette.AccentHoverOverlay);
             }
 
             if (isCurrent && !isSelected)
             {
-                context.DrawRoundedRectangle(cellRect, snappedRadius, snappedRadius, palette.Accent, snappedStroke);
+                context.DrawRoundedRectangle(circleRect, snappedRadius, snappedRadius, palette.Accent, snappedStroke);
             }
 
             var textColor = isSelected ? palette.AccentText : palette.WindowText;
@@ -445,18 +454,23 @@ public sealed class Calendar : Control, IVisualTreeHost
             bool isHot = i == _hotCellIndex;
             bool isCurrent = DateTime.Today.Year == year;
 
+
+            var unit = Math.Min(cellRect.Width, cellRect.Height) - 2;
+            var circleRect = new Rect(cellRect.X + (cellRect.Width - unit) / 2, cellRect.Y + (cellRect.Height - unit) / 2, unit, unit);
+            snappedRadius = unit / 2.0;
+
             if (isSelected)
             {
-                context.FillRoundedRectangle(cellRect, snappedRadius, snappedRadius, palette.Accent);
+                context.FillRoundedRectangle(circleRect, snappedRadius, snappedRadius, palette.Accent);
             }
             else if (isHot && isInDecade)
             {
-                context.FillRoundedRectangle(cellRect, snappedRadius, snappedRadius, palette.AccentHoverOverlay);
+                context.FillRoundedRectangle(circleRect, snappedRadius, snappedRadius, palette.AccentHoverOverlay);
             }
 
             if (isCurrent && !isSelected)
             {
-                context.DrawRoundedRectangle(cellRect, snappedRadius, snappedRadius, palette.Accent, snappedStroke);
+                context.DrawRoundedRectangle(circleRect, snappedRadius, snappedRadius, palette.Accent, snappedStroke);
             }
 
             var textColor = isSelected
