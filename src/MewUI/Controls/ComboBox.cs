@@ -22,12 +22,6 @@ public sealed partial class ComboBox : DropDownBase
 
     private readonly TextWidthCache _textWidthCache = new(512);
     private ListBox? _popupList;
-
-    private void OnZebraStripingChanged(bool oldValue, bool newValue)
-    {
-        if (_popupList != null)
-            _popupList.ZebraStriping = newValue;
-    }
     private bool _syncingSelectedIndex;
     private bool _suppressItemsSelectionChanged;
     private ISelectableItemsView _itemsSource = ItemsView.EmptySelectable;
@@ -172,6 +166,12 @@ public sealed partial class ComboBox : DropDownBase
         _itemsSource.Changed += OnItemsChanged;
     }
 
+    private void OnZebraStripingChanged(bool oldValue, bool newValue)
+    {
+        if (_popupList != null)
+            _popupList.ZebraStriping = newValue;
+    }
+
     private void OnItemsChanged(ItemsChange change)
     {
         if (_popupList != null)
@@ -250,7 +250,7 @@ public sealed partial class ComboBox : DropDownBase
                 maxWidth = Math.Max(maxWidth, _textWidthCache.GetOrMeasure(measure.Context, measure.Font, dpi, Placeholder));
             }
 
-            width = maxWidth + Padding.HorizontalThickness + ArrowAreaWidth;
+            width = maxWidth + ArrowAreaWidth;
         }
 
         return new Size(width, headerHeight);

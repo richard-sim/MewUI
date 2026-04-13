@@ -198,7 +198,14 @@ public abstract class DropDownBase : Control, IPopupOwner
         return new Rect(x, y, width, height);
     }
 
-    protected override Size MeasureContent(Size availableSize) => MeasureHeader(availableSize);
+    protected override Size MeasureContent(Size availableSize)
+    {
+        var borderInset = GetBorderVisualInset();
+        var hInset = borderInset * 2 + Padding.HorizontalThickness;
+        var innerWidth = Math.Max(0, availableSize.Width - hInset);
+        var header = MeasureHeader(new Size(innerWidth, availableSize.Height));
+        return new Size(header.Width + hInset, header.Height);
+    }
 
     protected override void OnThemeChanged(Theme oldTheme, Theme newTheme)
     {
@@ -233,7 +240,7 @@ public abstract class DropDownBase : Control, IPopupOwner
         ArrowForeground = state.IsEnabled ? Foreground : Theme.Palette.DisabledText;
         RenderHeaderContent(context, headerRect, innerHeaderRect);
 
-        DrawArrow(context, headerRect, ArrowForeground, IsDropDownOpen);
+        DrawArrow(context, innerHeaderRect, ArrowForeground, IsDropDownOpen);
 
         if (IsDropDownOpen)
         {

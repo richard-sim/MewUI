@@ -136,7 +136,7 @@ public sealed class DatePicker : DropDownBase
         using var measure = BeginTextMeasurement();
         var textSize = measure.Context.MeasureText(sample, measure.Font);
 
-        double width = textSize.Width + Padding.HorizontalThickness + ArrowAreaWidth + 16;
+        double width = textSize.Width + ArrowAreaWidth;
         return new Size(width, headerHeight);
     }
 
