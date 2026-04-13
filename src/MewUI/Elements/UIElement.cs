@@ -61,6 +61,22 @@ public abstract partial class UIElement : Element
             MewPropertyOptions.None);
 
     /// <summary>
+    /// When <see langword="true"/>, the viewport-bounds cull check in <see cref="Render"/> is skipped.
+    /// Set this on children whose layout bounds do not reflect their actual visible area
+    /// (e.g. children rendered under a parent-applied scale/rotation transform).
+    /// Inherits to descendants so deep child trees under a transform host are not culled.
+    /// </summary>
+    public static readonly MewProperty<bool> SkipViewportCullProperty =
+        MewProperty<bool>.Register<UIElement>(nameof(SkipViewportCull), false,
+            MewPropertyOptions.Inherits);
+
+    public bool SkipViewportCull
+    {
+        get => GetValue(SkipViewportCullProperty);
+        set => SetValue(SkipViewportCullProperty, value);
+    }
+
+    /// <summary>
     /// Specifies the cursor to display when the mouse is over this element.
     /// <see cref="CursorType.None"/> means no override (inherit from parent or platform default).
     /// </summary>
@@ -325,7 +341,7 @@ public abstract partial class UIElement : Element
             return;
         }
 
-        if (this is not Window && 
+        if (!SkipViewportCull && this is not Window &&
 		    (FindVisualRoot() is not Window root || !new Rect(root.ClientSize).IntersectsWith(Bounds)))
         {
             return;
