@@ -156,9 +156,7 @@ internal sealed class FixedHeightItemsPresenter : Control, IVisualTreeHost, IScr
 
         _viewport = viewport;
         RecomputeExtent();
-        // Scroll-driven content: viewport changes should not trigger re-measurement loops.
-        // The ScrollViewer already owns measuring and will read the updated Extent in the same pass.
-        InvalidateVisual();
+        InvalidateArrange();
     }
 
     public void SetOffset(Point offset)
@@ -174,7 +172,7 @@ internal sealed class FixedHeightItemsPresenter : Control, IVisualTreeHost, IScr
         }
 
         _offset = clamped;
-        InvalidateVisual();
+        InvalidateArrange();
     }
 
     bool IVisualTreeHost.VisitChildren(Func<Element, bool> visitor)
@@ -198,7 +196,7 @@ internal sealed class FixedHeightItemsPresenter : Control, IVisualTreeHost, IScr
             Math.Max(0, availableSize.Height));
     }
 
-    protected override void OnRender(IGraphicsContext context)
+    protected override void ArrangeContent(Rect bounds)
     {
         if (ItemsSource.Count == 0)
         {
@@ -213,12 +211,8 @@ internal sealed class FixedHeightItemsPresenter : Control, IVisualTreeHost, IScr
         }
 
         var dpiScale = GetDpi() / 96.0;
-        // Use our arranged bounds (window coordinates). ScrollViewer doesn't translate scroll-driven content;
-        // we render/arrange at absolute positions and rely on the owner to clip.
-        var viewportBounds = Bounds;
-        var contentBounds = LayoutRounding.SnapViewportRectToPixels(viewportBounds, dpiScale);
+        var contentBounds = LayoutRounding.SnapViewportRectToPixels(bounds, dpiScale);
 
-        // Keep the item stepping stable at fractional DPI by aligning the item height and offsets to pixels.
         double alignedItemHeight = LayoutRounding.RoundToPixel(itemHeight, dpiScale);
         double alignedOffsetY = LayoutRounding.RoundToPixel(_offset.Y, dpiScale);
         double alignedOffsetX = LayoutRounding.RoundToPixel(_offset.X, dpiScale);
@@ -243,10 +237,9 @@ internal sealed class FixedHeightItemsPresenter : Control, IVisualTreeHost, IScr
             double onePx = dpiScale > 0 ? 1.0 / dpiScale : 1.0;
             if (Math.Abs(desiredOffsetY - alignedOffsetY) >= onePx * 0.99)
             {
-                // Apply the corrected offset immediately for this render pass to avoid a one-frame
-                // "flash" at the old position; the owner will then update _offset via SetOffset.
                 alignedOffsetY = desiredOffsetY;
                 OffsetCorrectionRequested?.Invoke(new Point(_offset.X, desiredOffsetY));
+                InvalidateMeasure();
             }
             else
             {
@@ -265,7 +258,6 @@ internal sealed class FixedHeightItemsPresenter : Control, IVisualTreeHost, IScr
             out double yStart,
             out _);
 
-        // Shift the realized containers by horizontal scroll. Keep Y in viewport space.
         double layoutWidth = UseHorizontalExtentForLayout
             ? Math.Max(contentBounds.Width, Extent.Width)
             : contentBounds.Width;
@@ -309,7 +301,12 @@ internal sealed class FixedHeightItemsPresenter : Control, IVisualTreeHost, IScr
             GetContainerRect = effectiveGetContainerRect,
         };
 
-        _itemsHost.Render(context);
+        _itemsHost.Arrange();
+    }
+
+    protected override void OnRender(IGraphicsContext context)
+    {
+        _itemsHost.RenderArranged(context);
     }
 
     protected override UIElement? OnHitTest(Point point)
@@ -416,7 +413,7 @@ internal sealed class FixedHeightItemsPresenter : Control, IVisualTreeHost, IScr
         }
 
         _pendingScrollIntoViewIndex = index;
-        InvalidateVisual();
+        InvalidateArrange();
     }
 
     private static IDataTemplate CreateDefaultItemTemplate()

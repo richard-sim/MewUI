@@ -528,6 +528,9 @@ public sealed class TreeView : Control, IVisualTreeHost, IFocusIntoViewHost, IVi
         }
 
         // Allow the extent to expand based on realized (templated) content width.
+        // Observe realized item natural widths during measure so arrange doesn't
+        // need to re-measure or call InvalidateMeasure().
+        UpdateObservedExtentWidthFromRealized();
         extentWidth = Math.Max(extentWidth, _observedExtentWidth);
 
         double desiredWidth;
@@ -568,6 +571,9 @@ public sealed class TreeView : Control, IVisualTreeHost, IFocusIntoViewHost, IVi
     {
         base.ArrangeContent(bounds);
 
+        _presenter.RebindExisting = _rebindVisibleOnNextRender;
+        _rebindVisibleOnNextRender = false;
+
         var snapped = GetSnappedBorderBounds(Bounds);
         var borderInset = GetBorderVisualInset();
         var innerBounds = snapped.Deflate(new Thickness(borderInset));
@@ -606,23 +612,21 @@ public sealed class TreeView : Control, IVisualTreeHost, IFocusIntoViewHost, IVi
         _scrollViewer.CornerRadius = clipR;
         _presenter.ItemRadius = clipR;
 
-        _presenter.RebindExisting = _rebindVisibleOnNextRender;
-        _rebindVisibleOnNextRender = false;
-
         _scrollViewer.Render(context);
-
-        UpdateObservedHorizontalExtentFromRealized();
     }
 
-    private void UpdateObservedHorizontalExtentFromRealized()
+    /// <summary>
+    /// Observes realized item widths using their existing DesiredSize/Bounds
+    /// (no re-measurement). Called during MeasureContent so that extent width
+    /// is settled before arrange, without needing InvalidateMeasure() from arrange.
+    /// Only expands _observedExtentWidth; never shrinks it.
+    /// </summary>
+    private void UpdateObservedExtentWidthFromRealized()
     {
         if (_itemsSource.Count <= 0)
         {
             return;
         }
-
-        double dpiScale = GetDpi() / 96.0;
-        double onePx = dpiScale > 0 ? 1.0 / dpiScale : 1.0;
 
         double max = _observedExtentWidth;
         _presenter.VisitRealized((index, element) =>
@@ -632,21 +636,19 @@ public sealed class TreeView : Control, IVisualTreeHost, IFocusIntoViewHost, IVi
                 return;
             }
 
-            int depth = _itemsSource.GetDepth(index);
-            double indentW = depth * Indent + Indent; // includes glyph column
-
-            // Measure with unbounded width to approximate the templated natural width.
-            element.Measure(new Size(double.PositiveInfinity, Math.Max(0, element.RenderSize.Height)));
+            // Use the element's already-measured DesiredSize and Bounds.
+            // No re-measurement — the item was measured during the prior layout pass.
             double w = Math.Max(0, element.DesiredSize.Width);
             if (w <= 0 && element.Bounds.IsEmpty)
             {
                 return;
             }
 
+            int depth = _itemsSource.GetDepth(index);
+            double indentW = depth * Indent + Indent;
             double padW = ItemPadding.HorizontalThickness;
             double rowW = indentW + w + padW;
 
-            // Guard: if the element renders beyond its desired width, allow bounds to expand it.
             double boundsW = Math.Max(0, element.Bounds.Width);
             if (boundsW > 0)
             {
@@ -659,11 +661,7 @@ public sealed class TreeView : Control, IVisualTreeHost, IFocusIntoViewHost, IVi
             }
         });
 
-        if (max > _observedExtentWidth + onePx * 0.99)
-        {
-            _observedExtentWidth = max;
-            InvalidateMeasure();
-        }
+        _observedExtentWidth = max;
     }
 
     private IDataTemplate CreateDefaultItemTemplate()

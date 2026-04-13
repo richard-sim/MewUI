@@ -13,6 +13,7 @@ internal sealed class StackItemsPresenter : Control, IItemsPresenter
     private readonly Stack<FrameworkElement> _pool = new();
     private readonly ConditionalWeakTable<FrameworkElement, TemplateContext> _contexts = new();
     private readonly List<double> _measuredHeights = new();
+    private readonly List<(int Index, Rect ItemRect)> _arrangedItems = new();
 
     private IItemsView _itemsSource = ItemsView.Empty;
     private IDataTemplate _itemTemplate;
@@ -135,7 +136,7 @@ internal sealed class StackItemsPresenter : Control, IItemsPresenter
 
         _viewport = viewport;
         RecomputeExtent();
-        InvalidateVisual();
+        InvalidateArrange();
     }
 
     public void SetOffset(Point offset)
@@ -150,7 +151,7 @@ internal sealed class StackItemsPresenter : Control, IItemsPresenter
         }
 
         _offset = clamped;
-        InvalidateVisual();
+        InvalidateArrange();
     }
 
     // IItemsPresenter
@@ -238,7 +239,7 @@ internal sealed class StackItemsPresenter : Control, IItemsPresenter
         }
 
         _pendingScrollIntoViewIndex = index;
-        InvalidateVisual();
+        InvalidateArrange();
     }
 
     // IVisualTreeHost
@@ -261,7 +262,23 @@ internal sealed class StackItemsPresenter : Control, IItemsPresenter
     protected override Size MeasureContent(Size availableSize)
     {
         SyncContainers();
-        MeasureAllItems(availableSize.Width);
+
+        // Compute the same layout width that ArrangeContent will use so that
+        // items are measured once with the final container constraint.
+        double layoutWidth = availableSize.Width;
+        if (UseHorizontalExtentForLayout && !double.IsNaN(_extentWidth))
+        {
+            layoutWidth = Math.Max(layoutWidth, _extentWidth);
+        }
+
+        double measureWidth = layoutWidth;
+        var pad = ItemPadding;
+        if (pad != default)
+        {
+            measureWidth = Math.Max(0, measureWidth - pad.HorizontalThickness);
+        }
+
+        MeasureAllItems(measureWidth);
         RecomputeExtent();
 
         return new Size(
@@ -269,8 +286,10 @@ internal sealed class StackItemsPresenter : Control, IItemsPresenter
             Math.Max(0, availableSize.Height));
     }
 
-    protected override void OnRender(IGraphicsContext context)
+    protected override void ArrangeContent(Rect bounds)
     {
+        _arrangedItems.Clear();
+
         int count = _containers.Count;
         if (count == 0)
         {
@@ -278,8 +297,7 @@ internal sealed class StackItemsPresenter : Control, IItemsPresenter
         }
 
         var dpiScale = GetDpi() / 96.0;
-        var viewportBounds = Bounds;
-        var contentBounds = LayoutRounding.SnapViewportRectToPixels(viewportBounds, dpiScale);
+        var contentBounds = LayoutRounding.SnapViewportRectToPixels(bounds, dpiScale);
         double alignedOffsetY = LayoutRounding.RoundToPixel(_offset.Y, dpiScale);
         double alignedOffsetX = LayoutRounding.RoundToPixel(_offset.X, dpiScale);
 
@@ -311,6 +329,7 @@ internal sealed class StackItemsPresenter : Control, IItemsPresenter
             {
                 alignedOffsetY = desiredOffsetY;
                 OffsetCorrectionRequested?.Invoke(new Point(_offset.X, desiredOffsetY));
+                InvalidateMeasure();
             }
             else
             {
@@ -324,7 +343,6 @@ internal sealed class StackItemsPresenter : Control, IItemsPresenter
 
         var pad = ItemPadding;
         var userGetContainerRect = GetContainerRect;
-        var beforeItemRender = BeforeItemRender;
 
         double y = contentBounds.Y - alignedOffsetY;
         for (int i = 0; i < count; i++)
@@ -334,7 +352,6 @@ internal sealed class StackItemsPresenter : Control, IItemsPresenter
             double snappedY = LayoutRounding.RoundToPixel(y, dpiScale);
 
             var itemRect = new Rect(contentBounds.X - alignedOffsetX, snappedY, layoutWidth, snappedH);
-            beforeItemRender?.Invoke(context, i, itemRect);
 
             var containerRect = itemRect;
             if (userGetContainerRect != null)
@@ -350,11 +367,26 @@ internal sealed class StackItemsPresenter : Control, IItemsPresenter
             containerRect = LayoutRounding.RoundRectToPixels(containerRect, dpiScale);
 
             var container = _containers[i];
-            container.Measure(new Size(Math.Max(0, containerRect.Width), Math.Max(0, containerRect.Height)));
             container.Arrange(containerRect);
-            container.Render(context);
+            _arrangedItems.Add((i, itemRect));
 
             y += snappedH;
+        }
+    }
+
+    protected override void OnRender(IGraphicsContext context)
+    {
+        var beforeItemRender = BeforeItemRender;
+        for (int i = 0; i < _arrangedItems.Count; i++)
+        {
+            var (index, itemRect) = _arrangedItems[i];
+            if (index >= _containers.Count)
+            {
+                continue;
+            }
+
+            beforeItemRender?.Invoke(context, index, itemRect);
+            _containers[index].Render(context);
         }
     }
 

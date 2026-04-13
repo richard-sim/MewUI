@@ -354,13 +354,33 @@ public sealed class GridView : VirtualizedItemsBase, IFocusIntoViewHost, IVirtua
             return false;
         }
 
-        // If there are more focusable elements in this item's container,
-        // let normal Tab navigation handle intra-item focus movement.
+        // Check whether there are more focusable elements in this container.
         var edge = moveForward
             ? FocusManager.FindLastFocusable(foundContainer)
             : FocusManager.FindFirstFocusable(foundContainer);
-        if (edge != null && !ReferenceEquals(edge, focusedElement))
+        bool hasMoreFocusable = edge != null && !ReferenceEquals(edge, focusedElement);
+
+        if (hasMoreFocusable)
         {
+            if (IsItemInViewport(found))
+            {
+                // Item is on-screen — let normal Tab navigation handle intra-item movement.
+                return false;
+            }
+
+            // Item is off-screen (focus-pinned). We can't return false here because
+            // FocusManager's flat-list Tab would move focus within the same container,
+            // then ScrollViewer.OnDescendantFocused fires first (before GridView) and
+            // uses the element's stale Bounds — resulting in no vertical scroll.
+            // Instead, scroll this item into view and move focus ourselves.
+            ScrollIntoView(found);
+            var next = FindNextFocusableInContainer(foundContainer, focusedElement, moveForward);
+            if (next != null && FindVisualRoot() is Window window)
+            {
+                window.FocusManager.SetFocus(next);
+                return true;
+            }
+
             return false;
         }
 
@@ -957,6 +977,51 @@ public sealed class GridView : VirtualizedItemsBase, IFocusIntoViewHost, IVirtua
         {
             _scrollViewer.SetScrollOffsets(_scrollViewer.HorizontalOffset, newOffset);
         }
+    }
+
+    private static UIElement? FindNextFocusableInContainer(FrameworkElement container, UIElement current, bool forward)
+    {
+        var focusable = new List<UIElement>();
+        CollectFocusableIn(container, focusable);
+        int idx = focusable.IndexOf(current);
+        if (idx < 0)
+        {
+            return null;
+        }
+
+        int next = forward ? idx + 1 : idx - 1;
+        return next >= 0 && next < focusable.Count ? focusable[next] : null;
+    }
+
+    private static void CollectFocusableIn(Element? element, List<UIElement> result)
+    {
+        if (element is UIElement ui && ui.Focusable && ui.IsEffectivelyEnabled && ui.IsVisible)
+        {
+            result.Add(ui);
+        }
+
+        if (element is IVisualTreeHost host)
+        {
+            host.VisitChildren(child =>
+            {
+                CollectFocusableIn(child, result);
+                return true;
+            });
+        }
+    }
+
+    private bool IsItemInViewport(int index)
+    {
+        double rowH = ResolveRowHeight();
+        if (rowH <= 0 || _rowsViewportHeight <= 0)
+        {
+            return false;
+        }
+
+        double itemTop = index * rowH;
+        double itemBottom = itemTop + rowH;
+        double offset = _scrollViewer.VerticalOffset;
+        return itemBottom > offset && itemTop < offset + _rowsViewportHeight;
     }
 
     private double ResolveRowHeight()

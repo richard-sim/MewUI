@@ -20,6 +20,7 @@ internal sealed class VariableHeightItemsPresenter : Control, IVisualTreeHost, I
     private readonly Stack<FrameworkElement> _pool = new();
     private readonly Dictionary<int, FrameworkElement> _recycledByIndex = new();
     private readonly List<int> _recycleScratch = new();
+    private readonly List<(int Index, Rect ItemRect)> _arrangedItems = new();
     private HashSet<int>? _pendingRebind;
 
     private UIElement? _deferredFocusedElement;
@@ -40,7 +41,7 @@ internal sealed class VariableHeightItemsPresenter : Control, IVisualTreeHost, I
     private bool _stickToBottom;
     private int _pendingScrollIntoViewIndex = -1;
 
-    // Tracks the DPI scale from the last OnRender call so we can detect DPI changes
+    // Tracks the DPI scale from the last layout pass so we can detect DPI changes
     // and invalidate prefix sums (which are DPI-dependent due to per-item pixel rounding).
     private double _lastDpiScale = 1.0;
 
@@ -185,9 +186,7 @@ internal sealed class VariableHeightItemsPresenter : Control, IVisualTreeHost, I
 
         _viewport = viewport;
         RecomputeExtent();
-        // Scroll-driven content: viewport changes should not trigger re-measurement loops.
-        // The ScrollViewer already owns measuring and will read the updated Extent in the same pass.
-        InvalidateVisual();
+        InvalidateArrange();
     }
 
     public void SetOffset(Point offset)
@@ -207,7 +206,7 @@ internal sealed class VariableHeightItemsPresenter : Control, IVisualTreeHost, I
         }
 
         _offset = clamped;
-        InvalidateVisual();
+        InvalidateArrange();
     }
 
     bool IVisualTreeHost.VisitChildren(Func<Element, bool> visitor)
@@ -230,8 +229,10 @@ internal sealed class VariableHeightItemsPresenter : Control, IVisualTreeHost, I
             Math.Max(0, availableSize.Height));
     }
 
-    protected override void OnRender(IGraphicsContext context)
+    protected override void ArrangeContent(Rect bounds)
     {
+        _arrangedItems.Clear();
+
         int count = ItemsSource.Count;
         if (count <= 0)
         {
@@ -261,8 +262,7 @@ internal sealed class VariableHeightItemsPresenter : Control, IVisualTreeHost, I
             _suppressAnchorCorrectionForDpiChange = true;
         }
 
-        var viewportBounds = Bounds;
-        var contentBounds = LayoutRounding.SnapViewportRectToPixels(viewportBounds, dpiScale);
+        var contentBounds = LayoutRounding.SnapViewportRectToPixels(bounds, dpiScale);
 
         // Keep offsets stable at fractional DPI.
         double alignedOffsetY = LayoutRounding.RoundToPixel(_offset.Y, dpiScale);
@@ -292,10 +292,11 @@ internal sealed class VariableHeightItemsPresenter : Control, IVisualTreeHost, I
             double onePx0 = dpiScale > 0 ? 1.0 / dpiScale : 1.0;
             if (Math.Abs(desiredOffsetY - alignedOffsetY) >= onePx0 * 0.99)
             {
-                // Apply the corrected offset immediately for this render pass to avoid a one-frame
-                // flash at the old position; the owner will then update _offset via SetOffset.
+                // Apply the corrected offset immediately for this layout pass; the owner
+                // will then update _offset via SetOffset.
                 alignedOffsetY = desiredOffsetY;
                 RequestOffsetCorrection(new Point(_offset.X, desiredOffsetY));
+                InvalidateMeasure();
             }
         }
 
@@ -382,8 +383,7 @@ internal sealed class VariableHeightItemsPresenter : Control, IVisualTreeHost, I
             containerRect = LayoutRounding.RoundRectToPixels(containerRect, dpiScale);
 
             element.Arrange(containerRect);
-            BeforeItemRender?.Invoke(context, i, itemRect);
-            element.Render(context);
+            _arrangedItems.Add((i, itemRect));
 
             y += alignedH;
         }
@@ -402,6 +402,7 @@ internal sealed class VariableHeightItemsPresenter : Control, IVisualTreeHost, I
                 if (!_isRequestingOffsetCorrection && Math.Abs(desiredOffsetY - alignedOffsetY) >= onePx * 0.99)
                 {
                     RequestOffsetCorrection(new Point(_offset.X, desiredOffsetY));
+                    InvalidateMeasure();
                 }
                 return;
             }
@@ -429,6 +430,7 @@ internal sealed class VariableHeightItemsPresenter : Control, IVisualTreeHost, I
                 if (!_isRequestingOffsetCorrection && Math.Abs(desiredOffsetY - alignedOffsetY) >= onePx * 0.99)
                 {
                     RequestOffsetCorrection(new Point(_offset.X, desiredOffsetY));
+                    InvalidateMeasure();
                 }
                 else
                 {
@@ -459,6 +461,7 @@ internal sealed class VariableHeightItemsPresenter : Control, IVisualTreeHost, I
                     if (!_isRequestingOffsetCorrection && Math.Abs(desiredOffsetY - alignedOffsetY) >= onePx * 0.99)
                     {
                         RequestOffsetCorrection(new Point(_offset.X, desiredOffsetY));
+                        InvalidateMeasure();
                     }
                 }
             }
@@ -475,6 +478,22 @@ internal sealed class VariableHeightItemsPresenter : Control, IVisualTreeHost, I
             {
                 _pendingScrollIntoViewIndex = -1;
             }
+        }
+    }
+
+    protected override void OnRender(IGraphicsContext context)
+    {
+        var beforeItemRender = BeforeItemRender;
+        for (int i = 0; i < _arrangedItems.Count; i++)
+        {
+            var (index, itemRect) = _arrangedItems[i];
+            if (!_realized.TryGetValue(index, out var element))
+            {
+                continue;
+            }
+
+            beforeItemRender?.Invoke(context, index, itemRect);
+            element.Render(context);
         }
     }
 
@@ -617,7 +636,7 @@ internal sealed class VariableHeightItemsPresenter : Control, IVisualTreeHost, I
         }
 
         _pendingScrollIntoViewIndex = index;
-        InvalidateVisual();
+        InvalidateArrange();
     }
 
     private double GetEstimatedHeightDip(int index)
