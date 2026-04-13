@@ -218,7 +218,10 @@ public sealed class MultiLineTextBox : TextBase
 
     protected override void OnWrapChanged(bool oldValue, bool newValue)
     {
-        CaptureViewAnchor();
+        if (FindVisualRoot() is not null)
+        {
+            CaptureViewAnchor();
+        }
 
         _wrapVirtualizer.Reset();
         _lineWidthEstimator.Reset();
