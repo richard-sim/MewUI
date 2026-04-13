@@ -84,7 +84,7 @@ partial class GalleryView
                     .Spacing(8)
                     .Children(
                         new DatePicker().Placeholder("Select a date..."),
-                        new DatePicker { SelectedDate = DateTime.Today },
+                        new DatePicker().SelectedDate(DateTime.Today),
                         new DatePicker().Placeholder("Disabled").Disable()
                     ),
                 minWidth: 250

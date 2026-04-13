@@ -30,7 +30,7 @@ partial class GalleryView
                         .Spacing(8)
                         .Children(
                             new PasswordBox().Placeholder("Password"),
-                            new PasswordBox { PasswordChar = '*' }.Placeholder("Custom mask"),
+                            new PasswordBox { PasswordChar = '★' }.Placeholder("Custom mask"),
                             new PasswordBox().Password("Disabled").Disable()
                         )
                 ),
@@ -76,6 +76,33 @@ partial class GalleryView
                             new TextBlock()
                                 .BindText(doubleBinding, value => $"Value: {value:0.##}")
                                 .CenterVertical()
+                        )
+                ),
+
+                Card(
+                    "Emoji",
+                    new StackPanel()
+                        .Vertical()
+                        .Spacing(8)
+                        .Children(
+                            new TextBlock()
+                                .Text("\U0001F36B \U0001F600 \U0001F389 \U0001F680 \U0001F308 \U0001F40D \U0001F3B5 \U00002764\U0000FE0F \U0001F525 \U0001F4A1")
+                                .FontSize(24),
+                            new TextBlock()
+                                .Text("\U0001F36B \U0001F600 \U0001F389 \U0001F680 \U0001F308 \U0001F40D \U0001F3B5 \U00002764\U0000FE0F \U0001F525 \U0001F4A1")
+                                .FontSize(20),
+                            new TextBlock()
+                                .Text("\U0001F36B \U0001F600 \U0001F389 \U0001F680 \U0001F308 \U0001F40D \U0001F3B5 \U00002764\U0000FE0F \U0001F525 \U0001F4A1")
+                                .FontSize(16),
+                            new TextBlock()
+                                .Text("\U0001F36B \U0001F600 \U0001F389 \U0001F680 \U0001F308 \U0001F40D \U0001F3B5 \U00002764\U0000FE0F \U0001F525 \U0001F4A1")
+                                .FontSize(12),
+                            new TextBox()
+                                .Placeholder("Type or paste emoji here...")
+                                .Text("\U0001F36B\U0001F600\U0001F389"),
+                            new TextBlock()
+                                .Text("Mixed: Hello \U0001F30D World \U0001F680!")
+                                .FontSize(14)
                         )
                 ),
 
