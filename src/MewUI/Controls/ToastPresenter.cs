@@ -100,7 +100,7 @@ internal sealed class ToastPresenter : Control, IVisualTreeHost
             .BorderThickness(t.Metrics.ControlBorderThickness)
             .Background(t.Palette.ControlBackground)
             .Foreground(t.Palette.WindowText)
-            .BorderBrush(t.Palette.Accent));
+            .BorderBrush(t.Palette.ControlBorder.Lerp(t.Palette.Accent, 0.5)));
         return new ShadowHost(border);
     }
 
