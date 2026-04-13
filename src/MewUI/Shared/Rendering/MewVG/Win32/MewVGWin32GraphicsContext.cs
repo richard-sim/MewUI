@@ -124,8 +124,8 @@ internal sealed partial class MewVGWin32GraphicsContext
         if (_clipBoundsWorld.HasValue)
         {
             var c = _clipBoundsWorld.Value;
-            double worldLeft = bounds.X + _translateX;
-            double worldTop = bounds.Y + _translateY;
+            double worldLeft = bounds.X + _transform.M31;
+            double worldTop = bounds.Y + _transform.M32;
             double worldRight = worldLeft + widthPx / DpiScale;
             double worldBottom = worldTop + heightPx / DpiScale;
             if (worldRight <= c.X || worldLeft >= c.Right || worldBottom <= c.Y || worldTop >= c.Bottom)
@@ -265,8 +265,8 @@ internal sealed partial class MewVGWin32GraphicsContext
         if (_clipBoundsWorld.HasValue)
         {
             var c = _clipBoundsWorld.Value;
-            double worldLeft = bounds.X + _translateX;
-            double worldTop = bounds.Y + _translateY;
+            double worldLeft = bounds.X + _transform.M31;
+            double worldTop = bounds.Y + _transform.M32;
             double worldRight = worldLeft + widthPx / DpiScale;
             double worldBottom = worldTop + heightPx / DpiScale;
             if (worldRight <= c.X || worldLeft >= c.Right || worldBottom <= c.Y || worldTop >= c.Bottom)

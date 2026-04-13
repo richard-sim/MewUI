@@ -21,9 +21,7 @@ internal sealed partial class MewVGWin32GraphicsContext : GraphicsContextBase
 #endif
 
     private readonly ClipStack _clip = new();
-    private readonly Stack<(double tx, double ty, Rect? clipBoundsWorld, float globalAlpha, Matrix3x2 transform, bool textPixelSnap)> _saveStack = new();
-    private double _translateX;
-    private double _translateY;
+    private readonly Stack<(Rect? clipBoundsWorld, float globalAlpha, Matrix3x2 transform, bool textPixelSnap)> _saveStack = new();
     private float _globalAlpha = 1f;
     private bool _textPixelSnap = true;
     private Matrix3x2 _transform = Matrix3x2.Identity;
@@ -56,7 +54,7 @@ internal sealed partial class MewVGWin32GraphicsContext : GraphicsContextBase
     {
         _vg.Save();
         _clip.Save();
-        _saveStack.Push((_translateX, _translateY, _clipBoundsWorld, _globalAlpha, _transform, _textPixelSnap));
+        _saveStack.Push((_clipBoundsWorld, _globalAlpha, _transform, _textPixelSnap));
     }
 
     protected override void RestoreCore()
@@ -66,8 +64,6 @@ internal sealed partial class MewVGWin32GraphicsContext : GraphicsContextBase
         if (_saveStack.Count > 0)
         {
             var state = _saveStack.Pop();
-            _translateX = state.tx;
-            _translateY = state.ty;
             _clipBoundsWorld = state.clipBoundsWorld;
             _globalAlpha = state.globalAlpha;
             _textPixelSnap = state.textPixelSnap;
@@ -78,13 +74,22 @@ internal sealed partial class MewVGWin32GraphicsContext : GraphicsContextBase
 
     protected override void SetClipCore(Rect rect)
     {
-        var worldClip = new Rect(rect.X + _translateX, rect.Y + _translateY, rect.Width, rect.Height);
+        var worldClip = TransformRectToWorldAABB(rect);
         _clipBoundsWorld = IntersectClipBounds(_clipBoundsWorld, worldClip);
+
+        // Apply scissor in world space with identity transform so that
+        // NanoVG's IntersectScissor AABB approximation is exact (no rotation
+        // in the coordinate conversion). Without this, clips set under a
+        // rotated/scaled transform produce an inflated AABB that lets content
+        // overflow.
+        var clip = _clipBoundsWorld.Value;
+        _vg.SetTransformMatrix(Matrix3x2.Identity);
         _clip.Apply(
-            rect,
+            clip,
             r => _vg.Scissor((float)r.X, (float)r.Y, (float)r.Width, (float)r.Height),
             r => _vg.IntersectScissor((float)r.X, (float)r.Y, (float)r.Width, (float)r.Height),
             () => _vg.ResetScissor());
+        _vg.SetTransformMatrix(_transform);
     }
 
     protected override void SetClipRoundedRectCore(Rect rect, double radiusX, double radiusY)
@@ -95,14 +100,17 @@ internal sealed partial class MewVGWin32GraphicsContext : GraphicsContextBase
             return;
         }
 
-        var worldClip = new Rect(rect.X + _translateX, rect.Y + _translateY, rect.Width, rect.Height);
+        var worldClip = TransformRectToWorldAABB(rect);
         _clipBoundsWorld = IntersectClipBounds(_clipBoundsWorld, worldClip);
 
+        var clip = _clipBoundsWorld.Value;
+        _vg.SetTransformMatrix(Matrix3x2.Identity);
         _clip.Apply(
-            rect,
+            clip,
             r => _vg.Scissor((float)r.X, (float)r.Y, (float)r.Width, (float)r.Height),
             r => _vg.IntersectScissor((float)r.X, (float)r.Y, (float)r.Width, (float)r.Height),
             () => _vg.ResetScissor());
+        _vg.SetTransformMatrix(_transform);
 
         float radius = (float)Math.Max(0, Math.Min(radiusX, radiusY));
         _vg.BeginPath();
@@ -118,59 +126,34 @@ internal sealed partial class MewVGWin32GraphicsContext : GraphicsContextBase
 
     protected override void TranslateCore(double dx, double dy)
     {
-        _translateX += dx;
-        _translateY += dy;
         _transform = Matrix3x2.CreateTranslation((float)dx, (float)dy) * _transform;
-        _vg.Translate((float)dx, (float)dy);
+        _vg.SetTransformMatrix(_transform);
     }
 
     protected override void RotateCore(double angleRadians)
     {
         _transform = Matrix3x2.CreateRotation((float)angleRadians) * _transform;
-        _vg.Rotate((float)angleRadians);
+        _vg.SetTransformMatrix(_transform);
     }
 
     protected override void ScaleCore(double sx, double sy)
     {
         _transform = Matrix3x2.CreateScale((float)sx, (float)sy) * _transform;
-        _vg.Scale((float)sx, (float)sy);
+        _vg.SetTransformMatrix(_transform);
     }
 
     protected override void SetTransformCore(Matrix3x2 matrix)
     {
-        // NanoVG doesn't expose a direct set-matrix API.
-        // Reset and then decompose the matrix into Translate + Rotate + Scale.
-        _vg.ResetTransform();
         _transform = matrix;
-        _translateX = matrix.M31;
-        _translateY = matrix.M32;
-
-        // Decompose the 2x2 linear part into rotation + scale.
-        float sx = MathF.Sqrt(matrix.M11 * matrix.M11 + matrix.M12 * matrix.M12);
-        float sy = MathF.Sqrt(matrix.M21 * matrix.M21 + matrix.M22 * matrix.M22);
-        // Detect reflection (negative determinant).
-        if (matrix.M11 * matrix.M22 - matrix.M12 * matrix.M21 < 0)
-            sy = -sy;
-        float angle = MathF.Atan2(matrix.M12, matrix.M11);
-
-        // Apply in reverse order (NanoVG premultiplies: last call is innermost).
-        // We want: T * R * S, so call Scale first, then Rotate, then Translate.
-        if (sx != 1f || sy != 1f)
-            _vg.Scale(sx, sy);
-        if (angle != 0f)
-            _vg.Rotate(angle);
-        if (matrix.M31 != 0f || matrix.M32 != 0f)
-            _vg.Translate(matrix.M31, matrix.M32);
+        _vg.SetTransformMatrix(_transform);
     }
 
     protected override Matrix3x2 GetTransformCore() => _transform;
 
     protected override void ResetTransformCore()
     {
-        _translateX = 0;
-        _translateY = 0;
         _transform = Matrix3x2.Identity;
-        _vg.ResetTransform();
+        _vg.SetTransformMatrix(_transform);
     }
 
     public override float GlobalAlpha
@@ -627,6 +610,30 @@ internal sealed partial class MewVGWin32GraphicsContext : GraphicsContextBase
     #endregion
 
     #region Utilities
+
+    private Rect TransformRectToWorldAABB(Rect rect)
+    {
+        // Fast path: translation-only transform.
+        if (_transform.M11 == 1f && _transform.M12 == 0f &&
+            _transform.M21 == 0f && _transform.M22 == 1f)
+        {
+            return new Rect(rect.X + _transform.M31, rect.Y + _transform.M32,
+                rect.Width, rect.Height);
+        }
+
+        // General case: transform all 4 corners and compute AABB.
+        var tl = Vector2.Transform(new Vector2((float)rect.X, (float)rect.Y), _transform);
+        var tr = Vector2.Transform(new Vector2((float)rect.Right, (float)rect.Y), _transform);
+        var bl = Vector2.Transform(new Vector2((float)rect.X, (float)rect.Bottom), _transform);
+        var br = Vector2.Transform(new Vector2((float)rect.Right, (float)rect.Bottom), _transform);
+
+        float minX = MathF.Min(MathF.Min(tl.X, tr.X), MathF.Min(bl.X, br.X));
+        float minY = MathF.Min(MathF.Min(tl.Y, tr.Y), MathF.Min(bl.Y, br.Y));
+        float maxX = MathF.Max(MathF.Max(tl.X, tr.X), MathF.Max(bl.X, br.X));
+        float maxY = MathF.Max(MathF.Max(tl.Y, tr.Y), MathF.Max(bl.Y, br.Y));
+
+        return new Rect(minX, minY, Math.Max(0, maxX - minX), Math.Max(0, maxY - minY));
+    }
 
     private static Rect IntersectClipBounds(Rect? current, Rect next)
     {
