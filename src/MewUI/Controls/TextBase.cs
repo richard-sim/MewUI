@@ -44,7 +44,7 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
 
     private ContextMenu? _defaultContextMenu;
 
-    private CancellationTokenSource? _caretCts;
+    private DispatcherTimer? _caretTimer;
     private bool _caretVisible = true;
 
     /// <summary>
@@ -139,11 +139,6 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
     /// </summary>
     public void AppendText(string? text, bool scrollToCaret = false)
     {
-        if (IsReadOnly)
-        {
-            return;
-        }
-
         var normalized = NormalizeText(text ?? string.Empty);
         if (normalized.Length == 0)
         {
@@ -858,29 +853,29 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
         }
     }
 
-    private async void StartCaretBlink()
+    private void StartCaretBlink()
     {
         StopCaretBlink();
         _caretVisible = true;
-        _caretCts = new CancellationTokenSource();
-        var ct = _caretCts.Token;
-        try
-        {
-            while (!ct.IsCancellationRequested)
-            {
-                await Task.Delay(500, ct);
-                _caretVisible = !_caretVisible;
-                InvalidateVisual();
-            }
-        }
-        catch (OperationCanceledException) { }
+        _caretTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(500));
+        _caretTimer.Tick += OnCaretBlinkTick;
+        _caretTimer.Start();
     }
 
     private void StopCaretBlink()
     {
-        _caretCts?.Cancel();
-        _caretCts?.Dispose();
-        _caretCts = null;
+        if (_caretTimer == null)
+        {
+            return;
+        }
+        _caretTimer.Stop();
+        _caretTimer.Tick -= OnCaretBlinkTick;
+    }
+
+    private void OnCaretBlinkTick()
+    {
+        _caretVisible = !_caretVisible;
+        InvalidateVisual();
     }
 
     private void ResetCaretBlink()
