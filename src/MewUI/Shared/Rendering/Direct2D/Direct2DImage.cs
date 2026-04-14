@@ -265,7 +265,15 @@ internal sealed class Direct2DImage : IImage
         return dst;
     }
 
+    ~Direct2DImage() => ReleaseNativeHandles();
+
     public void Dispose()
+    {
+        ReleaseNativeHandles();
+        GC.SuppressFinalize(this);
+    }
+
+    private void ReleaseNativeHandles()
     {
         if (_disposed)
         {

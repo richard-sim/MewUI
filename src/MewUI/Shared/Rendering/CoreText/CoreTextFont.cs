@@ -335,7 +335,15 @@ internal sealed unsafe partial class CoreTextFont : FontBase
         }
     }
 
+    ~CoreTextFont() => ReleaseNativeHandles();
+
     public override void Dispose()
+    {
+        ReleaseNativeHandles();
+        GC.SuppressFinalize(this);
+    }
+
+    private void ReleaseNativeHandles()
     {
         Dictionary<uint, nint> refs;
         lock (_gate)

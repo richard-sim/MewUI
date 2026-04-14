@@ -10,10 +10,10 @@ namespace Aprillz.MewUI.Rendering.Gdi;
 /// </summary>
 internal sealed class GdiImage : IImage
 {
+    private readonly IPixelBufferSource? _source;
     private nint _bits;
     private bool _disposed;
-    private readonly Dictionary<ScaledKey, nint> _scaled = new();
-    private readonly IPixelBufferSource? _source;
+    private (ScaledKey key, nint handle) _scaled;
     private int _sourceVersion = -1;
     private nint _gpBitmap;
     private int _gpBitmapVersion = -1;
@@ -130,16 +130,23 @@ internal sealed class GdiImage : IImage
                 _txBits = 0;
             }
 
-            foreach (var kvp in _scaled)
+            if (_scaled != default)
             {
-                Gdi32.DeleteObject(kvp.Value);
+                Gdi32.DeleteObject(_scaled.handle);
+                _scaled = default;
             }
-
-            _scaled.Clear();
         }
     }
 
+    ~GdiImage() => ReleaseNativeHandles();
+
     public void Dispose()
+    {
+        ReleaseNativeHandles();
+        GC.SuppressFinalize(this);
+    }
+
+    private void ReleaseNativeHandles()
     {
         if (!_disposed && Handle != 0)
         {
@@ -156,12 +163,11 @@ internal sealed class GdiImage : IImage
                 _txBits = 0;
             }
 
-            foreach (var kvp in _scaled)
+            if (_scaled != default)
             {
-                Gdi32.DeleteObject(kvp.Value);
+                Gdi32.DeleteObject(_scaled.handle);
+                _scaled = default;
             }
-
-            _scaled.Clear();
 
             Gdi32.DeleteObject(Handle);
             Handle = 0;
@@ -445,9 +451,9 @@ internal sealed class GdiImage : IImage
         }
 
         var key = new ScaledKey(srcX, srcY, srcW, srcH, destW, destH, quality);
-        if (_scaled.TryGetValue(key, out var existing) && existing != 0)
+        if (_scaled.key == key)
         {
-            scaledBitmap = existing;
+            scaledBitmap = _scaled.handle;
             return true;
         }
 
@@ -490,36 +496,36 @@ internal sealed class GdiImage : IImage
                     }
                     else
                     {
-                    for (int dy = 0; dy < destH; dy++)
-                    {
-                        byte* dstRow = dstBase + dy * destW * 4;
-                        byte* srcRow0 = srcBase + (dy * fy) * PixelWidth * 4;
-
-                        for (int dx = 0; dx < destW; dx++)
+                        for (int dy = 0; dy < destH; dy++)
                         {
-                            uint sumB = 0, sumG = 0, sumR = 0, sumA = 0;
-                            byte* block = srcRow0 + dx * fx * 4;
+                            byte* dstRow = dstBase + dy * destW * 4;
+                            byte* srcRow0 = srcBase + (dy * fy) * PixelWidth * 4;
 
-                            for (int by = 0; by < fy; by++)
+                            for (int dx = 0; dx < destW; dx++)
                             {
-                                byte* s = block + by * PixelWidth * 4;
-                                for (int bx = 0; bx < fx; bx++)
-                                {
-                                    sumB += s[0];
-                                    sumG += s[1];
-                                    sumR += s[2];
-                                    sumA += s[3];
-                                    s += 4;
-                                }
-                            }
+                                uint sumB = 0, sumG = 0, sumR = 0, sumA = 0;
+                                byte* block = srcRow0 + dx * fx * 4;
 
-                            dstRow[0] = (byte)(sumB / (uint)blockCount);
-                            dstRow[1] = (byte)(sumG / (uint)blockCount);
-                            dstRow[2] = (byte)(sumR / (uint)blockCount);
-                            dstRow[3] = (byte)(sumA / (uint)blockCount);
-                            dstRow += 4;
+                                for (int by = 0; by < fy; by++)
+                                {
+                                    byte* s = block + by * PixelWidth * 4;
+                                    for (int bx = 0; bx < fx; bx++)
+                                    {
+                                        sumB += s[0];
+                                        sumG += s[1];
+                                        sumR += s[2];
+                                        sumA += s[3];
+                                        s += 4;
+                                    }
+                                }
+
+                                dstRow[0] = (byte)(sumB / (uint)blockCount);
+                                dstRow[1] = (byte)(sumG / (uint)blockCount);
+                                dstRow[2] = (byte)(sumR / (uint)blockCount);
+                                dstRow[3] = (byte)(sumA / (uint)blockCount);
+                                dstRow += 4;
+                            }
                         }
-                    }
                     }
                 }
                 else
@@ -536,7 +542,7 @@ internal sealed class GdiImage : IImage
                         // until the remaining downscale is small enough for bilinear.
                         if (quality == ImageScaleQuality.HighQuality && (destW < srcW || destH < srcH))
                         {
-                            for (;;)
+                            for (; ; )
                             {
                                 int nextW = (workW + 1) / 2;
                                 int nextH = (workH + 1) / 2;
@@ -782,7 +788,14 @@ internal sealed class GdiImage : IImage
                 }
             }
 
-            _scaled[key] = dstBitmap;
+
+            if (_scaled != default)
+            {
+                Gdi32.DeleteObject(_scaled.handle);
+                _scaled = default;
+            }
+
+            _scaled = (key, dstBitmap);
             scaledBitmap = dstBitmap;
             dstBitmap = 0; // ownership transferred
             return true;

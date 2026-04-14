@@ -97,7 +97,15 @@ internal sealed class GdiFont : FontBase
         return _perPixelAlphaHandle == 0 ? Handle : _perPixelAlphaHandle;
     }
 
+    ~GdiFont() => ReleaseNativeHandles();
+
     public override void Dispose()
+    {
+        ReleaseNativeHandles();
+        GC.SuppressFinalize(this);
+    }
+
+    private void ReleaseNativeHandles()
     {
         if (!_disposed && Handle != 0)
         {
