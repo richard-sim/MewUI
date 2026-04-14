@@ -78,6 +78,16 @@ public sealed class ScrollViewer : ContentControl
     }
 
     /// <summary>
+    /// Gets the content viewport width (excluding border inset and padding).
+    /// </summary>
+    public double ViewportWidth => _viewport.Width;
+
+    /// <summary>
+    /// Gets the content viewport height (excluding border inset and padding).
+    /// </summary>
+    public double ViewportHeight => _viewport.Height;
+
+    /// <summary>
     /// Gets the horizontal scroll offset.
     /// </summary>
     public double HorizontalOffset
