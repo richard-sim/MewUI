@@ -170,6 +170,8 @@ public sealed class GdiGraphicsFactory : IGraphicsFactory, IWindowResourceReleas
                 staging.Dispose();
             _layeredStagingTargets.Clear();
         }
+
+        GdiPlusGraphicsContext.ReleaseAllBackBuffers();
     }
 
     public void ReleaseWindowResources(nint hwnd)

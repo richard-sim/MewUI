@@ -75,6 +75,8 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
 
     internal static void ReleaseForWindow(nint hwnd) => BackBuffer.Release(hwnd);
 
+    internal static void ReleaseAllBackBuffers() => BackBuffer.ReleaseAll();
+
     internal GdiPlusGraphicsContext(
         nint hwnd,
         nint hdc,
@@ -2114,6 +2116,13 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
             {
                 buffer.Dispose();
             }
+        }
+
+        public static void ReleaseAll()
+        {
+            foreach (var (_, buffer) in Cache)
+                buffer.Dispose();
+            Cache.Clear();
         }
 
         private nint _bitmap;
