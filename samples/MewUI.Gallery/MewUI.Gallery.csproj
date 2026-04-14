@@ -50,6 +50,7 @@
   <ItemGroup>
     <None Include="..\..\assets\logo\logo_h-1280.png" CopyToOutputDirectory="PreserveNewest" TargetPath="Resources\logo_h-1280.png" />
     <None Include="..\..\assets\images\april.jpg" CopyToOutputDirectory="PreserveNewest" TargetPath="Resources\april.jpg" />
+    <None Include="..\..\assets\images\soonduk.jpg" CopyToOutputDirectory="PreserveNewest" TargetPath="Resources\soonduk.jpg" />
 
     <None Include="Resources\*.*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

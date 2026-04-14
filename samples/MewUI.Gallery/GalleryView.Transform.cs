@@ -1,7 +1,4 @@
-using System.Numerics;
-
 using Aprillz.MewUI.Controls;
-using Aprillz.MewUI.Rendering;
 
 namespace Aprillz.MewUI.Gallery;
 
@@ -17,19 +14,19 @@ partial class GalleryView
 
         // --- Translate ---
         var translateBox = new TransformBox().Center().Child(CatImage());
-        var sliderTX = new Slider().Minimum(-100).Maximum(100).Value(0).Width(150);
-        var sliderTY = new Slider().Minimum(-100).Maximum(100).Value(0).Width(150);
+        var sliderTX = new Slider().Range(-100, 100).Value(0).Width(150);
+        var sliderTY = new Slider().Range(-100, 100).Value(0).Width(150);
         translateBox.Bind(TransformBox.TranslateXProperty, sliderTX, RangeBase.ValueProperty);
         translateBox.Bind(TransformBox.TranslateYProperty, sliderTY, RangeBase.ValueProperty);
 
         // --- Rotate ---
         var rotateBox = new TransformBox().Center().Child(CatImage());
-        var sliderRotate = new Slider().Minimum(-180).Maximum(180).Value(0).Width(180);
+        var sliderRotate = new Slider().Range(-180, 180).Value(0).Width(180);
         rotateBox.Bind(TransformBox.RotationDegreesProperty, sliderRotate, RangeBase.ValueProperty);
 
         // --- Scale ---
         var scaleBox = new TransformBox().Center().Child(CatImage());
-        var sliderScale = new Slider().Minimum(10).Maximum(300).Value(100).Width(180);
+        var sliderScale = new Slider().Range(10, 300).Value(100).Width(180);
         scaleBox.Bind(TransformBox.ScaleXProperty, sliderScale, RangeBase.ValueProperty,
             v => v / 100.0, v => v * 100.0);
         scaleBox.Bind(TransformBox.ScaleYProperty, sliderScale, RangeBase.ValueProperty,
@@ -40,8 +37,8 @@ partial class GalleryView
             new Image().Source(logo).Width(200).Height(80)
                 .StretchMode(Stretch.Uniform)
                 .ImageScaleQuality(ImageScaleQuality.HighQuality));
-        var sliderCombRot = new Slider().Minimum(-180).Maximum(180).Value(0).Width(140);
-        var sliderCombScale = new Slider().Minimum(10).Maximum(300).Value(100).Width(140);
+        var sliderCombRot = new Slider().Range(-180, 180).Value(0).Width(140);
+        var sliderCombScale = new Slider().Range(10, 300).Value(100).Width(140);
         combinedBox.Bind(TransformBox.RotationDegreesProperty, sliderCombRot, RangeBase.ValueProperty);
         combinedBox.Bind(TransformBox.ScaleXProperty, sliderCombScale, RangeBase.ValueProperty,
             v => v / 100.0, v => v * 100.0);
@@ -50,9 +47,9 @@ partial class GalleryView
 
         // --- Transform Origin ---
         var originBox = new TransformBox().Center().Child(CatImage());
-        var sliderOX = new Slider().Minimum(0).Maximum(100).Value(50).Width(120);
-        var sliderOY = new Slider().Minimum(0).Maximum(100).Value(50).Width(120);
-        var sliderOAngle = new Slider().Minimum(-180).Maximum(180).Value(30).Width(120);
+        var sliderOX = new Slider().Range(0, 100).Value(50).Width(120);
+        var sliderOY = new Slider().Range(0, 100).Value(50).Width(120);
+        var sliderOAngle = new Slider().Range(-180, 180).Value(30).Width(120);
         originBox.Bind(TransformBox.OriginXProperty, sliderOX, RangeBase.ValueProperty,
             v => v / 100.0, v => v * 100.0);
         originBox.Bind(TransformBox.OriginYProperty, sliderOY, RangeBase.ValueProperty,
@@ -63,22 +60,22 @@ partial class GalleryView
         TextBlock Label(MewObject source, MewProperty<double> prop, string format, double width = 50) =>
             new TextBlock()
                 .Bind(TextBlock.TextProperty, source, prop, v => v.ToString(format))
-                .FontFamily("Consolas").Width(width)
-                .VerticalAlignment(VerticalAlignment.Center);
+                .Width(width)
+                .CenterVertical();
 
         return CardGrid(
             Card(
                 "Translate",
                 new StackPanel().Vertical().Spacing(8).Children(
                     new Border().Height(160).ClipToBounds(true)
-                        .HorizontalAlignment(HorizontalAlignment.Stretch)
+                        .StretchHorizontal()
                         .Child(translateBox),
                     new StackPanel().Horizontal().Spacing(8).Children(
-                        new TextBlock().Text("X:").VerticalAlignment(VerticalAlignment.Center),
+                        new TextBlock().Text("X:").StretchHorizontal(),
                         sliderTX,
                         Label(translateBox, TransformBox.TranslateXProperty, "F0", 40)),
                     new StackPanel().Horizontal().Spacing(8).Children(
-                        new TextBlock().Text("Y:").VerticalAlignment(VerticalAlignment.Center),
+                        new TextBlock().Text("Y:").StretchHorizontal(),
                         sliderTY,
                         Label(translateBox, TransformBox.TranslateYProperty, "F0", 40))
                 )
@@ -88,10 +85,10 @@ partial class GalleryView
                 "Rotate",
                 new StackPanel().Vertical().Spacing(8).Children(
                     new Border().Height(160).ClipToBounds(true)
-                        .HorizontalAlignment(HorizontalAlignment.Stretch)
+                        .StretchHorizontal()
                         .Child(rotateBox),
                     new StackPanel().Horizontal().Spacing(8).Children(
-                        new TextBlock().Text("Angle:").VerticalAlignment(VerticalAlignment.Center),
+                        new TextBlock().Text("Angle:").StretchHorizontal(),
                         sliderRotate,
                         Label(rotateBox, TransformBox.RotationDegreesProperty, "0\u00b0"))
                 )
@@ -101,10 +98,10 @@ partial class GalleryView
                 "Scale",
                 new StackPanel().Vertical().Spacing(8).Children(
                     new Border().Height(160).ClipToBounds(true)
-                        .HorizontalAlignment(HorizontalAlignment.Stretch)
+                        .StretchHorizontal()
                         .Child(scaleBox),
                     new StackPanel().Horizontal().Spacing(8).Children(
-                        new TextBlock().Text("Scale:").VerticalAlignment(VerticalAlignment.Center),
+                        new TextBlock().Text("Scale:").StretchHorizontal(),
                         sliderScale,
                         Label(scaleBox, TransformBox.ScaleXProperty, "0.00\u0078"))
                 )
@@ -114,14 +111,14 @@ partial class GalleryView
                 "Rotate + Scale",
                 new StackPanel().Vertical().Spacing(8).Children(
                     new Border().Height(160).ClipToBounds(true)
-                        .HorizontalAlignment(HorizontalAlignment.Stretch)
+                        .StretchHorizontal()
                         .Child(combinedBox),
                     new StackPanel().Horizontal().Spacing(8).Children(
-                        new TextBlock().Text("Angle:").VerticalAlignment(VerticalAlignment.Center),
+                        new TextBlock().Text("Angle:").StretchHorizontal(),
                         sliderCombRot,
                         Label(combinedBox, TransformBox.RotationDegreesProperty, "0\u00b0")),
                     new StackPanel().Horizontal().Spacing(8).Children(
-                        new TextBlock().Text("Scale:").VerticalAlignment(VerticalAlignment.Center),
+                        new TextBlock().Text("Scale:").StretchHorizontal(),
                         sliderCombScale,
                         Label(combinedBox, TransformBox.ScaleXProperty, "0.00\u0078"))
                 )
@@ -131,193 +128,125 @@ partial class GalleryView
                 "Transform Origin",
                 new StackPanel().Vertical().Spacing(8).Children(
                     new Border().Height(160).ClipToBounds(true)
-                        .HorizontalAlignment(HorizontalAlignment.Stretch)
+                        .StretchHorizontal()
                         .Child(originBox),
                     new StackPanel().Horizontal().Spacing(8).Children(
-                        new TextBlock().Text("Origin X:").VerticalAlignment(VerticalAlignment.Center),
+                        new TextBlock().Text("Origin X:").StretchHorizontal(),
                         sliderOX,
                         Label(originBox, TransformBox.OriginXProperty, "F2", 40)),
                     new StackPanel().Horizontal().Spacing(8).Children(
-                        new TextBlock().Text("Origin Y:").VerticalAlignment(VerticalAlignment.Center),
+                        new TextBlock().Text("Origin Y:").StretchHorizontal(),
                         sliderOY,
                         Label(originBox, TransformBox.OriginYProperty, "F2", 40)),
                     new StackPanel().Horizontal().Spacing(8).Children(
-                        new TextBlock().Text("Angle:").VerticalAlignment(VerticalAlignment.Center),
+                        new TextBlock().Text("Angle:").StretchHorizontal(),
                         sliderOAngle,
                         Label(originBox, TransformBox.RotationDegreesProperty, "0\u00b0"))
                 )
+            ),
+
+            Card(
+                "Zoom & Pan Canvas",
+                new StackPanel()
+                    .Vertical()
+                    .Spacing(8)
+                    .Children(
+                        new Button()
+                            .Content("Open Zoom & Pan Window")
+                            .OnClick(OpenZoomPanWindow),
+                        new TextBlock()
+                            .FontSize(11)
+                            .TextWrapping(TextWrapping.Wrap)
+                            .Text("Wheel to zoom (anchored to cursor),\ndrag to pan. Animated zoom with\nReset/Fit controls.")
+                    )
             )
         );
-    }
-}
 
-/// <summary>
-/// Decorator that applies a composed Matrix3x2 transform before rendering the child.
-/// Transform order: Translate(-origin) → Scale → Rotate → Translate(+origin + offset).
-/// Origin is relative (0.0–1.0) to the content bounds; defaults to center (0.5, 0.5).
-/// </summary>
-file class TransformBox : FrameworkElement, IVisualTreeHost
-{
-    public static readonly MewProperty<UIElement?> ChildProperty =
-        MewProperty<UIElement?>.Register<TransformBox>(nameof(Child), null,
-            MewPropertyOptions.AffectsLayout,
-            static (self, oldValue, newValue) => self.OnChildChanged(oldValue, newValue));
-
-    private void OnChildChanged(UIElement? oldValue, UIElement? newValue)
-    {
-        if (oldValue != null) DetachChild(oldValue);
-        if (newValue != null) AttachChild(newValue);
-    }
-
-    public static readonly MewProperty<double> TranslateXProperty =
-        MewProperty<double>.Register<TransformBox>(nameof(TranslateX), 0.0, MewPropertyOptions.AffectsRender);
-
-    public static readonly MewProperty<double> TranslateYProperty =
-        MewProperty<double>.Register<TransformBox>(nameof(TranslateY), 0.0, MewPropertyOptions.AffectsRender);
-
-    public static readonly MewProperty<double> RotationDegreesProperty =
-        MewProperty<double>.Register<TransformBox>(nameof(RotationDegrees), 0.0, MewPropertyOptions.AffectsRender);
-
-    public static readonly MewProperty<double> ScaleXProperty =
-        MewProperty<double>.Register<TransformBox>(nameof(ScaleX), 1.0, MewPropertyOptions.AffectsRender);
-
-    public static readonly MewProperty<double> ScaleYProperty =
-        MewProperty<double>.Register<TransformBox>(nameof(ScaleY), 1.0, MewPropertyOptions.AffectsRender);
-
-    public static readonly MewProperty<double> OriginXProperty =
-        MewProperty<double>.Register<TransformBox>(nameof(OriginX), 0.5, MewPropertyOptions.AffectsRender);
-
-    public static readonly MewProperty<double> OriginYProperty =
-        MewProperty<double>.Register<TransformBox>(nameof(OriginY), 0.5, MewPropertyOptions.AffectsRender);
-
-    public UIElement? Child
-    {
-        get => GetValue(ChildProperty);
-        set => SetValue(ChildProperty, value);
-    }
-
-    public double TranslateX
-    {
-        get => GetValue(TranslateXProperty);
-        set => SetValue(TranslateXProperty, value);
-    }
-
-    public double TranslateY
-    {
-        get => GetValue(TranslateYProperty);
-        set => SetValue(TranslateYProperty, value);
-    }
-
-    public double RotationDegrees
-    {
-        get => GetValue(RotationDegreesProperty);
-        set => SetValue(RotationDegreesProperty, value);
-    }
-
-    public double ScaleX
-    {
-        get => GetValue(ScaleXProperty);
-        set => SetValue(ScaleXProperty, value);
-    }
-
-    public double ScaleY
-    {
-        get => GetValue(ScaleYProperty);
-        set => SetValue(ScaleYProperty, value);
-    }
-
-    public double OriginX
-    {
-        get => GetValue(OriginXProperty);
-        set => SetValue(OriginXProperty, value);
-    }
-
-    public double OriginY
-    {
-        get => GetValue(OriginYProperty);
-        set => SetValue(OriginYProperty, value);
-    }
-
-    protected override Size MeasureContent(Size availableSize)
-    {
-        var child = Child;
-        if (child == null) return Size.Empty;
-        child.Measure(availableSize);
-        return child.DesiredSize;
-    }
-
-    protected override void ArrangeContent(Rect bounds)
-    {
-        Child?.Arrange(bounds);
-    }
-
-    protected override UIElement? OnHitTest(Point point)
-    {
-        if (!IsVisible || !IsHitTestVisible) return null;
-
-        if (Child?.HitTest(point) is UIElement hit)
+        // --- Zoom & Pan Canvas ---
+        void OpenZoomPanWindow()
         {
-            return hit;
+            var soonduk = ImageSource.FromFile(CombineBaseDirectory("Resources", "soonduk.jpg"));
+            var image = new Image()
+                .StretchMode(Stretch.None)
+                .ImageScaleQuality(ImageScaleQuality.HighQuality)
+                .Source(soonduk);
+
+            var canvas = new ZoomPanCanvas { Child = image, CenterContent = true };
+
+            var scrollViewer = new ScrollViewer()
+                .Padding(0)
+                .HorizontalScroll(ScrollMode.Auto)
+                .VerticalScroll(ScrollMode.Auto);
+            scrollViewer.Content = canvas;
+
+            double logRatio = Math.Log(ZoomPanCanvas.MaxZoom / ZoomPanCanvas.MinZoom);
+            var slider = new Slider().Width(150)
+                .CenterVertical()
+                .Range(0, 1)
+                .SmallChange(0.01)
+                .Value(Math.Log(1.0 / ZoomPanCanvas.MinZoom) / logRatio)
+                .Bind(Slider.ValueProperty, canvas, ZoomPanCanvas.ZoomProperty,
+                    zoom => Math.Log(zoom / ZoomPanCanvas.MinZoom) / logRatio,
+                    t => ZoomPanCanvas.MinZoom * Math.Exp(t * logRatio));
+
+            var zoomLabel = new TextBlock()
+                .Text("100%")
+                .CenterVertical()
+                .Width(70);
+
+            canvas.ZoomChanged += zoom => zoomLabel.Text = $"{zoom * 100:0}%";
+
+            var resetButton = new Button()
+                .Content("Reset")
+                .Width(70)
+                .OnClick(() => canvas.AnimateZoomWithViewCenter(scrollViewer, 1.0));
+
+            var fitButton = new Button()
+                .Content("Fit")
+                .Width(70)
+                .OnClick(() =>
+                {
+                    var viewportW = scrollViewer.ViewportWidth;
+                    var viewportH = scrollViewer.ViewportHeight;
+                    if (viewportW <= 0 || viewportH <= 0) return;
+
+                    var childSize = canvas.ChildNaturalSize;
+                    if (childSize.Width <= 0 || childSize.Height <= 0) return;
+
+                    var fitZoom = Math.Min(viewportW / childSize.Width, viewportH / childSize.Height);
+                    canvas.AnimateZoomWithViewCenter(scrollViewer, Math.Clamp(fitZoom, ZoomPanCanvas.MinZoom, ZoomPanCanvas.MaxZoom));
+                });
+
+            var toolbar = new StackPanel()
+                .Horizontal()
+                .Spacing(8)
+                .Margin(new Thickness(8))
+                .Children(
+                    new TextBlock().Text("Zoom:").CenterVertical(),
+                    slider,
+                    zoomLabel,
+                    resetButton,
+                    fitButton,
+                    new CheckBox()
+                        .Content("Center")
+                        .Check()
+                        .CenterVertical()
+                        .OnCheckedChanged(isChecked => canvas.CenterContent = isChecked),
+                    new TextBlock()
+                        .Text("Wheel to zoom, Drag or Scrollbar to pan")
+                        .Foreground(Color.FromRgb(120, 120, 120))
+                        .CenterVertical()
+                );
+
+            new Window()
+                .Resizable(900, 650)
+                .Title("Zoom & Pan Canvas")
+                .Content(new DockPanel()
+                    .Children(
+                        toolbar.DockTop(),
+                        scrollViewer
+                    ))
+                .Show(window);
         }
-
-        return Bounds.Contains(point) ? this : null;
-    }
-
-    private Matrix3x2 BuildTransformMatrix()
-    {
-        var bounds = Bounds;
-        float cx = (float)(bounds.X + bounds.Width * OriginX);
-        float cy = (float)(bounds.Y + bounds.Height * OriginY);
-
-        var matrix = Matrix3x2.CreateTranslation(-cx, -cy);
-
-        var sx = ScaleX;
-        var sy = ScaleY;
-        if (sx != 1.0 || sy != 1.0)
-            matrix *= Matrix3x2.CreateScale((float)sx, (float)sy);
-
-        var rotation = RotationDegrees;
-        if (rotation != 0)
-            matrix *= Matrix3x2.CreateRotation((float)(rotation * (Math.PI / 180.0)));
-
-        matrix *= Matrix3x2.CreateTranslation(cx + (float)TranslateX, cy + (float)TranslateY);
-
-        return matrix;
-    }
-
-    protected override void RenderSubtree(IGraphicsContext context)
-    {
-        var child = Child;
-        if (child == null) return;
-
-        bool hasTransform = TranslateX != 0 || TranslateY != 0
-            || RotationDegrees != 0
-            || ScaleX != 1.0 || ScaleY != 1.0;
-
-        if (!hasTransform)
-        {
-            child.Render(context);
-            return;
-        }
-
-        var current = context.GetTransform();
-        var combined = BuildTransformMatrix() * current;
-
-        context.Save();
-        context.SetTransform(combined);
-        child.Render(context);
-        context.Restore();
-    }
-
-    bool IVisualTreeHost.VisitChildren(Func<Element, bool> visitor)
-        => Child == null || visitor(Child);
-}
-
-file static class TransformBoxExtensions
-{
-    public static TransformBox Child(this TransformBox box, UIElement? child)
-    {
-        box.Child = child;
-        return box;
     }
 }
