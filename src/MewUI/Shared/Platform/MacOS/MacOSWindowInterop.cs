@@ -2169,8 +2169,6 @@ internal static unsafe class MacOSWindowInterop
     [UnmanagedCallersOnly]
     private static byte MewUIWindow_canBecomeMainWindow(nint self, nint sel) => 1;
 
-    // MewUIWindow_miniaturize override no longer needed — TransparentStyleMask includes Miniaturizable.
-
     [UnmanagedCallersOnly]
     private static byte MewUIWindowDelegate_windowShouldClose(nint self, nint sel, nint sender)
     {

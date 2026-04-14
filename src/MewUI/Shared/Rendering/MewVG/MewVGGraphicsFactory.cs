@@ -103,6 +103,13 @@ public sealed partial class MewVGGraphicsFactory : IGraphicsFactory, IWindowReso
         throw new NotSupportedException("MewVG backend does not support bitmap render targets on this platform.");
     }
 
+    public void Dispose()
+    {
+        foreach (var (_, resources) in _windows)
+            resources.Dispose();
+        _windows.Clear();
+    }
+
     public void ReleaseWindowResources(nint hwnd)
     {
         if (hwnd == 0)

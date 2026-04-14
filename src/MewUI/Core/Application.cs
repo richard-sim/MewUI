@@ -335,6 +335,12 @@ public sealed class Application
         PlatformHost.Run(this, mainWindow);
         _current = null;
 
+        _defaultGraphicsFactoryOverride?.Dispose();
+        _defaultGraphicsFactoryOverride = null;
+
+        _defaultPlatformHostOverride?.Dispose();
+        _defaultPlatformHostOverride = null;
+
         var fatal = Interlocked.Exchange(ref _pendingFatalException, null);
         if (fatal != null)
         {

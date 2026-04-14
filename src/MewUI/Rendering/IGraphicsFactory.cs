@@ -8,7 +8,7 @@ namespace Aprillz.MewUI.Rendering;
 /// Factory interface for creating graphics resources.
 /// Allows different graphics backends to be plugged in.
 /// </summary>
-public interface IGraphicsFactory   
+public interface IGraphicsFactory : IDisposable
 {
     /// <summary>
     /// Identifies which built-in backend this factory represents.

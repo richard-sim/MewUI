@@ -12,7 +12,7 @@ namespace Aprillz.MewUI.Rendering.Gdi;
 /// <summary>
 /// GDI+ graphics factory implementation.
 /// </summary>
-public sealed class GdiGraphicsFactory : IGraphicsFactory, IWindowResourceReleaser, IWindowSurfacePresenter
+public sealed class GdiGraphicsFactory : IGraphicsFactory, IWindowResourceReleaser, IWindowSurfacePresenter, IDisposable
 {
     public GraphicsBackend Backend => GraphicsBackend.Gdi;
 
@@ -157,6 +157,20 @@ public sealed class GdiGraphicsFactory : IGraphicsFactory, IWindowResourceReleas
 
     public IBitmapRenderTarget CreateBitmapRenderTarget(int pixelWidth, int pixelHeight, double dpiScale = 1.0)
         => new GdiBitmapRenderTarget(pixelWidth, pixelHeight, dpiScale);
+
+    public void Dispose()
+    {
+        lock (_layeredLock)
+        {
+            foreach (var (_, layered) in _layeredTargets)
+                layered.Dispose();
+            _layeredTargets.Clear();
+
+            foreach (var (_, staging) in _layeredStagingTargets)
+                staging.Dispose();
+            _layeredStagingTargets.Clear();
+        }
+    }
 
     public void ReleaseWindowResources(nint hwnd)
     {

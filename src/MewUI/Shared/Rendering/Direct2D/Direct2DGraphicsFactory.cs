@@ -64,6 +64,10 @@ public sealed unsafe class Direct2DGraphicsFactory : IGraphicsFactory, IWindowRe
 
         TextFormatCache.ReleaseAll();
 
+        foreach (var (_, col) in _privateFontCollections)
+            ComHelpers.Release(col);
+        _privateFontCollections.Clear();
+
         ComHelpers.Release(_defaultFixedStrokeStyle);
         _defaultFixedStrokeStyle = 0;
         ComHelpers.Release(_dwriteFactory);
