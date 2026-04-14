@@ -2647,6 +2647,21 @@ public static class ControlExtensions
     #region RangeBase
 
     /// <summary>
+    /// Sets the value range.
+    /// </summary>
+    /// <typeparam name="T">RangeBase type.</typeparam>
+    /// <param name="rangeBase">Target range-based control.</param>
+    /// <param name="minimum">Minimum value.</param>
+    /// <param name="maximum">Maximum value.</param>
+    /// <returns>The control for chaining.</returns>
+    public static T Range<T>(this T rangeBase, double minimum, double maximum) where T : RangeBase
+    {
+        rangeBase.Minimum = minimum;
+        rangeBase.Maximum = maximum;
+        return rangeBase;
+    }
+
+    /// <summary>
     /// Sets the minimum value.
     /// </summary>
     /// <typeparam name="T">RangeBase type.</typeparam>
