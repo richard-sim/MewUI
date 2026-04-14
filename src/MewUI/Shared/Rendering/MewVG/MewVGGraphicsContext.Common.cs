@@ -20,7 +20,6 @@ internal sealed partial class MewVGWin32GraphicsContext : GraphicsContextBase
     private NanoVGGL _vg;
 #endif
 
-    private readonly ClipStack _clip = new();
     private readonly Stack<(Rect? clipBoundsWorld, float globalAlpha, Matrix3x2 transform, bool textPixelSnap)> _saveStack = new();
     private float _globalAlpha = 1f;
     private bool _textPixelSnap = true;
@@ -53,14 +52,12 @@ internal sealed partial class MewVGWin32GraphicsContext : GraphicsContextBase
     protected override void SaveCore()
     {
         _vg.Save();
-        _clip.Save();
         _saveStack.Push((_clipBoundsWorld, _globalAlpha, _transform, _textPixelSnap));
     }
 
     protected override void RestoreCore()
     {
         _vg.Restore();
-        _clip.Restore();
         if (_saveStack.Count > 0)
         {
             var state = _saveStack.Pop();
@@ -77,18 +74,11 @@ internal sealed partial class MewVGWin32GraphicsContext : GraphicsContextBase
         var worldClip = TransformRectToWorldAABB(rect);
         _clipBoundsWorld = IntersectClipBounds(_clipBoundsWorld, worldClip);
 
-        // Apply scissor in world space with identity transform so that
-        // NanoVG's IntersectScissor AABB approximation is exact (no rotation
-        // in the coordinate conversion). Without this, clips set under a
-        // rotated/scaled transform produce an inflated AABB that lets content
-        // overflow.
+        // _clipBoundsWorld already holds the cumulative world-space intersection,
+        // so always use Scissor (not IntersectScissor) with identity transform.
         var clip = _clipBoundsWorld.Value;
         _vg.SetTransformMatrix(Matrix3x2.Identity);
-        _clip.Apply(
-            clip,
-            r => _vg.Scissor((float)r.X, (float)r.Y, (float)r.Width, (float)r.Height),
-            r => _vg.IntersectScissor((float)r.X, (float)r.Y, (float)r.Width, (float)r.Height),
-            () => _vg.ResetScissor());
+        _vg.Scissor((float)clip.X, (float)clip.Y, (float)clip.Width, (float)clip.Height);
         _vg.SetTransformMatrix(_transform);
     }
 
@@ -105,11 +95,7 @@ internal sealed partial class MewVGWin32GraphicsContext : GraphicsContextBase
 
         var clip = _clipBoundsWorld.Value;
         _vg.SetTransformMatrix(Matrix3x2.Identity);
-        _clip.Apply(
-            clip,
-            r => _vg.Scissor((float)r.X, (float)r.Y, (float)r.Width, (float)r.Height),
-            r => _vg.IntersectScissor((float)r.X, (float)r.Y, (float)r.Width, (float)r.Height),
-            () => _vg.ResetScissor());
+        _vg.Scissor((float)clip.X, (float)clip.Y, (float)clip.Width, (float)clip.Height);
         _vg.SetTransformMatrix(_transform);
 
         float radius = (float)Math.Max(0, Math.Min(radiusX, radiusY));
@@ -171,7 +157,6 @@ internal sealed partial class MewVGWin32GraphicsContext : GraphicsContextBase
     protected override void ResetClipCore()
     {
         _clipBoundsWorld = null;
-        _clip.Reset();
         _vg.ResetScissor();
     }
 
