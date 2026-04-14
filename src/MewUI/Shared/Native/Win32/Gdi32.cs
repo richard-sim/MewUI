@@ -316,6 +316,9 @@ internal static partial class Gdi32
     [LibraryImport(LibraryName)]
     public static partial int ExcludeClipRect(nint hdc, int left, int top, int right, int bottom);
 
+    [LibraryImport(LibraryName)]
+    public static partial int GetClipBox(nint hdc, out RECT lprc);
+
     /// <summary>Returns non-zero if any part of the rect lies within the current clip region.</summary>
     [LibraryImport(LibraryName)]
     public static partial int RectVisible(nint hdc, ref RECT lprc);

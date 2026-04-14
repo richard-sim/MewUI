@@ -1499,9 +1499,13 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
             int srcW = (int)sourceRect.Width;
             int srcH = (int)sourceRect.Height;
 
-            if (effective == ImageScaleQuality.Fast)
+            // Large upscales (dest >> src) are expensive to resample — fall back to
+            // GDI stretch which is hardware-accelerated and handles its own clipping.
+            const int MaxResamplePixels = 2048 * 2048;
+            if (effective == ImageScaleQuality.Fast ||
+                ((long)destPx.Width * destPx.Height > MaxResamplePixels && destPx.Width > srcW && destPx.Height > srcH))
             {
-                // Nearest: rely on GDI stretch + alpha blend (COLORONCOLOR).
+                // Nearest / large-upscale fallback: rely on GDI stretch + alpha blend (COLORONCOLOR).
                 int oldStretchMode = Gdi32.SetStretchBltMode(Hdc, GdiConstants.COLORONCOLOR);
                 try
                 {
