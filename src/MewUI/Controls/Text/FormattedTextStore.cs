@@ -19,9 +19,20 @@ internal sealed class FormattedTextStore
     public TextLayout? Layout => _renderLayout;
     public Size MeasuredSize => _measuredSize;
 
+    /// <summary>
+    /// Invalidates everything including format. Use when font, alignment, wrapping, or trimming changes.
+    /// </summary>
     public void Invalidate()
     {
         _format = null;
+        InvalidateLayout();
+    }
+
+    /// <summary>
+    /// Invalidates layout only, keeping the current format. Use when only text content changes.
+    /// </summary>
+    public void InvalidateLayout()
+    {
         _renderLayout = null;
         _measuredSize = Size.Empty;
         _renderWidth = 0;

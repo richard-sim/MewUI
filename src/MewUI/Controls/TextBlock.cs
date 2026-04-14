@@ -47,7 +47,7 @@ public partial class TextBlock : FrameworkElement, IDisposable
     {
         InvalidateTextMeasure();
         _lastWrapMeasureWidth = null;
-        _textStore.Invalidate();
+        _textStore.InvalidateLayout();
     }
 
     private uint _lastFontDpi;
