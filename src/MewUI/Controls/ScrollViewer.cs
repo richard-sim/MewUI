@@ -38,10 +38,11 @@ public sealed class ScrollViewer : ContentControl
     private Size _lastNotifiedExtent = Size.Empty;
     private Size _lastNotifiedViewport = Size.Empty;
     private Point _lastNotifiedOffset = new(double.NaN, double.NaN);
-/// <summary>
+
+    /// <summary>
     /// Raised when scroll metrics or offsets change.
     /// </summary>
-    public event Action? ScrollChanged; 
+    public event Action? ScrollChanged;
 
     /// <summary>
     /// Gets or sets the vertical scrollbar mode.
@@ -182,7 +183,7 @@ public sealed class ScrollViewer : ContentControl
         }
 
         return true;
-    } 
+    }
 
     /// <summary>
     /// Initializes a new instance of the ScrollViewer class.

@@ -73,9 +73,9 @@ partial class GalleryView : UserControl
                 Section("Layout", LayoutPage()),
                 Section("Typography", TypographyPage()),
                 Section("Media", MediaPage()),
+                Section("Transform", TransformPage()),
                 Section("Shapes", ShapesPage()),
                 Section("Icons", IconsPage()),
-                Section("Transform", TransformPage()),
                 Section("Transitions", TransitionsPage()),
                 Section("Overlay", OverlayPage())
             );
