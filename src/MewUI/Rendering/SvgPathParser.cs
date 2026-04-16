@@ -19,6 +19,9 @@ internal static class SvgPathParser
         double lastQpX = 0, lastQpY = 0; // last quad control point
         char prevCmd = '\0';
 
+        // Starting point of current sub-path for handling Z command.
+        double startX = 0, startY = 0;
+
         // Current point for relative commands.
         double cx = 0, cy = 0;
 
@@ -53,6 +56,7 @@ internal static class SvgPathParser
                     if (isRelative) { x += cx; y += cy; }
                     geometry.MoveTo(x, y);
                     cx = x; cy = y;
+                    startX = x; startY = y;
                     // After M, implicit repeats become L/l per SVG spec.
                     cmd = isRelative ? 'l' : 'L';
                     ResetSmooth(ref prevCmd);
@@ -181,6 +185,8 @@ internal static class SvgPathParser
                     // We need to track it here too for relative commands.
                     // PathGeometry tracks _startX/_startY internally; we approximate by
                     // noting that subsequent M will reset cx/cy.
+                    cx = startX;
+                    cy = startY;
                     ResetSmooth(ref prevCmd);
                     break;
                 }
